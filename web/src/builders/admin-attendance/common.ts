@@ -48,3 +48,5 @@ export const shiftLine = (idx?, code?) => {
   const s = idx.get(code);
   return s ? `${s.name} ${s.in}–${s.out}` : '';
 };
+/** Số phút trễ trong ghi chú trạng thái 'Vào trễ N phút' (0 nếu không có). */
+export const lateMinOf = (note?) => Number((/Vào trễ (\d+)/.exec(note || '') || [])[1]) || 0;

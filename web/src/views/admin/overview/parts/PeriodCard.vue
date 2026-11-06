@@ -75,8 +75,7 @@ const slips = computed(() =>
       </div>
       <ul class="counts" aria-label="Phiếu lương theo trạng thái">
         <li v-for="s in slips" :key="s.key">
-          <i class="sw" :class="`st-${s.key}`" /><span>{{ s.label }}</span
-          ><b>{{ s.count }}</b>
+          <i class="dot" :class="`st-${s.key}`" /><b>{{ s.count }}</b> <span>{{ s.label }}</span>
         </li>
       </ul>
     </div>
@@ -211,23 +210,40 @@ ul {
   height: 100%;
   min-width: 4px;
 }
+/* Chú thích: 4 mục luôn một hàng, mục đầu sát mép trái thanh, mục cuối sát mép phải.
+   Mỗi mục: chấm màu + số ở trên, nhãn ở dưới, nên thẻ hẹp (3 cột ở ~1300px) vẫn đủ chỗ. */
 .counts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px 16px;
+  grid-template-columns: repeat(4, max-content);
+  justify-content: space-between;
+  column-gap: 12px;
   font-size: 12px;
+  line-height: 16px;
   color: var(--muted);
 }
 .counts li {
-  display: flex;
+  display: grid;
+  /* Cột chấm cố định 8px: nhãn dài phía dưới chỉ nới cột số, chấm luôn sát số. */
+  grid-template-columns: 8px auto;
+  justify-content: start;
   align-items: center;
-  gap: 6px;
+  column-gap: 6px;
+}
+.counts .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 .counts b {
-  margin-left: auto;
   font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+}
+.counts span {
+  grid-column: 1 / -1;
+  white-space: nowrap;
 }
 @media (max-width: 480px) {
   .pd {

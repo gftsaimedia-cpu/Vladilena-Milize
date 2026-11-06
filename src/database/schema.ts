@@ -390,6 +390,17 @@ export interface StaffTable {
   shift_allowance_pct: Generated<number>;
   leave_total_days: Generated<number>;
   leave_used_days: Generated<number>;
+  department_id: Generated<number | null>;
+  on_leave_from: Generated<string | null>;
+  on_leave_to: Generated<string | null>;
+}
+
+export interface DepartmentsTable {
+  id: Generated<number>;
+  name: string;
+  sort: Generated<number>;
+  updated_by: string;
+  updated_at: string;
 }
 
 export interface StaffRolesTable {
@@ -431,6 +442,10 @@ export interface SystemRequestsTable {
   actual_check_out: Generated<string | null>;
   change_start_date: Generated<string | null>;
   change_end_date: Generated<string | null>;
+  half_shift_date: Generated<string | null>;
+  half_shift_half: Generated<string | null>;
+  half_start_time: Generated<string | null>;
+  half_end_time: Generated<string | null>;
 }
 
 export interface TimesheetEntriesTable {
@@ -459,11 +474,13 @@ export interface TimesheetEntriesTable {
   cases_json: Generated<string>;
   explanation_status: Generated<string>;
   explanation_request_id: Generated<string | null>;
+  half_shift: Generated<string | null>;
   pay_units: Generated<number>;
   deduction_minutes: Generated<number>;
   counts_as_workday: Generated<boolean>;
   counts_as_day_off: Generated<boolean>;
   makeup_minutes: Generated<number>;
+  makeup_credit_minutes: Generated<number>;
   created_at: Date;
   updated_at: Date;
 }
@@ -524,6 +541,7 @@ export interface Schema {
   settings: SettingsTable;
   settings_changes: SettingsChangesTable;
   slip_overrides: SlipOverridesTable;
+  departments: DepartmentsTable;
   staff: StaffTable;
   staff_roles: StaffRolesTable;
   staff_work_weeks: StaffWorkWeeksTable;

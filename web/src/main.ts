@@ -27,7 +27,7 @@ onUnauthorized(() => {
   session.clear();
   const from = router.currentRoute.value.fullPath;
   router
-    .replace({ path: LOGIN_PATH, query: { phien: 'het', ...(from && from !== '/' && !from.startsWith(LOGIN_PATH) ? { tiep: from } : {}) } })
+    .replace({ path: LOGIN_PATH, query: from && from !== '/' && !from.startsWith(LOGIN_PATH) ? { tiep: from } : {} })
     .finally(() => {
       leaving = false;
     });

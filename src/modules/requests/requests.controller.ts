@@ -1,7 +1,8 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject, Optional } from '@nestjs/common';
 import { RequestIdPipe } from './request-id.pipe';
-import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
+import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, CurrentUser, UserSession, RequireCap, requireBulkIds, requireBulkItems } from '../../common';
 import { AuditEntryError } from '../audit';
+import { StaffDirectory, isNeutralStaffFilter, staffFilterFromQuery, type EmployeeBlock } from '../departments';
 import { RequestsService } from './requests.service';
 import { ExplanationsService, type DueItem } from './explanations.service';
 import { createdBody, dayConflictHttp } from './request-http';
@@ -19,8 +20,15 @@ function requireEmployeeId(body: any): string {
 export class RequestsController {
   constructor(
     @Inject(RequestsService) private readonly service: RequestsService,
-    @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService
+    @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService,
+    // Bắt buộc khi chạy thật (Nest tiêm); kiểu TS tuỳ chọn để test dựng tay các route không cần nó.
+    @Inject(StaffDirectory) private readonly directory?: StaffDirectory
   ) {}
+
+  private staffDirectory(): StaffDirectory {
+    if (!this.directory) throw new Error('StaffDirectory chưa được cấu hình');
+    return this.directory;
+  }
 
   private explanationsService(): ExplanationsService {
     if (!this.explanations) throw new Error('ExplanationsService chưa được cấu hình');
@@ -152,6 +160,24 @@ export class RequestsController {
     }
   }
 
+  @RequireCap('requests.review')
+  @Post('half-shift-leave')
+  async createHalfShiftLeave(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
+    try {
+      const employeeId = requireEmployeeId(body);
+      const created = await this.service.createHalfShiftLeaveRequest({
+        employeeId,
+        date: body.date,
+        half: body.half,
+        reason: body.reason,
+        title: body.title
+      });
+      return createdBody(created);
+    } catch (err: any) {
+      throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+    }
+  }
+
   // Phải khai báo trước @Get(':id') để 'isat' không bị bắt làm id
   @RequireCap('requests.review')
   @Get('isat/conditions')
@@ -176,10 +202,19 @@ export class RequestsController {
   // Ngày cần giải trình của mọi nhân sự (chuông của Admin); khai báo trước @Get(':id') để 'explanations-due' không bị bắt làm id
   @RequireCap('requests.review')
   @Get('explanations-due')
-  async listExplanationsDue(): Promise<{ items: DueItem[] }> {
+  async listExplanationsDue(
+    @Query('staffStatus') staffStatus?: string,
+    @Query('departmentId') departmentId?: string,
+    @Query('q') q?: string
+  ): Promise<{ items: Array<DueItem & { employee: EmployeeBlock | null }> }> {
+    const filter = staffFilterFromQuery({ staffStatus, departmentId, q });
     try {
-      return { items: await this.explanationsService().listDue() };
+      const people = await this.staffDirectory().find(filter);
+      const items = await this.explanationsService().listDue(isNeutralStaffFilter(filter) ? {} : { onlyIds: people.map(p => p.id) });
+      const byId = new Map(people.map(p => [p.id, p]));
+      return { items: items.map(item => ({ ...item, employee: byId.get(item.employeeId) ?? null })) };
     } catch (err: any) {
+      if (err instanceof HttpError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
@@ -200,6 +235,19 @@ export class RequestsController {
     }
   }
 
+  // Nhắc nhiều (người, ngày) một lúc: 200 { done, failed }; phần tử lỗi (kỳ đã khoá → PERIOD_LOCKED...) không kéo phần tử khác.
+  @RequireCap('requests.review')
+  @Post('explanations-due/remind-many')
+  async remindExplanationMany(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
+    const items = requireBulkItems<{ employeeId: string; date: string }>(body?.items, item => {
+      const employeeId = typeof item.employeeId === 'string' ? item.employeeId.trim() : '';
+      const date = typeof item.date === 'string' ? item.date : '';
+      if (!employeeId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+      return `${employeeId}|${date}`;
+    }).map(item => ({ employeeId: item.employeeId.trim(), date: item.date }));
+    return await this.explanationsService().remindMany(items, user.username);
+  }
+
   @RequireCap('requests.review')
   @Get()
   async listRequests(
@@ -207,13 +255,36 @@ export class RequestsController {
     @Query('type') type?: RequestType,
     @Query('status') status?: RequestStatus,
     @Query('limit') limitStr?: string,
-    @Query('offset') offsetStr?: string
+    @Query('offset') offsetStr?: string,
+    @Query('staffStatus') staffStatus?: string,
+    @Query('departmentId') departmentId?: string,
+    @Query('q') q?: string,
+    @Query('sort') sort?: string
   ): Promise<unknown> {
+    const filter = staffFilterFromQuery({ staffStatus, departmentId, q });
+    if (sort !== undefined && sort !== '' && sort !== 'inbox') {
+      throw new BadRequestError('sort chỉ nhận inbox', { code: 'INVALID_SORT' });
+    }
     try {
       const limit = limitStr ? Number(limitStr) : undefined;
       const offset = offsetStr ? Number(offsetStr) : undefined;
-      return await this.service.listRequests({ employeeId, type, status, limit, offset });
+      const people = await this.staffDirectory().find(filter);
+      // Bộ lọc không loại ai thì không giới hạn nhân sự (giữ cả đơn của người không còn trong bảng nhân sự).
+      const staffIds = isNeutralStaffFilter(filter) ? undefined : StaffDirectory.idsOf(people);
+      const result = await this.service.listRequests({
+        employeeId,
+        type,
+        status,
+        limit,
+        offset,
+        staffIds,
+        sort: sort === 'inbox' ? 'inbox' : undefined,
+        withCounts: true
+      });
+      const byId = new Map(people.map(p => [p.id, p]));
+      return { ...result, items: result.items.map(item => ({ ...item, employee: byId.get(item.employeeId) ?? null })) };
     } catch (err: any) {
+      if (err instanceof HttpError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
@@ -250,6 +321,23 @@ export class RequestsController {
       }
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
+  }
+
+  // Duyệt nhiều đơn một lúc, chỉ APPROVE (mỗi đơn từ chối cần lý do riêng). Duyệt tuần tự theo thứ tự `ids`; đơn lỗi vào
+  // `failed`; phiếu lương của mỗi người tính lại một lần ở mỗi tháng đang `calculated` (trong `recalculated`).
+  @RequireCap('requests.review')
+  @Post('review-many')
+  async reviewMany(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
+    if (body?.action === 'REJECT') {
+      throw new BadRequestError('Từ chối cần lý do riêng cho từng đơn, không từ chối nhiều đơn một lúc', {
+        code: 'BULK_REJECT_NOT_ALLOWED'
+      });
+    }
+    if (body?.action !== 'APPROVE') {
+      throw new BadRequestError('action phải là APPROVE', { code: 'BAD_REQUEST' });
+    }
+    const ids = requireBulkIds(body?.ids);
+    return await this.service.approveMany(ids, user.username);
   }
 
   @RequireCap('requests.review')

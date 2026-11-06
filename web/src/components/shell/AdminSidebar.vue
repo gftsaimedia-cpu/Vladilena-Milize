@@ -13,7 +13,9 @@ defineProps({
   mobileOpen: { type: Boolean, default: false },
   mobileInert: { type: Boolean, default: false },
   active: { type: String, default: '' },
-  me: { type: Object as () => any, default: () => ({}) }
+  me: { type: Object as () => any, default: () => ({}) },
+  /** Số cam cạnh một mục, theo khoá meta.nav (vd. số đơn chờ duyệt của Yêu cầu). */
+  counts: { type: Object as () => Record<string, number>, default: () => ({}) }
 });
 const emit = defineEmits(['open-menu', 'navigate']);
 const ui = useUiStore();
@@ -49,6 +51,7 @@ const groups = computed(() => ADMIN_SIDEBAR_GROUPS);
             >
               <Icon :name="icon" :size="20" />
               <span>{{ label }}</span>
+              <span v-if="counts[key]" class="ct" :aria-label="`${counts[key]} chờ duyệt`">{{ counts[key] }}</span>
             </RouterLink>
             <div v-else class="item" aria-disabled="true">
               <Icon :name="icon" :size="20" />

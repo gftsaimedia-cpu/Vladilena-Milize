@@ -8,8 +8,7 @@ import Icon from '@/components/ui/Icon.vue';
 import { usePeriodStore } from '@/stores/period';
 import { useRealtimeStore } from '@/stores/realtime';
 
-// `bell` null = không đọc được số việc chờ: hiện dấu ? thay vì 0.
-defineProps<{ bell: number | null }>();
+defineProps({ bell: { type: Number, default: 0 } });
 defineEmits(['open-bell']);
 const period = usePeriodStore();
 const realtime = useRealtimeStore();
@@ -54,10 +53,9 @@ function search() {
       </button>
     </div>
     <span class="rt" :class="realtime.status" role="img" :aria-label="LIVE_TEXT[realtime.status]" :title="LIVE_TEXT[realtime.status]" />
-    <button type="button" class="bell" :aria-label="bell === null ? 'Thông báo, không rõ số việc cần xử lý' : `Thông báo, ${bell} việc cần xử lý`" @click="$emit('open-bell')">
+    <button type="button" class="bell" :aria-label="`Thông báo, ${bell} việc cần xử lý`" @click="$emit('open-bell')">
       <Icon name="bell" :size="18" />
-      <i v-if="bell === null" title="Không tải được số việc chờ">?</i>
-      <i v-else-if="bell">{{ bell }}</i>
+      <i v-if="bell">{{ bell }}</i>
     </button>
   </header>
 </template>

@@ -2,7 +2,6 @@
 // Tổng quan (tong-quan) trên dữ liệu giả: chỉ số chính, chấm công, kỳ lương, việc cần duyệt, bảng lương.
 // Duyệt / từ chối: useShellStore().decide bỏ việc khỏi nguồn chung và tăng version, màn tự tải lại, rồi báo bằng toast.
 import { useRoute } from 'vue-router';
-import PageLoadError from '@/components/shell/PageLoadError.vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -21,7 +20,7 @@ const route = useRoute();
 const linkTo = (path: string) => ({ path, query: route.query.thang ? { thang: route.query.thang } : {} });
 const period = usePeriodStore();
 const shell = useShellStore();
-const { data, error, reload } = useLoad(
+const { data, reload } = useLoad(
   () => getOverview(period.month),
   () => `${period.month}|${shell.version}`
 );
@@ -32,13 +31,9 @@ async function decide(id: string, approve: boolean) {
   if (deciding.has(id)) return;
   deciding.add(id);
   try {
-    // Tên người nộp lấy từ danh sách đang hiện: lần đọc chuông chưa có thì kết quả của BE chỉ có mã đơn.
-    const shown = data.value?.approvals.items.find(i => i.id === id)?.name;
     const hit = await shell.decide(id, approve ? 'approve' : 'reject');
-    if (hit) toast.ok(decisionText(approve ? 'approve' : 'reject', shown || hit.name));
+    if (hit) toast.ok(decisionText(approve ? 'approve' : 'reject', hit.name));
     else toast.error(ALREADY_HANDLED);
-  } catch {
-    /* máy chủ từ chối hoặc mạng rớt: resolveRequest đã hiện thông báo */
   } finally {
     deciding.delete(id);
   }
@@ -46,8 +41,7 @@ async function decide(id: string, approve: boolean) {
 </script>
 
 <template>
-  <PageLoadError v-if="error" what="tổng quan" :error="error" @retry="reload" />
-  <div v-else-if="data">
+  <div v-if="data">
     <div class="title">
       <div>
         <h1>Tổng quan</h1>

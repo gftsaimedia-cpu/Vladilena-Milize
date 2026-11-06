@@ -178,7 +178,43 @@ describe('AttendanceDaysRepository trên PostgreSQL', () => {
       const repo = new AttendanceDaysRepository(db);
       await repo.upsertDays([presentDay()], NOW);
       await assert.rejects(client.query(`UPDATE timesheet_entries SET status = 'FOO'`), /check constraint/);
-      await assert.rejects(client.query(`UPDATE timesheet_entries SET pay_units = 0.5`), /check constraint/);
+      await assert.rejects(client.query(`UPDATE timesheet_entries SET pay_units = 0.7`), /check constraint/);
+    });
+  });
+
+  it('makeup_credit_minutes round-trips through upsert, update and the admin DTO (FP6)', async t => {
+    await withTempDb(t, 'att_days_credit', async (db, client) => {
+      await seed(client);
+      const repo = new AttendanceDaysRepository(db);
+      const sunday = '2026-11-08';
+      const lateAtWindow = (status: 'APPROVED' | 'NONE') =>
+        buildDay(
+          NV,
+          sources({
+            date: sunday,
+            punches: [
+              { type: 'IN', at: vnInstant(sunday, '18:30') },
+              { type: 'OUT', at: vnInstant(sunday, '22:00') }
+            ],
+            makeupWindows: [{ start: '18:00', end: '22:00' }],
+            explanation: status === 'APPROVED' ? { requestId: REQ, status, checkIn: null, checkOut: null } : null
+          })
+        );
+      const approvedRow = lateAtWindow('APPROVED');
+      assert.deepEqual([approvedRow.makeupMinutes, approvedRow.makeupCreditMinutes], [210, 240]);
+
+      await repo.upsertDays([approvedRow], NOW);
+      const raw = await client.query(`SELECT makeup_minutes, makeup_credit_minutes FROM timesheet_entries`);
+      assert.deepEqual([raw.rows[0].makeup_minutes, raw.rows[0].makeup_credit_minutes], [210, 240]);
+      const listed = await repo.listDays(NV, sunday, sunday);
+      assert.deepEqual([listed[0].makeupMinutes, listed[0].makeupCreditMinutes], [210, 240]);
+      const dto = (await new AttendanceRepository(db).findTimesheet(NV, sunday))?.toJSON();
+      assert.deepEqual([dto?.makeupMinutes, dto?.makeupCreditMinutes], [210, 240]);
+
+      // The conflict update rewrites the credit too (the explanation is withdrawn: 210 / 210).
+      await repo.upsertDays([lateAtWindow('NONE')], NOW);
+      const again = await repo.listDays(NV, sunday, sunday);
+      assert.deepEqual([again[0].makeupMinutes, again[0].makeupCreditMinutes], [210, 210]);
     });
   });
 

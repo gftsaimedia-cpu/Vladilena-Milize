@@ -7,7 +7,6 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import { ATTENDANCE_GROUPS as GROUPS } from '@/constants/labels';
 import type { HistoryRow } from '@/builders/api/attendance';
-import PageLoadError from '@/components/shell/PageLoadError.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getEmployeeAttendance } from '@/services/admin-attendance';
 import { useRealtimeReload } from '@/composables/useRealtimeReload';
@@ -31,7 +30,7 @@ const router = useRouter();
 const period = usePeriodStore();
 const shell = useShellStore();
 const personId = computed(() => String(route.params.id));
-const { data: view, loading, error, reload } = useLoad(
+const { data: view, loading, reload } = useLoad(
   () => getEmployeeAttendance(personId.value, period.month),
   () => `${personId.value}|${period.month}|${shell.version}`
 );
@@ -133,8 +132,7 @@ function onTabKey(event: KeyboardEvent) {
       </div>
     </div>
 
-    <PageLoadError v-if="error" what="hồ sơ chấm công" :error="error" @retry="reload" />
-    <template v-else-if="view">
+    <template v-if="view">
       <div class="top">
         <section class="card info" aria-label="Thông tin nhân viên">
           <div class="id">

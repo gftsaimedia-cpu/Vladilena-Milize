@@ -28,7 +28,7 @@ const props = defineProps<{
   hasPrev: boolean;
   hasNext: boolean;
   save: (id: string, part: KpiPart, value: number | null) => Promise<void>;
-  decide: (id: string, decision: 'approve' | 'reject', note?: string) => Promise<boolean | void>;
+  decide: (id: string, decision: 'approve' | 'reject', note?: string) => Promise<void>;
 }>();
 const emit = defineEmits<{ close: []; prev: []; next: [] }>();
 
@@ -138,8 +138,8 @@ async function decideNow(decision: 'approve' | 'reject', note?: string) {
   const id = props.slip.id;
   try {
     await flush();
-    const ok = await props.decide(id, decision, note);
-    if (ok !== false && props.slip.id === id) {
+    await props.decide(id, decision, note);
+    if (props.slip.id === id) {
       asking.value = false;
       reason.value = '';
     }
@@ -209,9 +209,6 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
         </div>
       </dl>
       <p class="pd-note">{{ slip.note }}</p>
-      <ul v-if="slip.warnings?.length" class="pd-warn" role="status" aria-label="Cảnh báo của phiếu">
-        <li v-for="w in slip.warnings" :key="w">{{ w }}</li>
-      </ul>
     </div>
 
     <SlipAttendance :slip="slip" :month="month" />
@@ -433,20 +430,5 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
   font-size: 12px;
   line-height: 16px;
   color: var(--muted);
-}
-.pd-warn {
-  margin: 12px 0 0;
-  padding: 10px 12px 10px 28px;
-  border-radius: 12px;
-  background: var(--gold-pale, #fff9ec);
-  border: 1px solid var(--gold, #e8c372);
-  color: #212121;
-  font-size: 13px;
-  line-height: 18px;
-  max-height: 168px;
-  overflow-y: auto;
-}
-.pd-warn li + li {
-  margin-top: 4px;
 }
 </style>

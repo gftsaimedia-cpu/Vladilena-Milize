@@ -4,6 +4,7 @@ import type { DayKind, Payslip, PayrollLine, PayrollScreen, PayrollStatus, SlipC
 import type { KpiPart } from '../../mock/payroll-calc';
 import { KPI_LABELS, employeeTypeLabel, employmentStatusLabel } from '../../constants/labels';
 import { initials } from '../../utils/format';
+import { halfShiftPayOf, type HalfShiftPayDTO } from './half-shift-pay';
 
 export type PayslipRecordDTO = {
   id: number;
@@ -16,10 +17,10 @@ export type PayslipRecordDTO = {
   net: number;
   // Lý do Admin ghi khi duyệt / từ chối (null khi không có), người và lúc quyết định.
   note?: string | null;
-  // Cờ cảnh báo BE gắn vào phiếu (KPI thiếu, giải trình chưa xong, thực lĩnh âm…): FE chỉ in `message`.
-  warnings?: { code: string; message: string }[];
   decidedBy?: string | null;
   decidedAt?: string | null;
+  /** Phòng ban và trạng thái nhân sự của người có phiếu (BE 06/11); thiếu ở phản hồi cũ. */
+  employee?: { departmentName: string | null; staffStatus: 'working' | 'probation' | 'on_leave' | 'resigned' } | null;
   details: {
     fullName: string;
     positionLevelText: string;
@@ -41,6 +42,7 @@ export type PayslipRecordDTO = {
 };
 
 const NONE = '—';
+const PS_OF = { working: 'ok', probation: 'try', on_leave: 'off', resigned: 'out' } as const;
 // Trạng thái phiếu của BE: nháp → nháp; Admin đã duyệt hoặc kỳ đã chốt → xong; Admin từ chối → bị từ chối.
 export const statusOf = (s: string): PayrollStatus =>
   s === 'final' || s === 'approved' ? 'done' : s === 'rejected' ? 'rejected' : 'draft';
@@ -55,7 +57,8 @@ function lineOf(r: PayslipRecordDTO): PayrollLine {
     id: r.username,
     name,
     initials: initials(name),
-    dept: NONE,
+    dept: r.employee?.departmentName || NONE,
+    ps: r.employee ? PS_OF[r.employee.staffStatus] : undefined,
     title: d.positionLevelText || NONE,
     base: d.baseSalaryPolicy,
     days: d.actualWorkDays,
@@ -127,7 +130,7 @@ export function payrollScreenFromPayslips(items: PayslipRecordDTO[], month: stri
 
 // ---------- Phiếu lương chi tiết (ngăn kéo) ----------
 
-export type PayslipDetailDTO = PayslipRecordDTO['details'] & {
+export type PayslipDetailDTO = PayslipRecordDTO['details'] & HalfShiftPayDTO & {
   contractStatusText: string;
   month: string;
   paidLeaveDays: number;
@@ -202,7 +205,6 @@ export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetail
     note: `Công chuẩn: ${d.standardWorkdays} ngày`,
     status: line.status,
     decisionNote: r.note ?? null,
-    warnings: (r.warnings ?? []).map(w => w.message),
     base: d.baseSalaryPolicy,
     dependants: d.dependants,
     days: {
@@ -245,6 +247,7 @@ export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetail
       afterInsurance: d.incomeAfterInsurance,
       tax: d.personalIncomeTax,
       net: d.netIncome
-    }
+    },
+    halfShift: halfShiftPayOf(d)
   };
 }

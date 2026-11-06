@@ -38,8 +38,6 @@ const { hop, open, close } = useHop(['luong-ngay-cong', 'lam-them', 'phu-cap', '
         <h2>Cách tính lương</h2>
         <span class="cap">Thực nhận của mỗi phiếu tính từ trên xuống</span>
       </div>
-      <!-- Bảng rộng hơn khung hẹp (điện thoại): cuộn ngang trong thẻ, không làm cả trang tràn. -->
-      <div class="fx-wrap" role="region" aria-label="Các khoản của cách tính lương" tabindex="0">
       <table class="tbl fx">
         <colgroup>
           <col style="width: 56px" />
@@ -71,7 +69,6 @@ const { hop, open, close } = useHop(['luong-ngay-cong', 'lam-them', 'phu-cap', '
           </tr>
         </tbody>
       </table>
-      </div>
       <div class="foot" style="border-top: 0">
         <Icon name="history" />
         <span>{{ data.recent }} Mỗi lần sửa được ghi vào Nhật ký thay đổi.</span>
@@ -88,9 +85,6 @@ const { hop, open, close } = useHop(['luong-ngay-cong', 'lam-them', 'phu-cap', '
 </template>
 
 <style scoped>
-.fx-wrap {
-  overflow-x: auto;
-}
 .fx td {
   height: 64px;
 }

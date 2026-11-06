@@ -8,7 +8,7 @@ import { datesOfMonth, monthsBetween } from './domain/calendar';
 /**
  * Nghe thay đổi cài đặt (spec 9.2) và ghi lại các dòng ngày công bị ảnh hưởng, từ tháng áp dụng tới tháng hiện tại:
  * đổi tuần làm riêng thì chỉ người đó; đổi nhóm chấm công (ân hạn) thì mọi người đang làm (P6).
- * Mỗi nhân sự là một giao dịch riêng dưới khoá của mình cho mọi tháng, như P4 (`refreshMany` gộp truy vấn, không hỏi lại từng người từng tháng). Lỗi đi thẳng ra cho nơi lưu cài đặt:
+ * Mỗi lần `refreshMonth` là một giao dịch riêng dưới khoá của nhân sự, như P4. Lỗi đi thẳng ra cho nơi lưu cài đặt:
  * cài đặt đã được lưu, Admin tính lại ngày công sau.
  */
 @Injectable()
@@ -31,12 +31,14 @@ export class AttendanceSettingsListener implements OnModuleInit {
     const months = monthsBetween(change.fromMonth, currentMonth);
 
     if (change.kind === 'workWeek') {
-      await this.days.refreshMany([change.employeeUuid], months, { now: change.now });
+      for (const month of months) await this.days.refreshMonth(change.employeeUuid, month, { now: change.now });
       return;
     }
 
     const lastMonthDates = datesOfMonth(currentMonth);
     const ids = await this.repo.activeEmployeeIds(`${change.fromMonth}-01`, lastMonthDates[lastMonthDates.length - 1]);
-    await this.days.refreshMany(ids, months, { now: change.now });
+    for (const id of ids) {
+      for (const month of months) await this.days.refreshMonth(id, month, { now: change.now });
+    }
   }
 }

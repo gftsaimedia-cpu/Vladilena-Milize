@@ -2,6 +2,7 @@
 // `choices`, cờ từng ngày và `otHours` của request-context, và kiểm đơn khi xem trước / tạo. FE thật không import file này.
 import type {
   ContextDay,
+  HalfShiftOptions,
   HourEnd,
   HourSlot,
   MakeupSlot,
@@ -30,7 +31,9 @@ const hourOf = (hhmm: string) => Number(hhmm.slice(0, 2));
 /** '2026-11-13' → 'T6 13/11' */
 export const dateLabel = (iso: string) => `${DOW_SHORT[new Date(`${iso}T00:00:00Z`).getUTCDay()]} ${ddmm(iso)}`;
 
-const held = (d: EngineDay) => d.claim?.status === 'LEAVE' || d.claim?.status === 'LEAVE_WITH_MAKEUP';
+// Ngày bị đơn nghỉ giữ (kể cả nghỉ giữa ca): đơn nghỉ theo khoảng dừng trước ngày này (BE day-status).
+const held = (d: EngineDay) =>
+  d.claim?.status === 'LEAVE' || d.claim?.status === 'LEAVE_WITH_MAKEUP' || d.claim?.status === 'HALF_SHIFT';
 /** Thứ Bảy có iSAT được duyệt: đơn nghỉ theo khoảng bỏ ngày này kèm cảnh báo (BE planClaims). */
 export const approvedIsat = (d: EngineDay) => d.claim?.status === 'ISAT' && !d.claim.pending;
 /** Thứ Bảy có iSAT chờ duyệt: BE chặn cả đơn (DAY_CONFLICT). */
@@ -64,6 +67,20 @@ function shiftChangeEnds(from: EngineDay[]): string[] {
   return out;
 }
 
+/** Nợ nghỉ giữa ca còn lại của tháng (phút); 0 khi không nợ. */
+const debtLeft = (ctx: EngineCtx, month: string) => monthInfo(ctx, month)?.halfShiftDebt?.remainingMinutes ?? 0;
+/**
+ * Tháng có Nghỉ có làm bù chặn OT của ngày, trừ khi còn nợ nghỉ giữa ca mà khung ngày này trả được (BE T6): cùng tháng, có
+ * đơn nghỉ giữa ca đã duyệt từ ngày này trở về trước (khung trước ngày nghỉ giữa ca không trả được nợ của ngày đó).
+ */
+const otBlocked = (ctx: EngineCtx, day: EngineDay) => {
+  const month = monthOf(day.date);
+  if (!monthInfo(ctx, month)?.hasMakeupLeave) return false;
+  if (debtLeft(ctx, month) <= 0) return true;
+  const owedBy = (d: EngineDay) => d.claim?.status === 'HALF_SHIFT' && !d.claim.pending;
+  return !ctx.days.some(d => owedBy(d) && monthOf(d.date) === month && d.date <= day.date);
+};
+
 /** Phút OT còn đăng ký được trong tháng (40 giờ trừ phần đã có); tháng không có trong months là 0. */
 export function otLeftMinutes(ctx: EngineCtx, month: string): number {
   const m = monthInfo(ctx, month);
@@ -82,9 +99,11 @@ export function startDates(ctx: EngineCtx, kind: RequestKind): string[] {
         .map(d => d.date);
     case 'overtime':
       return days
-        .filter(d => !monthInfo(ctx, monthOf(d.date))!.hasMakeupLeave)
+        .filter(d => !otBlocked(ctx, d))
         .filter(d => startHours(d, { capMinutes: otLeftMinutes(ctx, monthOf(d.date)) }).length > 0)
         .map(d => d.date);
+    case 'half-shift-leave':
+      return days.filter(d => d.halfShift).map(d => d.date);
     case 'shift-change':
       return days.filter((_, i) => shiftChangeEnds(days.slice(i)).length > 0).map(d => d.date);
     case 'explanation':
@@ -187,60 +206,48 @@ export function makeupCounter(
   return { planned, required };
 }
 
-/**
- * Giờ chọn được của dòng khung bù thứ `index` (spec 4.4): khung của các dòng khác cùng ngày đã chiếm giờ của chúng, và không
- * xếp quá số giờ còn thiếu sau các dòng khác. Dùng với startHours / endHours của ngày bù đã chọn.
- */
-export function slotHourOptions(
-  ctx: EngineCtx,
-  startDate: string,
-  endDate: string,
-  slots: MakeupSlot[],
-  index: number
-): Required<HourOptions> {
-  const others = slots.filter((_, j) => j !== index);
-  const { planned, required } = makeupCounter(ctx, startDate, endDate, others);
-  const date = slots[index]?.date;
-  const taken = others
-    .filter(o => date && o.date === date && o.startTime && o.endTime)
-    .map(o => ({ start: hourOf(o.startTime), end: hourOf(o.endTime) }));
-  return { taken, capMinutes: Math.max(0, required - planned) };
-}
-
-/**
- * Bỏ giá trị không còn hợp lệ của các dòng khung bù sau khi đổi ngày nghỉ hay tải lại request-context: ngày bù không còn chọn
- * được thì bỏ cả dòng, giờ bắt đầu không còn thì bỏ hai ô giờ, giờ kết thúc không còn thì bỏ ô đó. Xét lần lượt từ dòng đầu,
- * mỗi dòng so với các dòng trước nó, nên dòng sau mất giá trị trước. Dòng còn hợp lệ giữ nguyên.
- */
-export function fitSlots(ctx: EngineCtx, startDate: string, endDate: string, slots: MakeupSlot[]): MakeupSlot[] {
-  const dates = slotDates(ctx, endDate);
-  const out: MakeupSlot[] = [];
-  for (const s of slots) {
-    const date = dates.includes(s.date) ? s.date : '';
-    const day = ctx.days.find(d => d.date === date);
-    const opts = slotHourOptions(ctx, startDate, endDate, [...out, { date, startTime: '', endTime: '' }], out.length);
-    const startOk = !!day && !!s.startTime && startHours(day, opts).includes(hourOf(s.startTime));
-    const endOk =
-      startOk && !!s.endTime && endHours(day!, hourOf(s.startTime), opts).some(e => e.end === hourOf(s.endTime));
-    out.push({ date, startTime: startOk ? s.startTime : '', endTime: endOk ? s.endTime : '' });
-  }
-  return out;
-}
-
+// Giờ của các dòng khung bù đang điền (dòng khác đã chiếm, số giờ còn thiếu) do builders/api/staff-requests.ts (slotHours,
+// fitSlots) lọc trên bảng giờ của request-context, cả ở mock lẫn máy chủ thật.
 
 // ---------- Dựng phần request-context mà BE tính ----------
 const daysIn = (ctx: EngineCtx, start: string, end: string) => ctx.days.filter(d => d.date >= start && d.date <= end);
 
-/** Giờ OT chọn được của ngày: bỏ khung dài hơn số phút OT còn lại; tháng có nghỉ có làm bù hay đã chốt thì rỗng. */
+/**
+ * Giờ OT chọn được của ngày: bỏ khung dài hơn số phút OT còn lại; tháng đã chốt, hay có nghỉ có làm bù mà không còn nợ nghỉ
+ * giữa ca, thì rỗng. Tháng có nghỉ có làm bù và còn nợ: mock không cắt theo nợ còn lại (FE tự cắt, BE kiểm lại khi nộp).
+ */
 export function otHoursOf(ctx: EngineCtx, day: EngineDay): HourSlot[] {
   const m = monthInfo(ctx, monthOf(day.date));
-  if (!m || m.closed || m.hasMakeupLeave) return [];
+  if (!m || m.closed || otBlocked(ctx, day)) return [];
   return day.hours
     .map(h => ({ start: h.start, ends: h.ends.filter(e => e.minutes <= m.otLeftMinutes) }))
     .filter(h => h.ends.length > 0);
 }
 
 export const leaveCountedOf = (d: EngineDay) => d.workday && !approvedIsat(d);
+
+// ---------- Nghỉ giữa ca (BE halvesOf) ----------
+const HALF_MINUTES = 240; // mỗi nửa 4 giờ, nghỉ giữa 1 giờ
+const SHIFT_SPAN = 540; // chỉ ca 9 giờ chia được (T3)
+const clock = (min: number) => {
+  const m = ((min % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+};
+const minOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
+/**
+ * Hai nửa ca của ngày: ngày làm, có ca 9 giờ, tháng chưa chốt, không có đơn giữ ngày (đổi ca thì được, nửa ca theo ca đã đổi).
+ * Ca 08–17: nửa đầu làm 08–12 nghỉ 13–17, nửa sau làm 13–17 nghỉ 08–12. Không chọn được thì null.
+ */
+export function halfShiftOf(ctx: EngineCtx, d: EngineDay): HalfShiftOptions | null {
+  if (!d.workday || !d.shift || monthInfo(ctx, monthOf(d.date))?.closed !== false) return null;
+  if (d.claim && d.claim.status !== 'SHIFT_CHANGE') return null;
+  const start = minOf(d.shift.start);
+  if ((minOf(d.shift.end) - start + 1440) % 1440 !== SHIFT_SPAN) return null;
+  const first = { start: clock(start), end: clock(start + HALF_MINUTES) };
+  const second = { start: clock(start + SHIFT_SPAN - HALF_MINUTES), end: clock(start + SHIFT_SPAN) };
+  return { FIRST: { work: first, leave: second }, SECOND: { work: second, leave: first } };
+}
 export const shiftChangeableOf = (d: EngineDay) => d.workday && !d.claim;
 
 /** Dựng `choices` như BE: từ ngày bắt đầu, các ngày kết thúc kèm số ngày giữ và số phút bù. */
@@ -266,6 +273,7 @@ export function buildChoices(ctx: EngineCtx): RequestChoices {
     leave: range('leave'),
     'leave-with-makeup': { ...makeup, slotDates: slotDays },
     overtime: { dates: startDates(ctx, 'overtime') },
-    'shift-change': range('shift-change')
+    'shift-change': range('shift-change'),
+    'half-shift-leave': { dates: startDates(ctx, 'half-shift-leave') }
   };
 }

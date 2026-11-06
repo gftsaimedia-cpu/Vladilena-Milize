@@ -1,5 +1,6 @@
 import { Controller, Get, Inject, Param, Query, UseFilters } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, RequireCap } from '../../common';
+import { staffFilterFromQuery } from '../departments/staff-filter-http';
 import { MAX_RECENT_DAYS, MAX_WINDOW_DAYS, OverviewService } from './overview.service';
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -37,7 +38,9 @@ export class OverviewController {
     @Query('days') days?: string,
     @Query('q') q?: string,
     @Query('group') group?: string,
-    @Query('month') month?: string
+    @Query('month') month?: string,
+    @Query('staffStatus') staffStatus?: string,
+    @Query('departmentId') departmentId?: string
   ): Promise<unknown> {
     if (from !== undefined && from !== '' && !isCalendarDate(from)) {
       throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
@@ -47,7 +50,9 @@ export class OverviewController {
       days: optionalInt(days, 1, MAX_WINDOW_DAYS, 'Số ngày'),
       q,
       group,
-      month: optionalMonth(month)
+      month: optionalMonth(month),
+      // q đã được lọc ở dịch vụ; bộ lọc chung chỉ mang trạng thái và phòng ban.
+      staff: staffStatus !== undefined || departmentId !== undefined ? staffFilterFromQuery({ staffStatus, departmentId }) : undefined
     });
   }
 
@@ -57,13 +62,6 @@ export class OverviewController {
     const view = await this.service.employeeMonth(username, optionalMonth(month));
     if (!view) throw new NotFoundError('Không tìm thấy nhân sự', { code: 'EMPLOYEE_NOT_FOUND' });
     return view;
-  }
-
-  // Số trên chuông: một con số duy nhất khớp với danh sách việc chờ (đơn chờ duyệt + ngày cần giải trình).
-  @RequireCap('requests.review')
-  @Get('overview/pending-count')
-  async pendingCount(): Promise<{ count: number }> {
-    return { count: await this.service.pendingCount() };
   }
 
   @RequireCap('config.read')

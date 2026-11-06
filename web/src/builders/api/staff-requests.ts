@@ -4,13 +4,15 @@ import type {
   AdvanceInfo,
   ContextDay,
   ExplanationCase,
+  HalfShift,
   HourEnd,
   HourSlot,
   MakeupSlot,
   PreviewResult,
   RequestContext,
   RequestDraft,
-  RequestKind
+  RequestKind,
+  TimeRange
 } from '../../mock/staff-requests-types';
 import { vnd } from '../../utils/format';
 
@@ -37,8 +39,8 @@ const hourOf = (hhmm: string) => Number(hhmm.slice(0, 2));
 export const dateLabel = (iso: string) => `${DOW_SHORT[new Date(`${iso}T00:00:00Z`).getUTCDay()]} ${ddmm(iso)}`;
 
 // Mọi lựa chọn ngày, số ngày, số phút bù, giờ OT còn lại đều do BE tính (request-context: choices, days, months, rules).
-// Các hàm dưới chỉ tra cứu và ghép chữ; luật nghiệp vụ (ngày chọn được, trần 12 giờ, trần OT, 480 phút bù, khung chồng
-// nhau) do BE kiểm khi xem trước và khi gửi.
+// Các hàm dưới tra cứu và ghép chữ. Riêng các dòng khung bù đang điền (chỉ form biết) thì slotHours bỏ giờ mà dòng khác đã
+// chiếm hay vượt số giờ còn thiếu, để form chỉ đưa lựa chọn hợp lệ; BE vẫn kiểm lại khi xem trước và khi gửi.
 
 type RangeKind = 'leave' | 'leave-with-makeup' | 'shift-change';
 const rangeChoice = (ctx: RequestContext, kind: RangeKind, start: string, end: string) =>
@@ -53,6 +55,8 @@ export function startDates(ctx: RequestContext, kind: RequestKind): string[] {
       return ctx.choices[kind].starts;
     case 'overtime':
       return ctx.choices.overtime.dates;
+    case 'half-shift-leave':
+      return ctx.choices['half-shift-leave']?.dates ?? [];
     case 'explanation':
       return ctx.explanationDays.map(d => d.date);
     default:
@@ -111,19 +115,52 @@ export function makeupCounter(
   return { planned, required };
 }
 
+type HourWindow = { start: number; end: number };
+const overlaps = (start: number, end: number, w: HourWindow) => start < w.end && end > w.start;
+
 /**
- * Bỏ giá trị không còn có trong bảng giờ của BE sau khi đổi ngày nghỉ hay tải lại request-context: ngày bù không còn chọn
- * được thì bỏ cả dòng, giờ bắt đầu không còn thì bỏ hai ô giờ, giờ kết thúc không còn thì bỏ ô đó.
+ * Bảng giờ của dòng khung bù thứ `index` (spec 4.4, form chỉ đưa lựa chọn hợp lệ): bảng `hours` BE đưa cho ngày bù của
+ * dòng, bỏ giờ mà dòng khác cùng ngày đã chiếm, và không quá số phút còn thiếu sau các dòng khác. Các dòng khác cùng ngày
+ * cũng trừ vào phần còn lại của trần 12 giờ một ngày: khung dài nhất trong `hours` là phần đó (BE), nên phút của chúng trừ
+ * vào khung dài nhất. Khung dài nhất có thể bị cách xếp giờ trống giới hạn chứ không phải trần (vd. ca 10–19: dài nhất
+ * 06–09 là 3 giờ, trần còn 4); khi đó dòng thứ hai chặt hơn BE nhưng không bao giờ lỏng hơn. BE vẫn kiểm khi xem trước.
  */
-export function fitSlots(ctx: RequestContext, endDate: string, slots: MakeupSlot[]): MakeupSlot[] {
+export function slotHours(ctx: RequestContext, startDate: string, endDate: string, slots: MakeupSlot[], index: number): HourSlot[] {
+  const slot = slots[index];
+  const day = slot?.date ? ctx.days.find(d => d.date === slot.date) : undefined;
+  if (!day) return [];
+  const others = slots.filter((_, j) => j !== index);
+  const { planned, required } = makeupCounter(ctx, startDate, endDate, others);
+  const taken: HourWindow[] = others
+    .filter(o => o.date === slot.date && o.startTime && o.endTime)
+    .map(o => ({ start: hourOf(o.startTime), end: hourOf(o.endTime) }));
+  let cap = Math.max(0, required - planned);
+  if (taken.length) {
+    const longest = Math.max(0, ...day.hours.flatMap(h => h.ends.map(e => e.minutes)));
+    cap = Math.min(cap, longest - taken.reduce((sum, w) => sum + minutesIn(day.hours, w.start, w.end), 0));
+  }
+  return day.hours
+    .filter(h => !taken.some(w => h.start >= w.start && h.start < w.end))
+    .map(h => ({ start: h.start, ends: h.ends.filter(e => e.minutes <= cap && !taken.some(w => overlaps(h.start, e.end, w))) }))
+    .filter(h => h.ends.length > 0);
+}
+
+/**
+ * Bỏ giá trị không còn hợp lệ của các dòng khung bù sau khi đổi ngày nghỉ hay tải lại request-context: ngày bù không còn chọn
+ * được thì bỏ cả dòng, giờ bắt đầu không còn thì bỏ hai ô giờ, giờ kết thúc không còn thì bỏ ô đó. Xét lần lượt từ dòng đầu,
+ * mỗi dòng so với các dòng trước nó (slotHours), nên dòng sau mất giá trị trước. Dòng còn hợp lệ giữ nguyên.
+ */
+export function fitSlots(ctx: RequestContext, startDate: string, endDate: string, slots: MakeupSlot[]): MakeupSlot[] {
   const dates = slotDates(ctx, endDate);
-  return slots.map(s => {
+  const out: MakeupSlot[] = [];
+  for (const s of slots) {
     const date = dates.includes(s.date) ? s.date : '';
-    const hours = ctx.days.find(d => d.date === date)?.hours ?? [];
+    const hours = slotHours(ctx, startDate, endDate, [...out, { date, startTime: '', endTime: '' }], out.length);
     const startOk = !!s.startTime && startHours(hours).includes(hourOf(s.startTime));
     const endOk = startOk && !!s.endTime && endHours(hours, hourOf(s.startTime)).some(e => e.end === hourOf(s.endTime));
-    return { date, startTime: startOk ? s.startTime : '', endTime: endOk ? s.endTime : '' };
-  });
+    out.push({ date, startTime: startOk ? s.startTime : '', endTime: endOk ? s.endTime : '' });
+  }
+  return out;
 }
 
 // 120 → '2', 270 → '4,5' (giờ, dấu phẩy thập phân).
@@ -145,6 +182,61 @@ export function makeupNeedLine(ctx: RequestContext, startDate: string, endDate: 
 export function otMonthLine(ctx: RequestContext, month: string): string {
   const m = ctx.months.find(x => x.month === month);
   return m ? `Đã đăng ký tháng ${Number(month.slice(5, 7))}: ${hoursText(m.otMinutes)} / ${hoursText(m.otCapMinutes)} giờ` : '';
+}
+
+/**
+ * Nợ nghỉ giữa ca của tháng trong form Làm thêm giờ (yêu cầu FE của BE mục 2), số do BE tính (`months[].halfShiftDebt`):
+ * 'Nợ nghỉ giữa ca tháng 11: đã đăng ký bù 2 / 4 giờ, còn 2 giờ' và dòng ghi chú cách trả. Tháng không nợ thì rỗng.
+ */
+export function otDebtLines(ctx: RequestContext, month: string): string[] {
+  const debt = ctx.months.find(x => x.month === month)?.halfShiftDebt;
+  if (!debt || debt.owedMinutes <= 0) return [];
+  return [
+    `Nợ nghỉ giữa ca tháng ${Number(month.slice(5, 7))}: đã đăng ký bù ${hoursText(debt.registeredMinutes)} / ${hoursText(debt.owedMinutes)} giờ, còn ${hoursText(Math.max(0, debt.remainingMinutes))} giờ`,
+    'Giờ làm thêm trong tháng trả nợ trước: ×1, không phụ cấp'
+  ];
+}
+
+/**
+ * Trần phút một khung OT của tháng: tháng có Nghỉ có làm bù mà còn nợ nghỉ giữa ca thì OT chỉ để trả nợ, nên khung không vượt
+ * phần nợ còn lại (BE kiểm lại khi nộp). Tháng khác không có trần ở đây (Infinity): `otHours` của BE đã đủ.
+ */
+export function otCapMinutes(ctx: RequestContext, month: string): number {
+  const m = ctx.months.find(x => x.month === month);
+  const left = m?.halfShiftDebt?.remainingMinutes ?? 0;
+  return m?.hasMakeupLeave && left > 0 ? left : Infinity;
+}
+
+/** Bảng giờ OT của ngày sau trần `otCapMinutes`: bỏ giờ kết thúc vượt trần, bỏ giờ bắt đầu không còn giờ kết thúc. */
+export function otHoursOf(ctx: RequestContext, day: ContextDay): HourSlot[] {
+  const cap = otCapMinutes(ctx, day.date.slice(0, 7));
+  if (cap === Infinity) return day.otHours;
+  return day.otHours.map(h => ({ start: h.start, ends: h.ends.filter(e => e.minutes <= cap) })).filter(h => h.ends.length > 0);
+}
+
+/** Ngày OT chọn được: ngày BE đưa, còn ít nhất một khung sau trần `otCapMinutes`. */
+export function otDates(ctx: RequestContext): string[] {
+  return ctx.choices.overtime.dates.filter(date => {
+    const day = ctx.days.find(d => d.date === date);
+    return !!day && otHoursOf(ctx, day).length > 0;
+  });
+}
+
+// ---------- Nghỉ giữa ca ----------
+
+const HALVES: HalfShift[] = ['FIRST', 'SECOND'];
+const span = (r: TimeRange) => `${r.start}–${r.end}`;
+
+/** Hai nửa ca của ngày do BE chia (`days[].halfShift`): 'Làm 08:00–12:00, nghỉ 13:00–17:00'. Ngày không chọn được thì rỗng. */
+export function halfShiftChoices(ctx: RequestContext, date: string): { half: HalfShift; label: string }[] {
+  const options = ctx.days.find(d => d.date === date)?.halfShift;
+  if (!options) return [];
+  return HALVES.map(half => ({ half, label: `Làm ${span(options[half].work)}, nghỉ ${span(options[half].leave)}` }));
+}
+
+/** Tóm tắt Nghỉ giữa ca từ lần xem trước của BE: 'Còn 4 giờ cần bù' và tháng phải bù. */
+export function halfShiftOwedLines(summary: { date: string; owedMinutes: number }): string[] {
+  return [`Còn ${hoursText(summary.owedMinutes)} giờ cần bù`, `Bù bằng Làm thêm giờ trong tháng ${Number(summary.date.slice(5, 7))}`];
 }
 
 /**

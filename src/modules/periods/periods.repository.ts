@@ -1,9 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Kysely, sql, type Selectable, type Updateable } from 'kysely';
-import { employedInMonth } from '../../common';
-import { toDateText } from '../../common/date-text';
 import { KYSELY_DB, type DB, type DatabaseTransaction } from '../../database';
-import { requestMonths, type ApproveBlockers } from './domain';
+import { employedBetween, monthDays } from '../../database/employment';
+import type { ApproveBlockers } from './domain';
 
 export type PeriodRow = Selectable<DB['payroll_periods']>;
 
@@ -15,9 +14,6 @@ export interface CurrentRun {
   runNo: number;
   status: string;
 }
-
-const dateText = (value: unknown): string | null =>
-  value === null || value === undefined ? null : toDateText(value as Date | string);
 
 const lockKey = (month: string): string => `period:${month}`;
 
@@ -93,48 +89,31 @@ export class PeriodsRepository {
   async blockers(trx: DatabaseTransaction | undefined, month: string): Promise<ApproveBlockers> {
     const q = trx ?? this.db;
     const run = await this.currentRun(trx, month);
+    const { from, to } = monthDays(month);
 
-    const pending = await q
+    // Đơn chờ duyệt chạm tới tháng, đếm ngay trong SQL (không đọc mọi đơn chờ). Cùng luật với `requestMonths`: khoảng
+    // ngày (nghỉ, đổi ca) tính mọi tháng nó đi qua, kể cả khi hai đầu ghi ngược; các ngày lẻ (OT, giải trình, kỳ tạm
+    // ứng, ngày làm bù, Thứ Bảy iSAT) tính tháng của chính nó.
+    const range = (a: 'leave_start_date' | 'change_start_date', b: 'leave_end_date' | 'change_end_date') =>
+      sql`(LEAST(${sql.ref(a)}, ${sql.ref(b)}) <= ${to} AND GREATEST(${sql.ref(a)}, ${sql.ref(b)}) >= ${from})`;
+    const day = (col: 'ot_date' | 'explanation_date' | 'half_shift_date') => sql`(${sql.ref(col)} BETWEEN ${from} AND ${to})`;
+    const touches = sql<boolean>`(
+      ${range('leave_start_date', 'leave_end_date')}
+      OR ${range('change_start_date', 'change_end_date')}
+      OR ${day('ot_date')}
+      OR ${day('explanation_date')}
+      OR ${day('half_shift_date')}
+      OR left(advance_period, 7) = ${month}
+      OR EXISTS (SELECT 1 FROM makeup_slots m WHERE m.request_id = system_requests.id AND m.work_date BETWEEN ${from} AND ${to})
+      OR EXISTS (SELECT 1 FROM isat_registrations i WHERE i.request_id = system_requests.id AND i.saturday BETWEEN ${from} AND ${to})
+    )`;
+    const pendingRow = await q
       .selectFrom('system_requests')
-      .select([
-        'id',
-        'leave_start_date',
-        'leave_end_date',
-        'ot_date',
-        'explanation_date',
-        'change_start_date',
-        'change_end_date',
-        'advance_period',
-      ])
+      .select(eb => eb.fn.countAll().as('n'))
       .where('status', '=', 'PENDING')
-      .execute();
-    const ids = pending.map(r => r.id);
-    const makeups = ids.length
-      ? await q.selectFrom('makeup_slots').select(['request_id', 'work_date']).where('request_id', 'in', ids).execute()
-      : [];
-    const isats = ids.length
-      ? await q.selectFrom('isat_registrations').select(['request_id', 'saturday']).where('request_id', 'in', ids).execute()
-      : [];
-    const makeupDates = new Map<string, string[]>();
-    for (const m of makeups) {
-      const list = makeupDates.get(m.request_id) ?? [];
-      list.push(toDateText(m.work_date));
-      makeupDates.set(m.request_id, list);
-    }
-    const saturdays = new Map(isats.map(r => [r.request_id, toDateText(r.saturday)]));
-    const pendingRequests = pending.filter(r =>
-      requestMonths({
-        leaveStartDate: dateText(r.leave_start_date),
-        leaveEndDate: dateText(r.leave_end_date),
-        otDate: dateText(r.ot_date),
-        explanationDate: dateText(r.explanation_date),
-        changeStartDate: dateText(r.change_start_date),
-        changeEndDate: dateText(r.change_end_date),
-        advancePeriod: r.advance_period,
-        makeupDates: makeupDates.get(r.id) ?? [],
-        isatSaturday: saturdays.get(r.id) ?? null,
-      }).includes(month)
-    ).length;
+      .where(touches)
+      .executeTakeFirst();
+    const pendingRequests = Number(pendingRow?.n ?? 0);
 
     let unapprovedSlips = 0;
     const have = new Set<string>();
@@ -147,7 +126,7 @@ export class PeriodsRepository {
     }
     const staff = await q
       .selectFrom('staff')
-      .select(['username', 'name', 'start_date', 'resigned_on'])
+      .select(['username', 'name'])
       .where('locked_at', 'is', null)
       .where(eb =>
         eb.or([
@@ -155,13 +134,11 @@ export class PeriodsRepository {
           eb.and([eb('payroll_subject', 'is', null), eb('role', '<>', 'admin')])
         ])
       )
+      // R2: chỉ người có làm ít nhất một ngày trong tháng (cùng tập với tính cả kỳ, `listEligibleEmployees(month)`).
+      .where(employedBetween(from, to))
       .orderBy('username')
       .execute();
-    // Cùng tập với tính cả kỳ: người chưa vào làm / đã nghỉ việc trước tháng này không cần phiếu.
-    const missingSlips = staff
-      .filter(s => employedInMonth({ startDate: s.start_date, resignedOn: s.resigned_on }, month))
-      .filter(s => !have.has(s.username))
-      .map(s => ({ username: s.username, name: s.name }));
+    const missingSlips = staff.filter(s => !have.has(s.username)).map(s => ({ username: s.username, name: s.name }));
 
     return { pendingRequests, unapprovedSlips, missingSlips };
   }

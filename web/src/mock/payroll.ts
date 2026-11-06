@@ -4,6 +4,10 @@ import { dm, initials } from '../utils/format';
 import { mockAccount, readSessionName } from './accounts';
 import { MOCK_MONTH, MOCK_TODAY } from './clock';
 import { MOCK_KPI_WEIGHTS, normalizeScore, recomputeSlip, type KpiPart, type KpiScores, type SlipCalc, type SlipInput } from './payroll-calc';
+import type { HalfShiftPay } from '../builders/api/half-shift-pay';
+
+// Móc cho test: vá phiếu giả theo mã nhân viên (vd. ngày công lẻ, nợ nghỉ giữa ca) trước khi app chạy.
+const SLIP_PATCH = (globalThis as { __mockSlipPatch?: Record<string, Partial<Payslip>> }).__mockSlipPatch ?? {};
 
 export type PayrollStatus = 'draft' | 'pending' | 'done' | 'rejected';
 export type DayKind = 'work' | 'leave' | 'isat' | 'pending' | 'unpaid' | 'sunday' | 'future';
@@ -37,8 +41,6 @@ export type Payslip = Omit<SlipInput, 'allowances'> & {
   status: PayrollStatus;
   // Lý do Admin ghi khi từ chối phiếu (không bắt buộc); null khi không có hay phiếu đã duyệt.
   decisionNote?: string | null;
-  // Câu cảnh báo BE gắn vào phiếu; mock không có thì để trống.
-  warnings?: string[];
   days: { work: number; leave: number; isat: number; pending: number; unpaid: number; standard: number };
   calendar: DayKind[];
   pendingDates: string[];
@@ -54,6 +56,8 @@ export type Payslip = Omit<SlipInput, 'allowances'> & {
   kpiApplicable?: boolean;
   kpi: { scores: KpiScores; proposal: number; history: KpiEdit[] };
   calc: SlipCalc;
+  // Nghỉ giữa ca: giờ nợ / đã bù / bị bỏ và tiền bù của BE; null hay thiếu khi tháng không nợ.
+  halfShift?: HalfShiftPay | null;
 };
 
 export type PayrollLine = {
@@ -61,6 +65,8 @@ export type PayrollLine = {
   name: string;
   initials: string;
   dept: string;
+  /** Trạng thái nhân sự do BE trả; thiếu thì màn coi là đang làm chính thức. */
+  ps?: 'ok' | 'try' | 'off' | 'out';
   title: string;
   base: number;
   days: number;
@@ -306,7 +312,7 @@ function buildSlip(r: Raw): Payslip {
     level: r.level,
     employmentStatus: r.probation ? 'Thử việc' : 'Chính thức',
     contract: 'HĐLĐ từ 3 tháng',
-    payday: '05/11/2026',
+    payday: '10/11/2026',
     note: NOTE,
     status: s.status,
     decisionNote: s.note,
@@ -338,7 +344,8 @@ function buildSlip(r: Raw): Payslip {
     exempt: r.exempt,
     advance: r.advance,
     leaveLeft: r.leaveLeft,
-    kpi: { scores: { ...s.scores }, proposal: r.proposal, history: s.history.map(h => ({ ...h })) }
+    kpi: { scores: { ...s.scores }, proposal: r.proposal, history: s.history.map(h => ({ ...h })) },
+    ...structuredClone(SLIP_PATCH[r.id] ?? {})
   };
   return recomputeSlip(slip);
 }
@@ -387,7 +394,7 @@ export function payrollView(month: string): PayrollScreen {
     month,
     empty: false,
     range: '01–31/10',
-    payday: '05/11/2026',
+    payday: '10/11/2026',
     growth: '▲ 3,2% so với tháng 9',
     lines,
     counts,

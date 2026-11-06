@@ -43,7 +43,7 @@ const EMPTY: Record<Filter, string> = {
 };
 
 const shell = useShellStore();
-const { data, error, reload } = useLoad(getInbox, () => shell.version);
+const { data } = useLoad(getInbox, () => shell.version);
 
 const root = ref<HTMLElement | null>(null);
 const filter = ref<Filter>('all');
@@ -262,10 +262,7 @@ onBeforeUnmount(() => {
             </span>
           </button>
         </template>
-        <p v-if="error" class="bd-empty" role="alert">
-          Không tải được thông báo. <button type="button" class="bd-retry" @click="reload">Thử lại</button>
-        </p>
-        <p v-else-if="data && !flat.length" class="bd-empty">{{ EMPTY[filter] }}</p>
+        <p v-if="data && !flat.length" class="bd-empty">{{ EMPTY[filter] }}</p>
       </div>
 
       <div class="sr-only"><span aria-live="polite">{{ status }}</span></div>
@@ -285,14 +282,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.bd-retry {
-  border: 0;
-  padding: 0;
-  background: none;
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-}
 .bd-scrim {
   position: fixed;
   inset: 0;

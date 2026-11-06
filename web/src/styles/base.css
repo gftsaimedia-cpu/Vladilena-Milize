@@ -221,6 +221,21 @@ button {
   font-size: 11px;
   color: var(--side-muted);
 }
+/* Số việc đang chờ cạnh một mục (Yêu cầu): số cam như số chờ duyệt ở các màn. */
+.item .ct {
+  margin-left: auto;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  background: var(--status-pending);
+  color: #212121;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}
 .side-foot {
   border-top: 1px solid var(--side-rule);
   padding-top: 12px;
@@ -841,7 +856,6 @@ tr.sel td {
 /* toolbar */
 .tools {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   padding: 0 24px 16px;

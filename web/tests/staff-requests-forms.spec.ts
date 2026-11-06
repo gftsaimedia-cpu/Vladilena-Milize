@@ -45,10 +45,11 @@ test.describe('menu', () => {
   test('every kind the server allows opens its own form; no row is left without one', async ({ page }) => {
     const calls = await openPhone(page, '/nv/yeu-cau?tao=chon');
     const menu = sheetOf(page, 'Tạo yêu cầu');
-    await expect(rowsOf(menu)).toHaveCount(6);
+    await expect(rowsOf(menu)).toHaveCount(7);
     await expect(menu).not.toContainText('Chưa có trong bản mockup');
     const hints: [string, string, string][] = [
       ['Nghỉ có làm bù', 'Nghỉ 1 ngày thì bù đủ 8 giờ trong tháng', 'nghi-bu'],
+      ['Nghỉ giữa ca', 'Làm nửa ca, nửa còn lại bù bằng làm thêm giờ trong tháng', 'nghi-giua-ca'],
       ['Làm thêm giờ', 'Ngoài ca, cách ca ít nhất 1 giờ', 'ot'],
       ['Đổi ca', 'Normal, Flex hoặc Night cho một khoảng ngày', 'doi-ca'],
       ['Giải trình', 'Cho một ngày chấm công chưa hợp lệ', 'giai-trinh']
@@ -182,12 +183,9 @@ test.describe('Nghỉ có làm bù', () => {
 
     await date.selectOption({ label: 'CN 08/11' });
     await sheet.getByLabel('Từ giờ, khung 1').selectOption({ label: '08:00' });
-    // Form đưa bảng giờ của BE (tới trần 12 giờ), không tự chặn quá số giờ phải bù: xếp 12 giờ thì BE từ chối khi xem trước.
+    // Không đưa ra quá số giờ còn phải bù: từ 08:00 chỉ tới 16:00.
     const ends = await choices(sheet.getByLabel('Đến giờ, khung 1')).allTextContents();
-    expect(ends.at(-1)).toBe('20:00');
-    await sheet.getByLabel('Đến giờ, khung 1').selectOption({ label: '20:00' });
-    await expect(summaryBox(sheet)).toContainText('Chỉ cần xếp 8 giờ bù');
-    await expect(sendButton(sheet)).toBeDisabled();
+    expect(ends.at(-1)).toBe('16:00');
     await sheet.getByLabel('Đến giờ, khung 1').selectOption({ label: '12:00' });
     await expect(sheet.getByText('Đã xếp 4 / 8 giờ')).toBeVisible();
     await expect(summaryBox(sheet)).toContainText('Còn thiếu 4 giờ bù');
@@ -199,16 +197,16 @@ test.describe('Nghỉ có làm bù', () => {
     await expect(sheet.getByText('Đã xếp 8 / 8 giờ')).toBeVisible();
     await expect(sendButton(sheet)).toBeEnabled();
     await expect(sheet.getByText('Xếp đủ 8 giờ bù thì mới gửi được')).toHaveCount(0);
+    await expect(sheet.getByRole('button', { name: 'Thêm khung bù' })).toBeDisabled();
     await sendButton(sheet).click();
     await expectSent(page, 'Nghỉ có làm bù 02/11');
     expect(calls).toEqual([]);
   });
 
-  test('a slot overlapping another row of the same day is refused by the server preview, not hidden by the form', async ({ page }) => {
+  test('a slot hour already used in another row of the same day is not offered', async ({ page }) => {
     await openPhone(page, '/nv/yeu-cau?tao=nghi-bu');
     const sheet = sheetOf(page, 'Nghỉ có làm bù');
     await sheet.getByLabel('Từ ngày').selectOption({ label: 'T2 02/11' });
-    await sheet.getByLabel('Lý do').fill('Việc gia đình');
     await sheet.getByLabel('Ngày bù, khung 1').selectOption({ label: 'T3 03/11' });
     await sheet.getByLabel('Từ giờ, khung 1').selectOption({ label: '18:00' });
     await sheet.getByLabel('Đến giờ, khung 1').selectOption({ label: '20:00' });
@@ -217,21 +215,19 @@ test.describe('Nghỉ có làm bù', () => {
     await sheet.getByRole('button', { name: 'Thêm khung bù' }).click();
     await expect(sheet.getByLabel('Ngày bù, khung 2')).toBeFocused();
     await sheet.getByLabel('Ngày bù, khung 2').selectOption({ label: 'T3 03/11' });
-    // Bảng giờ của ngày là của BE: giờ của dòng 1 vẫn còn trong danh sách.
-    await expect(choices(sheet.getByLabel('Từ giờ, khung 2'))).toHaveText(['06:00', '18:00', '19:00', '20:00', '21:00']);
-    await sheet.getByLabel('Từ giờ, khung 2').selectOption({ label: '19:00' });
-    await sheet.getByLabel('Đến giờ, khung 2').selectOption({ label: '22:00' });
-    await expect(summaryBox(sheet)).toContainText('không chọn được');
-    await expect(sendButton(sheet)).toBeDisabled();
-
+    await expect(choices(sheet.getByLabel('Từ giờ, khung 2'))).toHaveText(['06:00', '20:00', '21:00']);
     await sheet.getByLabel('Từ giờ, khung 2').selectOption({ label: '20:00' });
     await sheet.getByLabel('Đến giờ, khung 2').selectOption({ label: '22:00' });
     await expect(sheet.getByText('Đã xếp 4 / 8 giờ')).toBeVisible();
-    await expect(summaryBox(sheet)).toContainText('Còn thiếu 4 giờ bù');
+    // Dòng 1 không còn được lấn sang 20–22 của dòng 2.
+    await expect(choices(sheet.getByLabel('Từ giờ, khung 1'))).toHaveText(['06:00', '18:00', '19:00']);
+    await expect(choices(sheet.getByLabel('Đến giờ, khung 1'))).toHaveText(['19:00', '20:00']);
 
+    // Còn thiếu 4 giờ: dòng 3 ngày Chủ nhật từ 08:00 chỉ tới 12:00.
     await sheet.getByRole('button', { name: 'Thêm khung bù' }).click();
     await sheet.getByLabel('Ngày bù, khung 3').selectOption({ label: 'CN 08/11' });
     await sheet.getByLabel('Từ giờ, khung 3').selectOption({ label: '08:00' });
+    await expect(choices(sheet.getByLabel('Đến giờ, khung 3'))).toHaveText(['09:00', '10:00', '11:00', '12:00']);
     await sheet.getByRole('button', { name: 'Bỏ khung 3' }).click();
     await expect(sheet.getByLabel('Ngày bù, khung 3')).toHaveCount(0);
     await expect(sheet.getByText('Đã xếp 4 / 8 giờ')).toBeVisible();

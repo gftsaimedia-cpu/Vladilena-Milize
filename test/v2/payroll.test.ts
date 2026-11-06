@@ -275,18 +275,21 @@ describe('Payroll allowance behavior from the reference app', () => {
     assert.equal(tts.attendanceAllowanceActual, 0);
 
     // A leave with makeup that was fully made up is not an absence (L16): 4 day-off rows keep the allowance at the
-    // default threshold of 5. Made-up minutes sit on the row of the day they were worked.
+    // default threshold of 5. The made-up day is a day whose work is makeup, an EXTRA row (rest day, not a work day):
+    // it is paid makeup x1 only and counts no allowance day (D13, which overrides R10). So the ratio stays 19 / 26:
+    // attendance 0.25 x 6.000.000 x 19 / 26 = 1.096.153,85 and travel 0.15 x 6.000.000 x 19 / 26 = 657.692,31.
     const leaves = Array.from({ length: 4 }, () => payslipLine('LEAVE_PAID'));
     const makeupOffsetsAbsence = makePayslip({
       employeeType: 'nv',
       dailyLines: [
         ...worked(19),
-        payslipLine('PRESENT', { makeupMinutes: 480 }),
+        payslipLine('EXTRA', { makeupMinutes: 480 }),
         ...leaves,
         payslipLine('LEAVE_MAKEUP')
       ]
     });
-    assert.equal(makeupOffsetsAbsence.attendanceAllowanceActual, 1_153_846);
+    assert.equal(makeupOffsetsAbsence.attendanceAllowanceActual, 1_096_154);
+    assert.equal(makeupOffsetsAbsence.travelAllowanceActual, 657_692);
     const notMadeUp = makePayslip({
       employeeType: 'nv',
       dailyLines: [...worked(20), ...leaves, payslipLine('LEAVE_MAKEUP')]
@@ -444,19 +447,21 @@ describe('Payroll allowance behavior from the reference app', () => {
     assert.equal('isatDates' in data, false);
   });
 
-  it('keeps the flex premium of a day with made-up hours and counts it as a work day (R10)', async () => {
+  it('pays a day of made-up hours makeup x1 only: not a work day, no premium (D13, was R10)', async () => {
     const repo = new FakePayrollRepository();
-    const dates = Array.from({ length: 25 }, (_, i) => `2026-10-${String(i + 1).padStart(2, '0')}`);
+    const workdays = [1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22].map(
+      day => `2026-10-${String(day).padStart(2, '0')}`
+    );
     repo.data.set('makeup:2026-10', {
       staff: { ...staffOf('makeup', 'nv', 40, SEED_RATES.nv), positionLevelText: 'NV L1' },
       days: [
-        ...dates.slice(0, 18).map(date => dayRow('PRESENT', date)),
-        // 19/10 and 20/10 (a FLEX day): the 18:00-22:00 makeup window worked after the shift, 240 minutes x1 each, so
-        // the leave with makeup of 25/10 is fully made up.
-        dayRow('PRESENT', '2026-10-19', { makeupMinutes: 240 }),
-        shiftRow('2026-10-20', 'FLEX', ['09:00', '18:00'], { makeupMinutes: 240 }),
-        ...dates.slice(20, 24).map(date => dayRow('LEAVE_PAID', date)),
-        dayRow('LEAVE_MAKEUP', '2026-10-25')
+        ...workdays.map(date => dayRow('PRESENT', date)),
+        // Sundays 04/10 and 11/10: the 18:00-22:00 makeup window worked on a rest day, 240 minutes x1 each, so the
+        // leave with makeup of 28/10 is fully made up. A day whose work is makeup is an EXTRA row.
+        dayRow('EXTRA', '2026-10-04', { ...punched('2026-10-04', '18:00', '22:00'), workHours: 4, makeupMinutes: 240 }),
+        dayRow('EXTRA', '2026-10-11', { ...punched('2026-10-11', '18:00', '22:00'), workHours: 4, makeupMinutes: 240 }),
+        ...[23, 24, 26, 27].map(day => dayRow('LEAVE_PAID', `2026-10-${day}`)),
+        dayRow('LEAVE_MAKEUP', '2026-10-28')
       ].map(row => ({ ...row, employeeId: 'makeup' })),
       requests: [],
       kpi: null
@@ -464,14 +469,20 @@ describe('Payroll allowance behavior from the reference app', () => {
 
     const slip = await serviceOf(repo).generateMonthlyPayslip('makeup', '2026-10');
 
-    assert.equal(slip.actualWorkDays, 20);
-    assert.equal(slip.baseSalaryActual, 4_615_385);
-    // 20 / 26 of the 15% travel and 25% attendance: the made-up days count, and 4 days off stay below 5.
-    assert.equal(slip.travelAllowanceActual, 692_308);
-    assert.equal(slip.attendanceAllowanceActual, 1_153_846);
-    const makeupDay = slip.dailyLines.find(row => row.date === '2026-10-20');
-    assert.equal(makeupDay?.flexAllowancePay, 46_154);
-    assert.equal(makeupDay?.makeupPay, 115_385);
+    // 19 work days: 6.000.000 x 19 / 26 = 4.384.615,38
+    assert.equal(slip.actualWorkDays, 19);
+    assert.equal(slip.baseSalaryActual, 4_384_615);
+    // 19 / 26 of the 15% travel and 25% attendance: the made-up days count no day, and 4 days off stay below 5.
+    assert.equal(slip.travelAllowanceActual, 657_692);
+    assert.equal(slip.attendanceAllowanceActual, 1_096_154);
+    // makeup x1: 6.000.000 x (480 / 60) / 208 = 230.769,23; each day shows 6.000.000 x 4 / 208 = 115.384,62
+    assert.equal(slip.makeupPay, 230_769);
+    const makeupDay = slip.dailyLines.find(row => row.date === '2026-10-11');
+    assert.deepEqual(
+      [makeupDay?.daySalary, makeupDay?.flexAllowancePay, makeupDay?.nightAllowancePay, makeupDay?.makeupPay],
+      [0, 0, 0, 115_385]
+    );
+    assert.equal(slip.flexAllowanceActual, 0);
   });
 
   it('counts a leave with makeup that was not made up as an absence', async () => {
@@ -589,7 +600,8 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     const exemptSlip = (
       dailyLines: Array<typeof nightLine>,
       otHoursByRate?: { x15?: number; x20?: number; x30?: number },
-      nightAllowancePct = 40
+      nightAllowancePct = 40,
+      over: Partial<ConstructorParameters<typeof EmployeePayslip>[0]> = {}
     ) =>
       new EmployeePayslip({
         employeeId: 'exempt',
@@ -603,7 +615,8 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
         nightAllowancePct,
         allowanceRates: SEED_RATES.nv,
         dailyLines,
-        otHoursByRate
+        otHoursByRate,
+        ...over
       });
 
     it('exempts the OT premium of each rate and, per night line, up to 30% of the hourly pay', () => {
@@ -613,7 +626,9 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
       // 4 h at 150% x 0.5 + 3 h at 200% x 1 + 1 h at 300% x 2 = 7 hourly rates = 201,923.08 -> 201,923.
       // Night: per line min(8 h x 28,846.15 x 0.3 = 69,230.77, allowance 92,308) = 69,230.77; 2 lines = 138,461.54
       // -> 138,462. The 92,308 allowance paid per night is larger, so only the 30% part is exempt.
-      assert.equal(slip.nightAllowanceActual, 184_616);
+      // D1: the night allowance is 0.4 x 6,000,000 x 2 nights / 26 = 184,615.38 -> 184,615, rounded once (the two lines
+      // show 92,308 each, which summed gave 184,616 before).
+      assert.equal(slip.nightAllowanceActual, 184_615);
       assert.equal(slip.taxExemptIncome, 340_385);
     });
 
@@ -626,13 +641,18 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
       const slip = exemptSlip(lines, undefined, 60);
 
       // Per line min(8 x 28,846.15 x 0.3 = 69,230.77, 138,462) = 69,230.77; 20 lines = 1,384,615.38 -> 1,384,615.
-      assert.equal(slip.nightAllowanceActual, 2_769_240);
+      // D1: the night allowance is 0.6 x 6,000,000 x 20 nights / 26 = 2,769,230.77 -> 2,769,231, rounded once (20 lines
+      // of 138,462 summed gave 2,769,240 before: 20 x 0.46 of per-line rounding).
+      assert.equal(slip.nightAllowanceActual, 2_769_231);
       assert.equal(slip.taxExemptIncome, 1_384_615);
     });
 
     it('exempts nothing for a night shift that paid no allowance', () => {
-      // A night day that is not a work day pays no night allowance, so nothing is exempt.
-      const slip = exemptSlip([{ ...nightLine, nightAllowancePay: 0 }]);
+      // A night day that is not a work day pays no night allowance, so nothing is exempt. The allowance comes from the
+      // row fields (D1), so the line is one that does not count as a work day.
+      const slip = exemptSlip([
+        { ...nightLine, payUnits: 0, countsAsWorkday: false, daySalary: 0, nightAllowancePay: 0, dailyTotal: 0 }
+      ]);
       assert.equal(slip.taxExemptIncome, 0);
     });
 
@@ -644,8 +664,15 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     });
 
     it('caps the exemption at the allowance when that is lower than 30% of the hourly pay', () => {
-      const slip = exemptSlip([{ ...nightLine, nightAllowancePay: 50_000 }]);
-      assert.equal(slip.taxExemptIncome, 50_000);
+      // A night rate of 20% (a level override): the allowance 0.2 x 230,769.23 = 46,153.85 is below 8 h x 28,846.15 x 0.3
+      // = 69,230.77, so the exemption is the allowance, exact, rounded once -> 46,154. (D1: the allowance is the rate
+      // of the row, no longer an amount written on the line; this test used a 50,000 line amount before.)
+      const slip = exemptSlip([{ ...nightLine, nightAllowancePay: 46_154 }], undefined, 40, {
+        employeeType: 'tts',
+        allowanceRates: { ...SEED_RATES.tts, levelNightPct: 20 }
+      });
+      assert.equal(slip.nightAllowanceActual, 46_154);
+      assert.equal(slip.taxExemptIncome, 46_154);
     });
 
     it('exempts nothing from lines of other shifts', () => {
@@ -1070,7 +1097,9 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
     assert.equal(slip.otPayTotal, 0);
   });
 
-  it('adds the weekday and the Saturday OT: the total is the sum of the line pay', async () => {
+  // D1: the total is the sum of the three kinds of day, each one formula on its hours. With one line per kind, as
+  // here, the lines add up to the same; in general they may differ by a few dong (the line amounts are display only).
+  it('adds the weekday and the Saturday OT: the total is the sum of the kinds of day', async () => {
     const slip = await generate({
       days: [punch('2026-10-07', '08:12', '19:20'), punch('2026-10-10', '08:00', '20:30')],
       requests: [overtime('ot-1', '2026-10-07'), overtime('ot-2', '2026-10-10')]

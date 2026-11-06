@@ -207,7 +207,8 @@ test('API Admin: chấm công tuần, chi tiết nhân sự, tổng quan', async
     assert.deepEqual(
       { ...decide[0], id: undefined },
       { id: undefined, kind: 'leave', group: 'leave', groupLabel: 'Đơn nghỉ', action: 'decide', username: 'nv2', name: 'Trần Thị Hai',
-        initials: 'TH', title: null, what: 'Nghỉ phép', when: '15/10–16/10', days: ['2026-10-15', '2026-10-16'], age: '7 ngày', date: '2026-10-15' }
+        initials: 'TH', title: null, what: 'Nghỉ phép', when: '15/10–16/10', days: ['2026-10-15', '2026-10-16'], age: '7 ngày', date: '2026-10-15',
+        departmentId: null, departmentName: null, staffStatus: 'working' }
     );
     assert.equal(week.body.total, 3);
     assert.equal(week.body.matched, 3);
@@ -217,6 +218,22 @@ test('API Admin: chấm công tuần, chi tiết nhân sự, tổng quan', async
     assert.deepEqual(week.body.tiles.map((t: any) => [t.key, t.value]), [
       ['todo', 6], ['present', 0], ['late', 0], ['leave', 0], ['absent', 4], ['ot', 0]
     ]);
+
+    // Bộ lọc chung: chưa ai có phòng ban; lọc thu hẹp hàng và việc cần xử lý, `total` và thẻ số theo người vẫn tính trên mọi người.
+    const noDept = await get('/api/v2/attendance/week?from=2026-10-12&departmentId=none');
+    assert.equal(noDept.body.rows.length, 3);
+    assert.ok(noDept.body.rows.every((r: any) => r.departmentId === null && r.staffStatus === 'working'));
+    const dept = await get('/api/v2/attendance/week?from=2026-10-12&departmentId=1');
+    assert.equal(dept.body.rows.length, 0);
+    assert.equal(dept.body.pending.length, 0);
+    assert.equal(dept.body.total, 3);
+    const tileValue = (body: any, key: string) => body.tiles.find((t: any) => t.key === key).value;
+    assert.equal(tileValue(dept.body, 'absent'), tileValue(week.body, 'absent')); // thẻ "Vắng" vẫn tính trên mọi người
+    const resigned = await get('/api/v2/attendance/week?from=2026-10-12&staffStatus=resigned');
+    assert.equal(resigned.body.rows.length, 0);
+    const bad = await get('/api/v2/attendance/week?staffStatus=vip');
+    assert.equal(bad.status, 400);
+    assert.equal(bad.body.code ?? bad.body.error?.code, 'INVALID_FILTER');
 
     // Lưới 4 tuần (không from): tuần cách hôm nay 14 ngày, hôm nay ở tuần thứ ba; hôm nay là "chưa chấm vào", không phải vắng.
     const grid = await get('/api/v2/attendance/week?days=28');

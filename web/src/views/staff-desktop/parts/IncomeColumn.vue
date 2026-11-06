@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Cột 3 · Thu nhập (spec 4.3): đầu cột, thẻ đen thực nhận, thẻ KPI (tiêu đề h3), khối "Các khoản" giãn kín đáy.
-// Không có MonthSwitch (luôn tháng hiện tại) và không có dòng ghi chú "Phiếu chính thức có khi Admin duyệt".
+// Không có MonthSwitch riêng: tháng theo cột Chấm công (prop month; null = tháng hiện tại). Không có dòng ghi chú "Phiếu chính thức có khi Admin duyệt".
 // Tải lỗi thì hiện LoadError với nút Thử lại (tải xong thì focus về h2, vẫn lỗi thì về nút Thử lại mới); chưa có dữ liệu thì
 // hiện "Đang tải…".
 import { computed, ref } from 'vue';
@@ -13,7 +13,9 @@ import LoadError from '@/views/staff-phone/components/LoadError.vue';
 import LoadingLine from '@/views/staff-phone/components/LoadingLine.vue';
 import NetCard from '@/views/staff-phone/components/NetCard.vue';
 
-const load = useLoad(() => getIncome());
+const props = defineProps<{ month?: string | null }>();
+
+const load = useLoad(() => getIncome(props.month), () => props.month);
 const { data, error, loading } = load;
 const head = ref<HTMLElement | null>(null);
 const { errBox, retry } = useRetry(load, head);

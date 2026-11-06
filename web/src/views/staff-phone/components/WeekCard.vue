@@ -24,7 +24,6 @@ withDefaults(defineProps<{ week: HomeView['week']; alert: HomeView['alert']; rep
           >{{ c.day }}</RouterLink
         >
         <span v-else class="dn" :class="[c.kind, { today: c.today }]" role="img" :aria-label="c.label">{{ c.day }}</span>
-        <small v-if="c.kind === 'off'" class="off-cap" aria-hidden="true">nghỉ</small>
       </div>
     </div>
     <RouterLink v-if="alert" :to="`/nv/cham-cong?ngay=${alert.date}`" :replace="replace" class="att">
@@ -68,12 +67,6 @@ withDefaults(defineProps<{ week: HomeView['week']; alert: HomeView['alert']; rep
   line-height: 16px;
   color: var(--muted);
   text-align: center;
-}
-.off-cap {
-  margin-top: 2px;
-  font-size: 10px;
-  line-height: 12px;
-  color: var(--muted);
 }
 .att {
   display: flex;

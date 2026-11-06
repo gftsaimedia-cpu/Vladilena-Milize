@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { Kysely, sql } from 'kysely';
+import { Kysely, sql, type SelectQueryBuilder } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
 import { isValidDateText } from '../../common/date-text';
 import { DEFAULT_SHIFT } from '../../common/shift-catalog';
@@ -35,8 +35,22 @@ export interface RequestListFilter {
   employeeIds?: string[];
   type?: RequestType;
   status?: RequestStatus;
+  /** Chỉ đơn của những nhân sự này (uuid hoặc username); mảng rỗng = không đơn nào (khác `employeeIds` rỗng = không lọc). */
+  staffIds?: string[];
+  /** Bỏ các loại đơn này khỏi danh sách và số đếm. */
+  excludeTypes?: RequestType[];
+  /** 'inbox': đơn chờ trước (cũ nhất trước), đơn đã xử lý sau (mới nhất trước). Mặc định: mới nhất trước. */
+  sort?: 'inbox';
   limit?: number;
   offset?: number;
+}
+
+/** Một nhóm (trạng thái, loại) của số đếm tab Yêu cầu; `oldest` là thời điểm tạo sớm nhất trong nhóm. */
+export interface RequestCountGroup {
+  status: RequestStatus;
+  type: RequestType;
+  total: number;
+  oldest: Date | null;
 }
 
 export interface IsatProfile {
@@ -54,6 +68,8 @@ export interface StaffContext {
   leaveBalanceOn: string | null; // staff.leave_balance_on
   startDate: string | null; // staff.start_date (YYYY-MM-DD); trống hoặc sai dạng → null
   resignedOn?: string | null; // staff.resigned_on (YYYY-MM-DD); trống hoặc sai dạng → null
+  /** staff.advance_on: 0 → không được tạm ứng (D8); NULL hay khác 0 → được, như hồ sơ nhân sự đọc. Thiếu → được. */
+  canAdvance?: boolean;
   benefits: { ot: boolean; makeup: boolean; leaveAccount: boolean };
   regularDows: number[] | null; // null = loại nhân sự chưa cấu hình
 }
@@ -179,6 +195,10 @@ export class RequestsRepository {
           new_shift_type: eb.ref('excluded.new_shift_type'),
           new_start_time: eb.ref('excluded.new_start_time'),
           new_end_time: eb.ref('excluded.new_end_time'),
+          half_shift_date: eb.ref('excluded.half_shift_date'),
+          half_shift_half: eb.ref('excluded.half_shift_half'),
+          half_start_time: eb.ref('excluded.half_start_time'),
+          half_end_time: eb.ref('excluded.half_end_time'),
           updated_at: eb.ref('excluded.updated_at')
         }))
       )
@@ -217,6 +237,10 @@ export class RequestsRepository {
         'new_shift_type',
         'new_start_time',
         'new_end_time',
+        dateText('half_shift_date'),
+        'half_shift_half',
+        'half_start_time',
+        'half_end_time',
         'created_at',
         'updated_at'
       ]);
@@ -239,22 +263,40 @@ export class RequestsRepository {
     return this.attachChildren(rows);
   }
 
-  async list(filter: RequestListFilter = {}): Promise<SystemRequest[]> {
-    let query = this.selectRequests();
-
+  /** Điều kiện chung của danh sách, số đếm và nhóm đếm. Không đụng `status`/`type` khi `withKind` sai. */
+  private scoped<O>(query: SelectQueryBuilder<DB, 'system_requests', O>, filter: RequestListFilter, withKind = true) {
     if (filter.employeeIds?.length) {
       query = query.where('employee_id', 'in', filter.employeeIds);
     } else if (filter.employeeId) {
       query = query.where('employee_id', '=', filter.employeeId);
     }
-    if (filter.type) {
+    if (filter.staffIds) {
+      query = filter.staffIds.length ? query.where('employee_id', 'in', filter.staffIds) : query.where(sql<boolean>`false`);
+    }
+    if (filter.excludeTypes?.length) {
+      query = query.where('type', 'not in', filter.excludeTypes);
+    }
+    if (withKind && filter.type) {
       query = query.where('type', '=', filter.type);
     }
-    if (filter.status) {
+    if (withKind && filter.status) {
       query = query.where('status', '=', filter.status);
     }
+    return query;
+  }
 
-    query = query.orderBy('created_at', 'desc');
+  async list(filter: RequestListFilter = {}): Promise<SystemRequest[]> {
+    let query = this.scoped(this.selectRequests(), filter);
+
+    if (filter.sort === 'inbox') {
+      query = query
+        .orderBy(sql`(status = 'PENDING')`, 'desc')
+        .orderBy(sql`CASE WHEN status = 'PENDING' THEN created_at END`, 'asc')
+        .orderBy(sql`CASE WHEN status <> 'PENDING' THEN created_at END`, 'desc')
+        .orderBy('id');
+    } else {
+      query = query.orderBy('created_at', 'desc');
+    }
 
     if (filter.limit !== undefined && filter.limit > 0) {
       query = query.limit(filter.limit);
@@ -343,7 +385,17 @@ export class RequestsRepository {
   async findStaffContext(employeeIdOrUsername: string, month: string): Promise<StaffContext | null> {
     const staff = await this.qb
       .selectFrom('staff')
-      .select(['uuid', 'type', 'shift_start_time', 'shift_end_time', 'leave_balance', 'leave_balance_on', 'start_date', 'resigned_on'])
+      .select([
+        'uuid',
+        'type',
+        'shift_start_time',
+        'shift_end_time',
+        'leave_balance',
+        'leave_balance_on',
+        'start_date',
+        'resigned_on',
+        'advance_on'
+      ])
       .where(eb => eb.or([eb('uuid', '=', employeeIdOrUsername), eb('username', '=', employeeIdOrUsername)]))
       .executeTakeFirst();
     if (!staff || !staff.uuid) return null;
@@ -381,6 +433,7 @@ export class RequestsRepository {
       leaveBalanceOn: staff.leave_balance_on ?? null,
       startDate: parseStartDate(staff.start_date),
       resignedOn: parseStartDate(staff.resigned_on),
+      canAdvance: Number(staff.advance_on ?? 1) !== 0,
       benefits: { ot: enabled.has('ot'), makeup: enabled.has('makeup'), leaveAccount: enabled.has('leaveAccount') },
       regularDows: typeRow ? parseDows(typeRow.regular_dows) : null
     };
@@ -529,23 +582,27 @@ export class RequestsRepository {
   }
 
   async count(filter: Omit<RequestListFilter, 'limit' | 'offset'> = {}): Promise<number> {
-    let query = this.qb
-      .selectFrom('system_requests')
-      .select(sql<number>`COUNT(*)`.as('total'));
-
-    if (filter.employeeIds?.length) {
-      query = query.where('employee_id', 'in', filter.employeeIds);
-    } else if (filter.employeeId) {
-      query = query.where('employee_id', '=', filter.employeeId);
-    }
-    if (filter.type) {
-      query = query.where('type', '=', filter.type);
-    }
-    if (filter.status) {
-      query = query.where('status', '=', filter.status);
-    }
-
+    const query = this.scoped(this.qb.selectFrom('system_requests').select(sql<number>`COUNT(*)`.as('total')), filter);
     const res = await query.executeTakeFirst();
     return Number(res?.total ?? 0);
+  }
+
+  /** Số đơn theo (trạng thái, loại) trong phạm vi nhân sự của bộ lọc, không theo `status` và `type` đang chọn. */
+  async countGroups(filter: Omit<RequestListFilter, 'limit' | 'offset' | 'status' | 'type'> = {}): Promise<RequestCountGroup[]> {
+    const query = this.scoped(
+      this.qb
+        .selectFrom('system_requests')
+        .select(['status', 'type', sql<number>`COUNT(*)`.as('total'), sql<Date | null>`MIN(created_at)`.as('oldest')])
+        .groupBy(['status', 'type']),
+      filter,
+      false
+    );
+    const rows = await query.execute();
+    return rows.map(r => ({
+      status: r.status as RequestStatus,
+      type: r.type as RequestType,
+      total: Number(r.total),
+      oldest: r.oldest ? new Date(r.oldest) : null
+    }));
   }
 }

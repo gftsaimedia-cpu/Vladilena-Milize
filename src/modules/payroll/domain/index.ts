@@ -9,3 +9,4 @@ export * from './presence';
 export * from './overtime-pay';
 export * from './makeup-shortfall';
 export * from './payroll-totals';
+export * from './money';

@@ -52,9 +52,3 @@ Mục 1–7, 17, 19, 21, 26, 27 đã chuyển; 2 và 16 giữ phần UX. Trườ
 - 19: `details.deductionTotal` (bản tạm tính của `/me/income` chỉ gồm tạm ứng).
 - 21: `details.calendar` (loại từng ngày do BE quyết); FE không so ngày máy.
 - 12, 25: chưa làm (không chạm cùng file với nhóm lương).
-
-## Tiến độ xử lý (06/11/2026)
-
-- Đã chuyển sang BE (FE chỉ hiện): #1–#7, #8–#10, #11 (form tạm ứng), #12, #17, #18, #19, #20, #21, #22, #23, #26, #27; #28 bỏ mã chết.
-- Giữ vì chỉ là UX hoặc nhãn mô tả: #14, #15 (BE đã chặn bằng `OUTSIDE_ZONE`/`NOT_A_WORKDAY`, FE chỉ khoá nút sớm), #16, #24, #25 (BE đã kiểm tổng = 100 khi lưu, FE giữ dòng "Tổng x/100"); chữ "80%" ở màn Cài đặt chỉ-đọc (BE chưa có trường).
-- #13 đã làm: BE `GET /employees` trả `work` từng người và `summary` (đang làm, vào/nghỉ, thâm niên, theo loại/bậc/hợp đồng), FE chỉ ánh xạ. #2 phần mock giữ trong `mock/` (đúng chỗ).

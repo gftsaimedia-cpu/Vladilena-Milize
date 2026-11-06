@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Thân luồng "Tạo yêu cầu" (board J8, J9, K3; spec staff-requests 4.2–4.5), dùng chung cho hộp trượt điện thoại và ngăn kéo K3.
 // Tự vẽ đầu hộp: menu là "Tạo yêu cầu" + dòng phụ + ✕; form là ‹ (quay lại menu) + tên loại + ✕. Vỏ mở với `bare` và đặt tên
-// dialog theo sự kiện `title`. Menu: 6 loại theo thứ tự board; loại không có trong kinds (quyền lợi) bị ẩn; loại khoá vẫn
+// dialog theo sự kiện `title`. Menu: 7 loại theo thứ tự board (Nghỉ giữa ca sau Nghỉ có làm bù); loại không có trong kinds (quyền lợi) bị ẩn; loại khoá vẫn
 // focus được bằng bàn phím (aria-disabled, bấm không làm gì), lý do của server là mô tả của dòng.
 // Form: nhận ctx, ngay và kết quả xem trước gần nhất đã về (tự đặt hộp tóm tắt ở chỗ board vẽ), phát bản nháp. Bản nháp đủ thì
 // xem trước (useNewRequest) rồi mới bật "Gửi yêu cầu"; server từ chối thì câu lỗi nằm dưới nút. Gửi xong: thông báo nổi
@@ -15,6 +15,7 @@ import type { RequestKind } from '@/mock/staff-requests-types';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
 import AdvanceForm from './AdvanceForm.vue';
 import ExplanationForm from './ExplanationForm.vue';
+import HalfShiftForm from './HalfShiftForm.vue';
 import LeaveForm from './LeaveForm.vue';
 import MakeupLeaveForm from './MakeupLeaveForm.vue';
 import OvertimeForm from './OvertimeForm.vue';
@@ -28,6 +29,7 @@ const emit = defineEmits<{ title: [title: string]; close: []; sent: [] }>();
 const FORMS: Record<RequestKind, Component> = {
   leave: LeaveForm,
   'leave-with-makeup': MakeupLeaveForm,
+  'half-shift-leave': HalfShiftForm,
   overtime: OvertimeForm,
   'shift-change': ShiftChangeForm,
   explanation: ExplanationForm,
@@ -37,6 +39,7 @@ const FORMS: Record<RequestKind, Component> = {
 const MENU: { kind: RequestKind; label: string; icon: PhoneIconName; hint: string }[] = [
   { kind: 'leave', label: 'Đơn nghỉ', icon: 'leave', hint: 'Nghỉ cả ngày' },
   { kind: 'leave-with-makeup', label: 'Nghỉ có làm bù', icon: 'redo', hint: 'Nghỉ 1 ngày thì bù đủ 8 giờ trong tháng' },
+  { kind: 'half-shift-leave', label: 'Nghỉ giữa ca', icon: 'leave', hint: 'Làm nửa ca, nửa còn lại bù bằng làm thêm giờ trong tháng' },
   { kind: 'overtime', label: 'Làm thêm giờ', icon: 'clockPlus', hint: 'Ngoài ca, cách ca ít nhất 1 giờ' },
   { kind: 'shift-change', label: 'Đổi ca', icon: 'swap', hint: 'Normal, Flex hoặc Night cho một khoảng ngày' },
   { kind: 'explanation', label: 'Giải trình', icon: 'chat', hint: 'Cho một ngày chấm công chưa hợp lệ' },
@@ -103,9 +106,7 @@ watch(kind, async (now, before) => {
       <button type="button" class="rb" aria-label="Đóng" @click="emit('close')"><PhIcon name="x" :size="18" :stroke="2" /></button>
     </div>
 
-    <p v-if="loadError" class="nr-err" role="alert">
-      {{ loadError }} <button type="button" class="nr-retry" @click="flow.retryContext()">Thử lại</button>
-    </p>
+    <p v-if="loadError" class="nr-err" role="alert">{{ loadError }}</p>
     <template v-else-if="ctx">
       <div v-if="!kind" class="nr-menu" role="group" aria-label="Loại yêu cầu">
         <button
@@ -169,16 +170,6 @@ watch(kind, async (now, before) => {
 .nr-menu {
   display: flex;
   flex-direction: column;
-}
-.nr-retry {
-  border: 0;
-  padding: 0;
-  background: none;
-  font: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  color: inherit;
-  cursor: pointer;
 }
 .nr-row {
   width: 100%;

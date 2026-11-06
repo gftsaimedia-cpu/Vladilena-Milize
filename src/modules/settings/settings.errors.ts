@@ -36,6 +36,17 @@ export class SettingsStaleError extends Error {
   }
 }
 
+/** Một nhóm cài đặt chưa có phiên bản nào có hiệu lực ở tháng đó (tháng trước phiên bản đầu tiên). */
+export class SettingsMissingError extends Error {
+  constructor(
+    readonly group: string,
+    readonly month: string
+  ) {
+    super(`Không có cài đặt ${group} nào có hiệu lực ở tháng ${month}`);
+    this.name = 'SettingsMissingError';
+  }
+}
+
 /** Loại nhân sự chưa có tuần làm việc ở tháng đó, vd. tài khoản quản trị đầu tiên (loại ql) không có dòng position_types. */
 export class TypeWeekMissingError extends Error {
   constructor(

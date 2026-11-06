@@ -50,7 +50,7 @@ test('the toolbar keeps only the tabs and the two filters on this tab', async ({
   await page.goto(PENDING);
   await expect(rowsOf(page)).toHaveCount(11);
   await expect(page.getByRole('textbox', { name: 'Lọc theo tên' })).toBeVisible();
-  await expect(page.getByRole('combobox', { name: 'Nhóm' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Phòng ban', exact: true })).toBeVisible();
   for (const name of ['Tuần trước', 'Tuần sau', 'Hôm nay']) await expect(page.getByRole('button', { name })).toHaveCount(0);
   await expect(page.getByRole('group', { name: 'Chú giải' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Excel|Xuất/ })).toHaveCount(0);

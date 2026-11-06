@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // Cài đặt › Phân quyền › Xử lý yêu cầu: yêu cầu chưa được đồng ý hoặc bị từ chối thì ngày đó tính thế nào.
-import ScrollX from '@/components/ui/ScrollX.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getRequestRules, saveRequestRules } from '@/services/admin-settings';
 import SettingsFrame from './SettingsFrame.vue';
@@ -26,7 +25,7 @@ const { draft } = form;
       <div class="qd">
         <div>
           <h3>Nghỉ</h3>
-          <ScrollX label="Quy tắc yêu cầu"><table class="tbl qt">
+          <table class="tbl qt">
             <colgroup>
               <col />
               <col style="width: 176px" />
@@ -50,11 +49,11 @@ const { draft } = form;
                 </td>
               </tr>
             </tbody>
-          </table></ScrollX>
+          </table>
         </div>
         <div>
           <h3>Làm thêm</h3>
-          <ScrollX label="Quy tắc yêu cầu"><table class="tbl qt">
+          <table class="tbl qt">
             <colgroup>
               <col />
               <col style="width: 200px" />
@@ -73,7 +72,7 @@ const { draft } = form;
                 </td>
               </tr>
             </tbody>
-          </table></ScrollX>
+          </table>
         </div>
       </div>
       <div class="nt">

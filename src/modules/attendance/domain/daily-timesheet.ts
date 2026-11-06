@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { toDateText } from '../../../common/date-text';
+import type { HalfShift } from '../../../common/half-shift';
 import { WorkMetrics, WorkMetricsDTO } from './work-metrics';
 import { ShiftType, CheckInStatus, CheckOutStatus, DayStatus } from './work-schedule';
 import type { AttendanceDayStatus, ExplanationStatus } from './attendance-day';
@@ -15,11 +16,13 @@ export interface DayRowProps {
   cases?: DetectedCase[];
   explanationStatus?: ExplanationStatus;
   explanationRequestId?: string | null;
-  payUnits?: 0 | 1;
+  payUnits?: 0 | 0.5 | 1;
+  halfShift?: HalfShift | null;
   deductionMinutes?: number;
   countsAsWorkday?: boolean;
   countsAsDayOff?: boolean;
   makeupMinutes?: number;
+  makeupCreditMinutes?: number;
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -89,10 +92,12 @@ export interface DailyTimesheetRow {
   explanation_status?: string;
   explanation_request_id?: string | null;
   pay_units?: number;
+  half_shift?: string | null;
   deduction_minutes?: number;
   counts_as_workday?: boolean;
   counts_as_day_off?: boolean;
   makeup_minutes?: number;
+  makeup_credit_minutes?: number;
 }
 
 export interface DailyTimesheetDTO {
@@ -117,10 +122,12 @@ export interface DailyTimesheetDTO {
   explanationStatus: ExplanationStatus;
   explanationRequestId: string | null;
   payUnits: number;
+  halfShift: HalfShift | null;
   deductionMinutes: number;
   countsAsWorkday: boolean;
   countsAsDayOff: boolean;
   makeupMinutes: number;
+  makeupCreditMinutes: number;
 }
 
 export class DailyTimesheet {
@@ -145,10 +152,12 @@ export class DailyTimesheet {
   readonly explanationStatus: ExplanationStatus;
   readonly explanationRequestId: string | null;
   readonly payUnits: number;
+  readonly halfShift: HalfShift | null;
   readonly deductionMinutes: number;
   readonly countsAsWorkday: boolean;
   readonly countsAsDayOff: boolean;
   readonly makeupMinutes: number;
+  readonly makeupCreditMinutes: number;
 
   constructor(props: DailyTimesheetProps) {
     if (!props || typeof props !== 'object') {
@@ -256,10 +265,12 @@ export class DailyTimesheet {
     this.explanationStatus = props.explanationStatus ?? 'NONE';
     this.explanationRequestId = props.explanationRequestId ?? null;
     this.payUnits = props.payUnits ?? 0;
+    this.halfShift = props.halfShift ?? null;
     this.deductionMinutes = props.deductionMinutes ?? 0;
     this.countsAsWorkday = props.countsAsWorkday ?? false;
     this.countsAsDayOff = props.countsAsDayOff ?? false;
     this.makeupMinutes = props.makeupMinutes ?? 0;
+    this.makeupCreditMinutes = props.makeupCreditMinutes ?? this.makeupMinutes;
   }
 
   static create(props: CreateDailyTimesheetProps): DailyTimesheet {
@@ -315,11 +326,13 @@ export class DailyTimesheet {
       cases: this.cases,
       explanationStatus: this.explanationStatus,
       explanationRequestId: this.explanationRequestId,
-      payUnits: this.payUnits as 0 | 1,
+      payUnits: this.payUnits as 0 | 0.5 | 1,
+      halfShift: this.halfShift,
       deductionMinutes: this.deductionMinutes,
       countsAsWorkday: this.countsAsWorkday,
       countsAsDayOff: this.countsAsDayOff,
-      makeupMinutes: this.makeupMinutes
+      makeupMinutes: this.makeupMinutes,
+      makeupCreditMinutes: this.makeupCreditMinutes
     });
   }
 
@@ -350,10 +363,12 @@ export class DailyTimesheet {
       explanation_status: this.explanationStatus,
       explanation_request_id: this.explanationRequestId,
       pay_units: this.payUnits,
+      half_shift: this.halfShift,
       deduction_minutes: this.deductionMinutes,
       counts_as_workday: this.countsAsWorkday,
       counts_as_day_off: this.countsAsDayOff,
-      makeup_minutes: this.makeupMinutes
+      makeup_minutes: this.makeupMinutes,
+      makeup_credit_minutes: this.makeupCreditMinutes
     };
   }
 
@@ -391,11 +406,13 @@ export class DailyTimesheet {
       cases: row.cases_json ? (JSON.parse(row.cases_json) as DetectedCase[]) : [],
       explanationStatus: (row.explanation_status as ExplanationStatus | undefined) ?? 'NONE',
       explanationRequestId: row.explanation_request_id ?? null,
-      payUnits: Number(row.pay_units ?? 0) as 0 | 1,
+      payUnits: Number(row.pay_units ?? 0) === 1 ? 1 : Number(row.pay_units ?? 0) === 0.5 ? 0.5 : 0,
+      halfShift: (row.half_shift as HalfShift | null | undefined) ?? null,
       deductionMinutes: Number(row.deduction_minutes ?? 0),
       countsAsWorkday: Boolean(row.counts_as_workday),
       countsAsDayOff: Boolean(row.counts_as_day_off),
-      makeupMinutes: Number(row.makeup_minutes ?? 0)
+      makeupMinutes: Number(row.makeup_minutes ?? 0),
+      makeupCreditMinutes: Number(row.makeup_credit_minutes ?? row.makeup_minutes ?? 0)
     });
   }
 
@@ -422,10 +439,12 @@ export class DailyTimesheet {
       explanationStatus: this.explanationStatus,
       explanationRequestId: this.explanationRequestId,
       payUnits: this.payUnits,
+      halfShift: this.halfShift,
       deductionMinutes: this.deductionMinutes,
       countsAsWorkday: this.countsAsWorkday,
       countsAsDayOff: this.countsAsDayOff,
-      makeupMinutes: this.makeupMinutes
+      makeupMinutes: this.makeupMinutes,
+      makeupCreditMinutes: this.makeupCreditMinutes
     };
   }
 }

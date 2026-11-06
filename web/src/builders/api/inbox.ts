@@ -1,6 +1,7 @@
 // Việc chờ duyệt (chuông, thẻ Việc cần duyệt) từ GET /api/v2/requests?status=PENDING. Mỗi đơn đang chờ là một việc
 // "decide"; duyệt / từ chối qua PATCH /api/v2/requests/:id/review. Việc "nhắc giải trình" (ngày chấm công thiếu hoặc
 // lệch mà nhân viên chưa gửi giải trình) đến từ GET /requests/explanations-due (inboxFromDue), nhóm Chấm công.
+import type { PersonStatus } from '../../components/staff-scope/staffScope';
 import type { InboxGroup, InboxItem } from '../../mock/inbox';
 import { INBOX_GROUPS } from '../../constants/labels';
 import { dm, initials, vndc, weekdayName } from '../../utils/format';
@@ -10,7 +11,7 @@ import type { ExplanationNeeds } from '../../mock/staff-requests-types';
 export type RequestDTO = {
   id: string;
   employeeId: string;
-  type: 'LEAVE' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION' | 'ISAT';
+  type: 'LEAVE' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION' | 'ISAT' | 'HALF_SHIFT_LEAVE';
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   reason: string | null;
   createdAt: string;
@@ -30,15 +31,24 @@ export type RequestDTO = {
   changeStartDate?: string | null;
   changeEndDate?: string | null;
   isat?: { saturday?: string } | null;
+  // Nghỉ giữa ca (BE half-shift-leave): ngày, nửa nhân viên làm, khung làm và khung nghỉ, số phút cần bù (240).
+  halfShiftDate?: string | null;
+  halfShift?: 'FIRST' | 'SECOND' | null;
+  halfShiftWork?: { start: string; end: string } | null;
+  halfShiftLeave?: { start: string; end: string } | null;
+  owedMinutes?: number | null;
+  /** Vì sao BE không cho duyệt đơn này (vd. ngày nghỉ giữa ca đã thành ngày lễ); có thì chỉ còn Từ chối. Đề xuất cho BE. */
+  approveBlock?: string | null;
   dates?: string[];
 };
 
-export type PersonInfo = { name: string; title: string };
+export type PersonInfo = { name: string; title: string; dept?: string; ps?: PersonStatus };
 
 const GROUP_OF: Record<RequestDTO['type'], InboxGroup> = {
   LEAVE: 'leave',
   LEAVE_WITH_MAKEUP: 'leave',
   ISAT: 'leave',
+  HALF_SHIFT_LEAVE: 'leave',
   OVERTIME: 'ot',
   SHIFT_CHANGE: 'ot',
   EXPLANATION: 'exp',
@@ -96,6 +106,23 @@ function bodyOf(r: RequestDTO): Body {
         sub: days.length > 1 ? `${longDay(days[0])} – ${longDay(days[days.length - 1])}` : days[0] ? longDay(days[0]) : '',
         facts: [['Hình thức', kind], ['Lý do', quote(r.reason)]],
         days
+      };
+    }
+    case 'HALF_SHIFT_LEAVE': {
+      const day = r.halfShiftDate || '';
+      const span = (t?: { start: string; end: string } | null) => (t ? `${t.start}–${t.end}` : '—');
+      return {
+        what: 'Nghỉ giữa ca',
+        when: day ? dm(day) : '',
+        head: r.halfShiftWork ? `Nghỉ giữa ca · làm ${span(r.halfShiftWork)}` : 'Nghỉ giữa ca',
+        sub: day ? longDay(day) : '',
+        facts: [
+          ['Làm', span(r.halfShiftWork)],
+          ['Nghỉ', span(r.halfShiftLeave)],
+          ['Cần bù', r.owedMinutes ? `${String(Math.round((r.owedMinutes / 60) * 10) / 10).replace('.', ',')} giờ` : '—'],
+          ['Lý do', quote(r.reason)]
+        ],
+        days: day ? [day] : []
       };
     }
     case 'ISAT': {
@@ -168,7 +195,8 @@ export function inboxFromRequests(requests: RequestDTO[], people: Map<string, Pe
         initials: initials(name),
         role: person?.title || '—',
         age: ageText(r.createdAt, now),
-        ...bodyOf(r)
+        ...bodyOf(r),
+        ...(r.approveBlock ? { approveBlock: r.approveBlock } : {})
       };
     });
 }

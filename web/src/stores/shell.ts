@@ -8,12 +8,13 @@ import { resolveRequest, type DecisionVerb } from '@/services/admin-main';
 import { getShell, type ShellMe } from '@/services/shell';
 
 export const useShellStore = defineStore('shell', {
-  state: () => ({ me: {} as ShellMe, bell: 0 as number | null, version: 0, seen: {} as Record<string, true> }),
+  state: () => ({ me: {} as ShellMe, bell: 0, requests: 0, version: 0, seen: {} as Record<string, true> }),
   actions: {
     async load() {
       const res = await getShell();
       this.me = res.me;
       this.bell = res.bell;
+      this.requests = res.requests;
     },
     /** `note`: ghi chú cho nhân viên khi duyệt / từ chối (bắt buộc khi từ chối, chuông tự kiểm). */
     async decide(id: string, verb: DecisionVerb = 'approve', note?: string): Promise<InboxItem | null> {

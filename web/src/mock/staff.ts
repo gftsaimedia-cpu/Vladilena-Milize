@@ -1,10 +1,8 @@
-// Dữ liệu Nhân sự giả (bảng I và ngăn kéo I2 của concept): 10 hồ sơ trang đầu, 4 thẻ chỉ số và tổng 131 là hằng số.
-// Chỉ đọc; người dùng thật của máy chủ không đi qua đây.
+// Dữ liệu Nhân sự giả (bảng I và ngăn kéo I2 của concept): 10 hồ sơ trang đầu, 4 thẻ chỉ số là hằng số, tổng 131.
+// Thêm, Sửa hồ sơ và Cho nghỉ việc ghi thẳng vào các dòng giả (mất khi tải lại trang); người dùng thật không đi qua đây.
 import { dmy, initials, tenure } from '../utils/format';
 export { tenure };
-import { staffStatsFromSummary, type StaffSummaryDTO } from '../builders/api/staff-stats';
 import { MOCK_TODAY } from './clock';
-import { MOCK_HEADCOUNT } from './positions';
 
 export type StaffStatus = 'ok' | 'try' | 'off' | 'out';
 
@@ -86,24 +84,12 @@ const ROWS: StaffRow[] = PEOPLE.map(([id, name, code, email, activated, dept, ti
   joined
 }));
 
-// Cùng dạng `summary` của GET /api/v2/employees (test hợp đồng web/tests/staff-contract.spec.ts); thẻ chỉ số dựng từ đây.
-const SUMMARY: StaffSummaryDTO = {
-  month: '2026-10',
-  asOf: '2026-10-26',
-  prevMonth: '2026-09',
-  compareYear: 2025,
-  total: 131,
-  active: { value: 128, prev: 124, delta: { dir: 'up', value: 4 } },
-  joined: { value: 6, prev: 4, delta: { dir: 'up', value: 2 } },
-  left: { value: 2, prev: 3, delta: { dir: 'down', value: 1 } },
-  tenure: { value: 3.2, prev: 2.9, delta: { dir: 'up', value: 0.3 } },
-  inactiveAccounts: 2,
-  byType: MOCK_HEADCOUNT,
-  byLevel: { nv: { '1': 5, '2': 7 }, ctv: { '1': 3 }, tts: { '1': 4 } },
-  byTerm: { long: 15, short: 2, unset: 2 },
-  byStatus: { ok: 17, try: 2, off: 0, out: 0 }
-};
-const STATS: StaffStat[] = staffStatsFromSummary(SUMMARY);
+const STATS: StaffStat[] = [
+  { key: 'active', label: 'Nhân sự đang làm', value: '128', unit: 'người', delta: { dir: 'up', text: '4' }, note: 'so với tháng 9', dark: true },
+  { key: 'joined', label: 'Vào làm tháng 10', value: '6', unit: 'người', delta: { dir: 'up', text: '2' }, note: 'so với tháng 9', dark: false },
+  { key: 'left', label: 'Nghỉ việc tháng 10', value: '2', unit: 'người', delta: { dir: 'down', text: '1' }, note: 'so với tháng 9', dark: false },
+  { key: 'tenure', label: 'Thâm niên trung bình', value: '3,2', unit: 'năm', delta: { dir: 'up', text: '0,3 năm' }, note: 'so với năm 2025', dark: false }
+];
 
 const HC = 'Hành chính · 08:00–17:00';
 const FIXED = 'HĐLĐ từ 3 tháng';
@@ -125,43 +111,32 @@ const NOTES: Record<string, { title: string; text: string }> = {
   'hoang-thi-mai': { title: 'Nghỉ thai sản', text: '15/09/2026 – 15/03/2027 · đi làm lại 16/03/2027' }
 };
 
-/** Phản hồi giả của GET /api/v2/employees (đúng khoá của BE) cho 10 hồ sơ trang đầu. */
-export function staffListDto() {
-  return {
-    employees: ROWS.map(r => ({
-      profile: { uuid: `u-${r.id}`, familyName: '', givenName: '', fullName: r.name, birthday: null, dependants: 0 },
-      account: {
-        username: r.id,
-        roles: ['staff'],
-        primaryRole: 'staff',
-        isLocked: !r.activated,
-        lockedAt: null,
-        lockedBy: null,
-        createdAt: '2026-01-01T00:00:00Z'
-      },
-      contract: {
-        position: { type: 'nv', level: 2, jobTitle: r.title },
-        shift: { type: 'NORMAL', startTime: '08:00', endTime: '17:00', allowancePct: 0, isOvernight: false },
-        leave: { totalDays: 12, usedDays: 0, remainingDays: 12 },
-        status: 'nv',
-        term: 'long' as 'long' | 'short' | null,
-        effectiveFrom: r.joined,
-        resignedOn: null as string | null,
-        hasInsurance: null as boolean | null,
-        isUnionMember: false,
-        hasTax: true,
-        canAdvance: true,
-        isDormResident: false
-      },
-      work: { active: r.status !== 'out', status: r.status, statusLabel: r.statusLabel, joinedOn: r.joined, tenure: '' }
-    })),
-    total: SUMMARY.total,
-    summary: SUMMARY
-  };
+export function staffListView(): StaffListView {
+  return { stats: STATS, total: 121 + ROWS.length, rows: ROWS };
 }
 
-export function staffListView(): StaffListView {
-  return { stats: STATS, total: 131, rows: ROWS };
+// Chọn nhiều (06/11): đổi phòng ban ghi thẳng vào dòng giả; ca mới ghi đè ô "Ca làm" của hồ sơ. Người đã nghỉ việc bị bỏ qua
+// (giao diện đã khoá họ). Trả id những người đã đổi.
+const SHIFT_OF: Record<string, string> = {};
+
+export function moveStaffDept(ids: string[], dept: string): string[] {
+  const done: string[] = [];
+  for (const r of ROWS) {
+    if (!ids.includes(r.id) || r.status === 'out') continue;
+    r.dept = dept;
+    done.push(r.id);
+  }
+  return done;
+}
+
+export function assignStaffShift(ids: string[], label: string): string[] {
+  const done: string[] = [];
+  for (const r of ROWS) {
+    if (!ids.includes(r.id) || r.status === 'out') continue;
+    SHIFT_OF[r.id] = label;
+    done.push(r.id);
+  }
+  return done;
 }
 
 export function staffProfile(id: string): StaffProfile | null {
@@ -187,7 +162,7 @@ export function staffProfile(id: string): StaffProfile | null {
           { label: 'Chức danh', value: p.title },
           { label: 'Loại · bậc', value: level },
           { label: 'Quản lý trực tiếp', value: manager },
-          { label: 'Ca làm', value: shift },
+          { label: 'Ca làm', value: SHIFT_OF[id] ?? shift },
           { label: 'Ngày vào làm', value: since }
         ]
       },
@@ -208,4 +183,146 @@ export function staffProfile(id: string): StaffProfile | null {
       }
     ]
   };
+}
+
+// ---- Thêm, Sửa hồ sơ, Cho nghỉ việc (06/11) ----
+
+/** Phòng ban giả có id, như GET /api/v2/departments. */
+export const MOCK_DEPARTMENTS: { id: number; name: string }[] = [
+  'Kinh doanh',
+  'Kỹ thuật',
+  'Marketing',
+  'Nhân sự',
+  'Sản xuất',
+  'Tài chính'
+].map((name, i) => ({ id: i + 1, name }));
+
+const TYPE_TEXT: Record<string, string> = { tts: 'TTS', ctv: 'CTV', nv: 'NV' };
+const SHIFT_TEXT: Record<string, string> = { NORMAL: HC, FLEX: 'Linh hoạt', NIGHT: 'Ca đêm · 21:00–06:00' };
+
+/** Biểu mẫu Sửa hồ sơ của người giả (cùng dạng StaffForm ở builders/admin-hr/staff-form). */
+export type MockStaffForm = {
+  name: string;
+  username: string;
+  password: string;
+  type: string;
+  level: string;
+  status: string;
+  job: string;
+  shift: string;
+  nightPct: string;
+  start: string;
+  birthday: string;
+  dept: string;
+};
+const FORMS: Record<string, MockStaffForm> = {};
+
+export function staffForm(id: string): MockStaffForm | null {
+  const p = ROWS.find(r => r.id === id);
+  if (!p) return null;
+  if (FORMS[id]) return { ...FORMS[id] };
+  const level = /Bậc (\d+)/.exec(JOB[id]?.[0] ?? '')?.[1] ?? '1';
+  return {
+    name: p.name,
+    username: p.id,
+    password: '',
+    type: 'nv',
+    level,
+    status: p.status === 'try' ? 'thuviec' : 'nv',
+    job: p.title === NONE ? '' : p.title,
+    shift: 'NORMAL',
+    nightPct: '',
+    start: p.joined,
+    birthday: '',
+    dept: String(MOCK_DEPARTMENTS.find(d => d.name === p.dept)?.id ?? '')
+  };
+}
+
+type Body = {
+  account?: { username?: string };
+  profile?: { name?: { familyName?: string; givenName?: string }; birthday?: string | null };
+  contract?: {
+    status?: string;
+    effectiveFrom?: string;
+    position?: { type?: string; level?: number; jobTitle?: string | null };
+    shift?: { type?: string; allowancePct?: number };
+  };
+  departmentId?: number | null;
+};
+
+// Thân POST / PUT → biểu mẫu đã lưu, rồi ghi lên dòng và ngăn kéo của người đó.
+function formOfBody(id: string, b: Body): MockStaffForm {
+  const c = b.contract ?? {};
+  const type = c.position?.type ?? 'nv';
+  return {
+    name: [b.profile?.name?.familyName, b.profile?.name?.givenName].filter(Boolean).join(' '),
+    username: id,
+    password: '',
+    type,
+    level: String(c.position?.level ?? 1),
+    status: type === 'nv' ? (c.status ?? 'nv') : '',
+    job: c.position?.jobTitle ?? '',
+    shift: c.shift?.type ?? 'NORMAL',
+    nightPct: c.shift?.allowancePct ? String(c.shift.allowancePct) : '',
+    start: c.effectiveFrom ?? MOCK_TODAY,
+    birthday: b.profile?.birthday ?? '',
+    dept: b.departmentId ? String(b.departmentId) : ''
+  };
+}
+
+function apply(row: StaffRow, f: MockStaffForm) {
+  row.name = f.name;
+  row.initials = initials(f.name);
+  row.title = f.job || NONE;
+  row.dept = MOCK_DEPARTMENTS.find(d => String(d.id) === f.dept)?.name ?? NONE;
+  row.joined = f.start;
+  if (row.status !== 'off') row.status = f.status === 'thuviec' ? 'try' : 'ok';
+  row.statusLabel = STATUS_LABEL[row.status];
+  const job = JOB[row.id] ?? [...NO_JOB];
+  job[0] = `${TYPE_TEXT[f.type] ?? f.type.toUpperCase()} · Bậc ${f.level}`;
+  job[2] = SHIFT_TEXT[f.shift] ?? f.shift;
+  JOB[row.id] = job;
+  delete SHIFT_OF[row.id];
+  FORMS[row.id] = { ...f };
+}
+
+let nextCode = 215;
+
+/** Thêm một người (thân POST /api/v2/employees); tài khoản mới chưa kích hoạt. */
+export function createStaff(body: Body): { created: true; username: string } {
+  const id = body.account?.username ?? '';
+  const row: StaffRow = {
+    id,
+    name: '',
+    initials: '',
+    code: `GFT-0${nextCode++}`,
+    email: NONE,
+    activated: false,
+    dept: NONE,
+    title: NONE,
+    status: 'ok',
+    statusLabel: STATUS_LABEL.ok,
+    joined: MOCK_TODAY
+  };
+  ROWS.push(row);
+  apply(row, formOfBody(id, body));
+  return { created: true, username: id };
+}
+
+/** Sửa hồ sơ (thân PUT /api/v2/employees/:username); null khi không có người này. */
+export function updateStaff(id: string, body: Body): { username: string } | null {
+  const row = ROWS.find(r => r.id === id);
+  if (!row) return null;
+  apply(row, formOfBody(id, body));
+  return { username: id };
+}
+
+/** Cho nghỉ việc từ hôm nay (DELETE /api/v2/employees/:username): trạng thái Đã nghỉ việc, tài khoản khoá. */
+export function endStaff(id: string): { deactivated: boolean; username: string } {
+  const row = ROWS.find(r => r.id === id);
+  if (!row) return { deactivated: false, username: id };
+  row.status = 'out';
+  row.statusLabel = STATUS_LABEL.out;
+  row.activated = false;
+  return { deactivated: true, username: id };
 }

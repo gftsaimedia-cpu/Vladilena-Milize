@@ -187,7 +187,7 @@ describe('Lời nhắc giải trình và route Admin (spec 3.4–3.5)', () => {
 
     it('explanations-due route lists the due items', async () => {
       ctx.repo.filingStaff = [{ uuid: NV_UUID, username: 'nv01', name: 'Nguyễn Văn A' }];
-      const ctl = new RequestsController(ctx.service, ctx.explanations);
+      const ctl = new RequestsController(ctx.service, ctx.explanations, { find: async () => [] } as any);
       const { items } = await ctl.listExplanationsDue();
       assert.deepEqual(
         items.map(i => [i.name, i.date]),

@@ -110,7 +110,9 @@ describe('AttendanceService.recordPunch trên PostgreSQL (T1)', () => {
     });
   });
 
-  it('chấm Chủ nhật 15/11 không có OT: dòng REST, work_schedules không có dòng ngày đó (P5)', async t => {
+  // Đường không có SettingsReader (`build` dựng service không truyền cài đặt): dịch vụ không kiểm ngày làm nên nhận lần vào, và dòng
+  // ngày của Chủ nhật không khung là REST. Ở app thật (có SettingsReader) lần vào này bị từ chối NOT_A_WORKDAY (test "NOT_A_WORKDAY" bên dưới trong file này).
+  it('không có SettingsReader, chấm Chủ nhật 15/11 không có OT: dòng REST, work_schedules không có dòng ngày đó (P5)', async t => {
     await withTempDb(t, 'att_punch_sun', async (db, client) => {
       await seed(client);
       const { service } = build(db);
@@ -243,6 +245,27 @@ describe('AttendanceService.recordPunch với SettingsReader thật trên Postgr
         (e: any) => e instanceof PunchRefusedError && e.code === 'NOT_A_WORKDAY'
       );
       assert.equal(await punchCount(client, NV), 1);
+    });
+  });
+
+  it('dòng REGULAR cũ của Chủ nhật 15/11 không biến nó thành ngày làm: NOT_A_WORKDAY, không xoá dòng (FP4)', async t => {
+    await withTempDb(t, 'att_punch_set_regular', async (db, client) => {
+      await seed(client);
+      await client.query(
+        `INSERT INTO work_schedules (id, employee_id, work_date, shift_type, planned_start_time, planned_end_time, approved_ot_hours, schedule_type, status, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1, '2026-11-15', 'NORMAL', '08:00', '17:00', 0, 'REGULAR', 'PLANNED', now(), now())`,
+        [NV]
+      );
+      const { service } = build(db, true);
+      assert.equal(await service.workdayOf(NV, '2026-11-15'), false);
+      await assert.rejects(
+        service.recordPunch({ employeeId: NV, type: 'IN', punchedAt: new Date('2026-11-15T09:00:00+07:00') }),
+        (e: any) => e instanceof PunchRefusedError && e.code === 'NOT_A_WORKDAY'
+      );
+      assert.equal(await punchCount(client, NV), 0);
+      // Không xoá dòng cũ trong DB.
+      const rows = await client.query(`SELECT schedule_type FROM work_schedules WHERE employee_id = $1`, [NV]);
+      assert.deepEqual(rows.rows.map(r => r.schedule_type), ['REGULAR']);
     });
   });
 

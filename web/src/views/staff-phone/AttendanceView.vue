@@ -7,11 +7,9 @@
 // Thử lại mới. Chưa có dữ liệu thì hiện "Đang tải…"; đổi tháng thì giữ nội dung tháng cũ tới khi tháng mới về.
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { toast } from '@/components/shell/toast';
 import { useLoad } from '@/composables/useLoad';
 import { backTo, useRetry } from '@/composables/useRetry';
 import type { DayDetail } from '@/mock/staff-phone';
-import { ApiError } from '@/services/http';
 import { getAttendance, getDay } from '@/services/staff-phone';
 import DaySheet from './components/DaySheet.vue';
 import LoadError from './components/LoadError.vue';
@@ -35,8 +33,6 @@ const goBack = () => after(() => (month.value = back.value!.month));
 const root = ref<HTMLElement | null>(null);
 const day = ref<DayDetail | null>(null);
 
-const queryNgay = () => (Array.isArray(route.query.ngay) ? route.query.ngay[0] : route.query.ngay);
-
 function dropNgay() {
   const { ngay: _ngay, ...rest } = route.query;
   router.replace({ query: rest });
@@ -50,18 +46,8 @@ watch(
       day.value = null;
       return;
     }
-    let found: Awaited<ReturnType<typeof getDay>>;
-    try {
-      found = await getDay(ngay);
-    } catch (e) {
-      if (queryNgay() === ngay) {
-        toast.error(e instanceof ApiError && e.message ? e.message : 'Không mở được ngày này, thử lại sau.');
-        day.value = null;
-        dropNgay();
-      }
-      return;
-    }
-    if (queryNgay() !== ngay) return; // đã đổi trong lúc chờ
+    const found = await getDay(ngay);
+    if ((Array.isArray(route.query.ngay) ? route.query.ngay[0] : route.query.ngay) !== ngay) return; // đã đổi trong lúc chờ
     if (found) day.value = found;
     else {
       day.value = null;

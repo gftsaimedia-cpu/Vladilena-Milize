@@ -20,6 +20,7 @@ import { SettingsController } from '../../src/modules/settings/settings.controll
 import { AuditController } from '../../src/modules/audit/audit.controller';
 import { OverviewController } from '../../src/modules/overview/overview.controller';
 import { RealtimeController } from '../../src/modules/realtime/realtime.controller';
+import { DepartmentsController } from '../../src/modules/departments/departments.controller';
 
 // Mọi controller của các module mà AppModule nạp.
 function allControllers(): any[] {
@@ -66,7 +67,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
   [HolidaysController, 'create', cap('config.write')],
   [HolidaysController, 'quickAdd', cap('config.write')],
   [HolidaysController, 'remove', cap('config.write')],
-  ...['getPositionsCatalog', 'getShiftsCatalog', 'listEmployees', 'getEmployee', 'createEmployee', 'putEmployee', 'deleteEmployee'].map(
+  ...['getPositionsCatalog', 'getShiftsCatalog', 'listEmployees', 'getEmployee', 'createEmployee', 'putEmployee', 'deleteEmployee', 'assignShift', 'assignDepartment'].map(
     m => [EmployeesController, m, cap('staff.manage')] as [any, string, AccessRule]
   ),
   ...['recordPunch', 'getPunches', 'listTimesheets', 'getTimesheet', 'recalculateTimesheet'].map(
@@ -78,6 +79,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
     'createAdvance',
     'createExplanation',
     'createIsat',
+    'createHalfShiftLeave',
     'listIsatConditions',
     'listLeaveTypes',
     'createLeaveWithMakeup',
@@ -85,9 +87,11 @@ const TABLE: Array<[any, string, AccessRule]> = [
     'listExplanationCases',
     'listExplanationsDue',
     'remindExplanation',
+    'remindExplanationMany',
     'listRequests',
     'getRequest',
     'reviewRequest',
+    'reviewMany',
     'cancelRequest'
   ].map(m => [RequestsController, m, cap('requests.review')] as [any, string, AccessRule]),
   ...['profile', 'today', 'punch', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income', 'requestContext', 'previewRequest'].map(
@@ -97,7 +101,6 @@ const TABLE: Array<[any, string, AccessRule]> = [
   [OverviewController, 'week', cap('attendance.correct')],
   [OverviewController, 'employee', cap('attendance.correct')],
   [OverviewController, 'overview', cap('config.read')],
-  [OverviewController, 'pendingCount', cap('requests.review')],
   ...['savePositions', 'saveLevel', 'addLevel'].map(
     m => [PositionsController, m, cap('config.write')] as [any, string, AccessRule]
   ),
@@ -107,6 +110,8 @@ const TABLE: Array<[any, string, AccessRule]> = [
   ...['saveZone', 'saveWorkWeek', 'saveGroup'].map(
     m => [SettingsController, m, cap('config.write')] as [any, string, AccessRule]
   ),
+  [DepartmentsController, 'list', cap('config.read')],
+  ...['create', 'update', 'remove'].map(m => [DepartmentsController, m, cap('config.write')] as [any, string, AccessRule]),
   [PayrollController, 'decidePayslip', cap('payroll.approve')],
   ...['calculatePeriod', 'listPayslips', 'getPayslip', 'setKpiScore'].map(
     m => [PayrollController, m, cap('payroll.calculate')] as [any, string, AccessRule]

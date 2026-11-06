@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { Injectable, Inject } from '@nestjs/common';
 import type { Insertable, Kysely, Selectable, Transaction } from 'kysely';
-import { employedInMonth } from '../../common';
 import { KYSELY_DB, type DB } from '../../database';
+import { employedBetween, monthDays } from '../../database/employment';
 import type { SettingsSnapshot } from '../settings';
 import {
   CONTRACT_TERM_TEXT,
@@ -59,6 +59,8 @@ export interface EmployeeMonthlyRawData {
     advancePeriod?: string | null;
   }>;
   holidayDates?: string[]; // company holidays of the month, 'YYYY-MM-DD' (the holiday OT rate)
+  // Makeup windows of the approved leave-with-makeup requests that fall in the month (D10: the estimate counts the ones ahead).
+  makeupWindows?: Array<{ date: string; end: string; workMinutes: number }>;
   kpi: KpiInput | null;
 }
 
@@ -70,6 +72,7 @@ export interface MonthRows {
   benefits: any[];
   requests: any[];
   holidays?: Array<string | Date>;
+  makeupSlots?: Array<{ work_date: string | Date; start_time: string; end_time: string; work_minutes: number | string }>;
   annualLeaveUsed?: number | string; // approved annual leave days in day_status since the balance date, up to the month end
   kpi: any | null;
 }
@@ -159,10 +162,19 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       otStartTime: clockTextOrNull(r.ot_start_time),
       otEndTime: clockTextOrNull(r.ot_end_time),
       otHours: numberOrNull(r.ot_hours),
+      halfShiftDate: dateTextOrNull(r.half_shift_date),
+      halfShiftHalf: r.half_shift_half,
+      halfStartTime: clockTextOrNull(r.half_start_time),
+      halfEndTime: clockTextOrNull(r.half_end_time),
       advanceAmount: numberOrNull(r.advance_amount),
       advancePeriod: r.advance_period
     })),
     holidayDates: (rows.holidays ?? []).map(dateText),
+    makeupWindows: (rows.makeupSlots ?? []).map(slot => ({
+      date: dateText(slot.work_date),
+      end: slot.end_time.slice(0, 5),
+      workMinutes: Number(slot.work_minutes)
+    })),
     kpi: kpiRow
       ? {
           scores: {
@@ -289,32 +301,32 @@ export class PayrollRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
 
   /**
-   * Người thuộc bảng lương. Có `month` thì chỉ lấy người có làm trong tháng đó: chưa vào làm sau cuối tháng hoặc đã nghỉ việc
-   * trước đầu tháng thì không có phiếu (cùng luật `activeIn` của Tổng quan). Ngày thiếu hay không đúng dạng YYYY-MM-DD thì không giới hạn.
+   * Người được tính khi tính cả kỳ. Có `month` thì chỉ người có làm ít nhất một ngày trong tháng (R2: ngoài thời gian làm
+   * việc thì không vắng, không lương); cùng tập với "chưa có phiếu" của bước Phê duyệt kỳ.
    */
   async listEligibleEmployees(month?: string): Promise<Array<{ uuid: string; username: string; name: string }>> {
     if (!this.qb) return [];
-    const rows = await this.qb
+    let query = this.qb
       .selectFrom('staff')
-      .select(['uuid', 'username', 'name', 'start_date', 'resigned_on'])
+      .select(['uuid', 'username', 'name'])
       .where('locked_at', 'is', null)
       .where(eb =>
         eb.or([
           eb('payroll_subject', '=', 1),
           eb.and([eb('payroll_subject', 'is', null), eb('role', '<>', 'admin')])
         ])
-      )
-      .execute();
+      );
+    if (month) {
+      const { from, to } = monthDays(month);
+      query = query.where(employedBetween(from, to));
+    }
+    const rows = await query.execute();
 
-    return rows
-      .filter(r => {
-        return !month || employedInMonth({ startDate: r.start_date, resignedOn: r.resigned_on }, month);
-      })
-      .map(r => ({
-        uuid: r.uuid || r.username,
-        username: r.username,
-        name: r.name
-      }));
+    return rows.map(r => ({
+      uuid: r.uuid || r.username,
+      username: r.username,
+      name: r.name
+    }));
   }
 
   // Position type, level and the type's benefits in effect for the month (latest version not after the month).
@@ -377,7 +389,8 @@ export class PayrollRepository {
           eb.and([eb('ot_date', '>=', startDate), eb('ot_date', '<=', endDate)]),
           eb.and([eb('leave_start_date', '>=', startDate), eb('leave_start_date', '<=', endDate)]),
           eb('advance_period', '=', month),
-          eb.and([eb('explanation_date', '>=', startDate), eb('explanation_date', '<=', endDate)])
+          eb.and([eb('explanation_date', '>=', startDate), eb('explanation_date', '<=', endDate)]),
+          eb.and([eb('half_shift_date', '>=', startDate), eb('half_shift_date', '<=', endDate)])
         ])
       )
       .execute();
@@ -388,6 +401,19 @@ export class PayrollRepository {
       .select('holiday_date')
       .where('holiday_date', '>=', startDate)
       .where('holiday_date', '<=', endDate)
+      .execute();
+
+    // Makeup windows of the approved leave-with-makeup requests in the month (D10: the estimate counts the ones ahead)
+    const makeupSlotRows = await this.qb
+      .selectFrom('makeup_slots as ms')
+      .innerJoin('system_requests as sr', 'sr.id', 'ms.request_id')
+      .select(['ms.work_date', 'ms.start_time', 'ms.end_time', 'ms.work_minutes'])
+      .where('sr.employee_id', '=', staffRow.uuid || employeeId)
+      .where('sr.status', '=', 'APPROVED')
+      .where('ms.work_date', '>=', startDate)
+      .where('ms.work_date', '<=', endDate)
+      .orderBy('ms.work_date', 'asc')
+      .orderBy('ms.start_time', 'asc')
       .execute();
 
     // Approved annual leave days taken since the balance date, up to the month end
@@ -419,6 +445,7 @@ export class PayrollRepository {
       benefits,
       requests: requestRows,
       holidays: holidayRows.map(r => r.holiday_date),
+      makeupSlots: makeupSlotRows,
       annualLeaveUsed: annualLeaveUsed?.n ?? 0,
       kpi: kpiRow ?? null
     });

@@ -85,10 +85,10 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
     assert.deepEqual(ctx.repo.requests.get(dto.id)!.actualCheckIn, null);
   });
 
-  it('out must be after in, except on a night shift (R-P5)', async () => {
+  // R-P5, người dùng chốt 06/11: "giờ ra phải lớn hơn hoặc bằng giờ vào".
+  it('out may not be before in, except on a night shift (R-P5)', async () => {
     ctx.att.timesheets = [];
-    await assert.rejects(expl({ actualCheckIn: '17:00', actualCheckOut: '08:00' }), { message: 'Giờ ra phải sau giờ vào' });
-    await assert.rejects(expl({ actualCheckIn: '08:00', actualCheckOut: '08:00' }), { message: 'Giờ ra phải sau giờ vào' });
+    await assert.rejects(expl({ actualCheckIn: '17:00', actualCheckOut: '08:00' }), { message: 'Giờ ra không được trước giờ vào' });
 
     // Ca đêm 22:00–06:00: giờ ra rơi vào sáng hôm sau.
     ctx.repo.schedules.push({ date: '2026-11-03', startTime: '22:00', endTime: '06:00', onLeave: false });
@@ -96,13 +96,22 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
     assert.deepEqual([dto.actualCheckIn, dto.actualCheckOut], ['22:00', '06:00']);
   });
 
-  it('same-minute punches do not block a day that needs no times', async () => {
-    ctx.att.timesheets = [timesheet('2026-11-03', '08:40', '08:40')];
-    const dto = await expl();
-    assert.deepEqual([dto.actualCheckIn, dto.actualCheckOut], [null, null]);
-    // Thiếu giờ ra thì vẫn so giờ khai với giờ vào thật.
-    ctx.att.timesheets = [timesheet('2026-11-02', '08:00', null)];
-    await assert.rejects(expl({ workDate: '2026-11-02', actualCheckOut: '08:00' }), { message: 'Giờ ra phải sau giờ vào' });
+  it('out equal to in is accepted (R-P5)', async () => {
+    ctx.att.timesheets = [];
+    const dto = await expl({ actualCheckIn: '08:00', actualCheckOut: '08:00' });
+    assert.deepEqual([dto.actualCheckIn, dto.actualCheckOut], ['08:00', '08:00']);
+  });
+
+  // D7 (người dùng chốt 06/11): giải trình nhận mọi giờ khai, kiểm tra là việc của Admin. Giờ khai không bị so với lần chấm
+  // thật còn lại của ngày.
+  it('a declared time is not checked against the real punch left on the day (D7)', async () => {
+    // 02/11: vào thật 08:00, thiếu giờ ra; khai giờ ra 07:00 (trước giờ vào thật) vẫn nhận.
+    const out = await expl({ workDate: '2026-11-02', actualCheckOut: '07:00' });
+    assert.deepEqual([out.explanationDate, out.actualCheckIn, out.actualCheckOut], ['2026-11-02', null, '07:00']);
+    // 04/11: ra thật 16:40, thiếu giờ vào; khai giờ vào 18:00 (sau giờ ra thật) vẫn nhận.
+    ctx.att.timesheets.push(timesheet('2026-11-04', null, '16:40'));
+    const inn = await expl({ workDate: '2026-11-04', actualCheckIn: '18:00' });
+    assert.deepEqual([inn.explanationDate, inn.actualCheckIn, inn.actualCheckOut], ['2026-11-04', '18:00', null]);
   });
 
   // Người dùng chốt 05/11: giải trình nộp được tới khi kỳ được phê duyệt ("Nộp tới Phê duyệt kỳ").
@@ -140,8 +149,22 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
 
   it('a day with nothing to explain, or not a workday, is refused', async () => {
     await assert.rejects(expl({ workDate: '2026-11-04' }), { message: 'Ngày 04/11 không có gì cần giải trình' });
-    await assert.rejects(expl({ workDate: '2026-11-01' }), { message: 'Ngày 01/11/2026 nằm ngoài thời gian làm việc (vào làm từ 02/11/2026)' });
-    await assert.rejects(expl({ workDate: '2026-10-31' }), { message: 'Ngày 31/10/2026 nằm ngoài thời gian làm việc (vào làm từ 02/11/2026)' }); // trước ngày vào làm
+    // Người đã vào làm từ trước: Chủ nhật 01/11 là ngày không làm.
+    ctx.repo.putStaff('nv01', staffContext({ startDate: '2026-10-01' }));
+    await assert.rejects(expl({ workDate: '2026-11-01' }), { message: 'Ngày 01/11 không phải ngày làm' });
+  });
+
+  // D6 (người dùng chốt 06/11): ngày ngoài khoảng vào làm..nghỉ việc bị chặn trước mọi kiểm tra khác của ngày.
+  it('a day before the start date is refused as not employed, workday or not', async () => {
+    for (const [date, text] of [['2026-11-01', '01/11/2026'], ['2026-10-31', '31/10/2026']]) {
+      await assert.rejects(expl({ workDate: date }), (e: any) => {
+        assert.equal(e.message, `Ngày ${text} nằm ngoài thời gian làm việc (vào làm từ 02/11/2026)`);
+        assert.equal(e.status, 409);
+        assert.deepEqual(e.details, { code: 'NOT_EMPLOYED', date });
+        return true;
+      });
+    }
+    assert.equal(ctx.repo.requests.size, 0);
   });
 
   it('stores cases in catalogue order', async () => {

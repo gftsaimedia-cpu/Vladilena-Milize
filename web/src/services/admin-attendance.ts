@@ -43,7 +43,8 @@ async function fetchEmployee(username: string, month: string): Promise<EmployeeM
 /** Màn Chấm công của một tháng 'YYYY-MM', lọc theo tên (`q`) và nhóm (`group`) ngay ở máy chủ; null khi tháng không có dữ liệu giả. */
 export async function getAttendance(month: string, q = '', group = ''): Promise<AttendanceView | null> {
   const [dto, inbox] = await Promise.all([fetchWeek(month, q, group), getInbox()]);
-  return dto ? attendanceFromWeek(dto, inbox.items) : null;
+  if (!dto) return null;
+  return attendanceFromWeek(dto, inbox.items);
 }
 
 /** Hộp chi tiết một ngày của một người; null khi không có người này. */

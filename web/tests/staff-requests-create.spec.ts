@@ -4,7 +4,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { openDesktop } from './fixtures/staff-desktop';
 import { openPhone } from './fixtures/staff-phone';
 
-const KINDS = ['Đơn nghỉ', 'Nghỉ có làm bù', 'Làm thêm giờ', 'Đổi ca', 'Giải trình', 'Tạm ứng'];
+const KINDS = ['Đơn nghỉ', 'Nghỉ có làm bù', 'Nghỉ giữa ca', 'Làm thêm giờ', 'Đổi ca', 'Giải trình', 'Tạm ứng'];
 const LEAVE_TYPES = [
   'Phép năm',
   'Việc riêng có lương',
@@ -53,13 +53,13 @@ async function openLeaveOnPhone(page: Page) {
 }
 
 test.describe('phone', () => {
-  test('Tạo yêu cầu opens the J8 menu with six kinds and Tạm ứng locked', async ({ page }) => {
+  test('Tạo yêu cầu opens the J8 menu with seven kinds and Tạm ứng locked', async ({ page }) => {
     const calls = await openPhone(page, '/nv/yeu-cau');
     await page.getByRole('button', { name: 'Tạo yêu cầu' }).click();
     await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon$/);
     const sheet = menuSheet(page);
     await expect(sheet).toContainText('Chọn loại để điền đơn');
-    await expect(rowsOf(sheet)).toHaveCount(6);
+    await expect(rowsOf(sheet)).toHaveCount(7);
     await expect(rowsOf(sheet).locator('b')).toHaveText(KINDS);
     const advance = kindRow(sheet, 'Tạm ứng');
     await expect(advance).toBeDisabled();
@@ -82,21 +82,21 @@ test.describe('phone', () => {
     await kindRow(sheet, 'Đơn nghỉ').focus();
     await page.keyboard.press('Tab', { delay: 0 });
     await expect(kindRow(sheet, 'Nghỉ có làm bù')).toBeFocused();
-    for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
+    for (let i = 0; i < 5; i++) await page.keyboard.press('Tab');
     await expect(advance).toBeFocused();
     await page.keyboard.press('Enter');
     // Bấm "force" bỏ qua chờ ổn định: chờ hộp trượt lên xong (hiệu ứng mở chạy chậm khi máy bận) để dòng nằm trong màn hình.
     await expect(advance).toBeInViewport();
     await advance.click({ force: true }); // Playwright coi aria-disabled là không bấm được; bấm thẳng để thấy không có gì mở
     await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon$/);
-    await expect(rowsOf(menuSheet(page))).toHaveCount(6);
+    await expect(rowsOf(menuSheet(page))).toHaveCount(7);
   });
 
   for (const tao of ['tam-ung', 'xyz']) {
     test(`?tao=${tao} lands on the menu, never on a form`, async ({ page }) => {
       await openPhone(page, `/nv/yeu-cau?tao=${tao}`);
       const sheet = menuSheet(page);
-      await expect(rowsOf(sheet)).toHaveCount(6);
+      await expect(rowsOf(sheet)).toHaveCount(7);
       await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon$/);
       await expect(sheet.getByLabel('Từ ngày')).toHaveCount(0);
       await expect(sendButton(sheet)).toHaveCount(0);
@@ -236,8 +236,7 @@ test.describe('phone', () => {
     });
     await openPhone(page, '/nv/yeu-cau?tao=chon');
     const sheet = menuSheet(page);
-    await expect(sheet.getByRole('alert')).toContainText('Mất kết nối.');
-    await expect(sheet.getByRole('alert').getByRole('button', { name: 'Thử lại' })).toBeVisible(); // có nút tải lại, không chỉ đóng
+    await expect(sheet.getByRole('alert')).toHaveText('Mất kết nối.');
     await expect(rowsOf(sheet)).toHaveCount(0);
     await sheet.getByRole('button', { name: 'Đóng' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -304,7 +303,7 @@ test.describe('phone', () => {
       await expect(page).toHaveURL(/\/nv\/yeu-cau$/);
 
       await page.getByRole('button', { name: 'Tạo yêu cầu' }).click();
-      await expect(rowsOf(menuSheet(page))).toHaveCount(6);
+      await expect(rowsOf(menuSheet(page))).toHaveCount(7);
       await kindRow(menuSheet(page), 'Đơn nghỉ').click();
       await expect(leaveSheet(page).getByLabel('Từ ngày')).toHaveValue('');
       await expect(leaveSheet(page).getByLabel('Lý do')).toHaveValue('');
@@ -317,7 +316,7 @@ test.describe('phone', () => {
     const sheet = await openLeaveOnPhone(page);
     await sheet.getByRole('button', { name: 'Quay lại chọn loại' }).click();
     await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon$/);
-    await expect(rowsOf(menuSheet(page))).toHaveCount(6);
+    await expect(rowsOf(menuSheet(page))).toHaveCount(7);
     await expect(kindRow(menuSheet(page), 'Đơn nghỉ')).toBeFocused();
   });
 
@@ -375,7 +374,7 @@ test.describe('desktop', () => {
     await expect(dayOptions(form.getByLabel('Từ ngày')).first()).toHaveText('T4 28/10');
     await form.getByRole('button', { name: 'Quay lại chọn loại' }).click();
     await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon$/);
-    await expect(rowsOf(menuSheet(page))).toHaveCount(6);
+    await expect(rowsOf(menuSheet(page))).toHaveCount(7);
     expect(calls).toEqual([]);
   });
 
@@ -407,7 +406,7 @@ test.describe('desktop', () => {
       await expect(page).toHaveURL(/\/nv\/yeu-cau$/);
 
       await page.getByRole('button', { name: 'Tạo yêu cầu' }).click();
-      await expect(rowsOf(menuSheet(page))).toHaveCount(6);
+      await expect(rowsOf(menuSheet(page))).toHaveCount(7);
       await kindRow(menuSheet(page), 'Đơn nghỉ').click();
       await expect(leaveSheet(page).getByLabel('Từ ngày')).toHaveValue('');
       await expect(leaveSheet(page).getByLabel('Lý do')).toHaveValue('');

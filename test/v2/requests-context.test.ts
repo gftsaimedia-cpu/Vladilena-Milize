@@ -329,7 +329,7 @@ test('underEmployeeLock runs directly without a transaction coordinator', async 
 test('findStaffContext reads the type version in effect', async () => {
   const { db, log } = createScriptedKysely(q => {
     if (q.sql.includes('from "staff"')) {
-      return [{ uuid: 'u1', type: 'nv', shift_start_time: '08:00', shift_end_time: '17:00', leave_balance: null, leave_balance_on: null, start_date: ' 2026-10-15 ' }];
+      return [{ uuid: 'u1', type: 'nv', shift_start_time: '08:00', shift_end_time: '17:00', leave_balance: null, leave_balance_on: null, start_date: ' 2026-10-15 ', advance_on: 0 }];
     }
     if (q.sql.includes('from "position_types"')) return [{ id: 2, regular_dows: '[1,2,3,4,5,6]' }];
     if (q.sql.includes('from "position_type_benefits"')) {
@@ -350,10 +350,12 @@ test('findStaffContext reads the type version in effect', async () => {
     leaveBalanceOn: null,
     startDate: '2026-10-15',
     resignedOn: null,
+    canAdvance: false, // advance_on = 0 (D8)
     benefits: { ot: true, makeup: true, leaveAccount: false },
     regularDows: [1, 2, 3, 4, 5, 6]
   });
   const [staffQ, typeQ, benefitQ] = sqlOf(log);
+  assert.match(staffQ.sql, /"advance_on"/);
   assert.equal(staffQ.parameters.filter(p => p === 'nv01').length, 2); // uuid = ? or username = ?
   assert.ok(typeQ.parameters.includes('2026-11') && typeQ.parameters.includes('nv'));
   assert.match(typeQ.sql, /order by "effective_month" desc/);
@@ -372,6 +374,7 @@ test('findStaffContext without a type version has no days and no benefits; unkno
     leaveBalanceOn: '2026-11-01',
     startDate: null, // start_date sai dạng thì coi như không ghi
     resignedOn: null,
+    canAdvance: true, // advance_on NULL: được tạm ứng, như hồ sơ nhân sự đọc
     benefits: { ot: false, makeup: false, leaveAccount: false },
     regularDows: null
   });

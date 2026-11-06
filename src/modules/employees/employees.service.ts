@@ -1,11 +1,15 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import crypto from 'node:crypto';
 import { businessDateText } from '../../common/business-date';
+import { BadRequestError } from '../../common/exceptions/http.exception';
+import { bulkFailureOf, runBulk } from '../../common/bulk';
 import { DEFAULT_SHIFT, shiftByCode } from '../../common/shift-catalog';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database/transaction';
 import { AttendanceDaysService } from '../attendance/attendance-days.service';
 import { monthOfDate, monthsBetween } from '../attendance/domain/calendar';
 import { AuditLog } from '../audit/audit-log';
+import { DepartmentNotFoundError } from '../departments/departments.errors';
+import { foldText, matchesStaffStatus, staffStatusOf, type StaffFilter, type StaffStatus } from '../departments/domain';
 import { staffDeleteRows, staffSaveRows, type StaffAuditRow } from './domain/staff-audit';
 import { EmployeesRepository, type EmploymentDates } from './employees.repository';
 import {
@@ -21,15 +25,29 @@ import {
   ShiftType,
   Leave,
   ContractStatus,
-  StaffSummary,
-  WorkInfo,
-  asOfFor,
-  summarizeStaff,
-  workOf,
 } from './domain';
 
 const SALT_BYTES = 16;
 const KEY_BYTES = 64;
+export type EmployeeView = EmployeeDTO & { departmentId: number | null; departmentName: string | null; staffStatus: StaffStatus };
+export interface BulkResult<T> {
+  done: T[];
+  failed: Array<{ id: string; code: string; message: string }>;
+}
+
+class BulkEmployeeError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+  }
+}
+
+function parseDepartmentId(value: unknown): number | null {
+  if (value === null || value === '') return null;
+  const n = typeof value === 'number' ? value : typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : NaN;
+  if (!Number.isSafeInteger(n) || n < 1) throw new Error('Phòng ban không hợp lệ');
+  return n;
+}
+
 /** pass_hash của người chưa đặt mật khẩu. */
 const NO_PASSWORD = 'none';
 
@@ -57,10 +75,23 @@ export function verifyPassword(password: string, stored: string): boolean {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
+/** Năm trường của T4 làm đổi cách dựng dòng ngày; sửa tên, mật khẩu, vai trò, số điện thoại… không đổi trường nào. */
+export function attendanceFieldsChanged(before: EmploymentDates, after: EmploymentDates): boolean {
+  return (
+    before.startDate !== after.startDate ||
+    before.resignedOn !== after.resignedOn ||
+    before.type !== after.type ||
+    before.level !== after.level ||
+    before.shiftType !== after.shiftType ||
+    before.shiftStart !== after.shiftStart ||
+    before.shiftEnd !== after.shiftEnd
+  );
+}
+
 /**
  * Các tháng cần ghi lại dòng ngày công sau khi lưu hồ sơ: từ tháng nhỏ nhất trong bốn ngày
  * (cũ và mới x vào làm và nghỉ việc, ngày rỗng bỏ qua) và tháng hiện tại, tới tháng hiện tại.
- * Luôn tính, kể cả khi hai ngày không đổi: loại, bậc, ca mặc định cũng đổi cách dựng dòng ngày (spec T4).
+ * Hàm này chỉ tính khoảng tháng; có ghi lại hay không do `attendanceFieldsChanged` và tháng đóng băng quyết định.
  */
 export function monthsAffectedByEmployment(
   before: EmploymentDates | null,
@@ -76,7 +107,8 @@ export function monthsAffectedByEmployment(
 /**
  * Tạo, sửa, xoá hồ sơ chạy trong một transaction; các dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả lần lưu.
  * Sau khi transaction đó đã commit, các dòng ngày công của người đó được ghi lại từ tháng sớm nhất bị ảnh hưởng
- * tới tháng hiện tại (mỗi tháng một giao dịch riêng). Ghi lại lỗi thì lỗi trả về cho Admin và hồ sơ vẫn đã lưu
+ * tới tháng hiện tại (mỗi tháng một giao dịch riêng), bỏ qua tháng đã chốt công trở đi, và khi sửa hồ sơ chỉ ghi lại nếu
+ * một trong năm trường T4 đổi (vào làm, nghỉ việc, loại, bậc, ca mặc định). Ghi lại lỗi thì lỗi trả về cho Admin và hồ sơ vẫn đã lưu
  * (không làm lại được thao tác tạo); dòng ngày được sửa bằng "Tính lại" của Admin
  * (POST /api/v2/attendance/recalculate) hoặc tác vụ chạy mỗi giờ (chỉ dòng thiếu hoặc PENDING).
  */
@@ -90,23 +122,42 @@ export class EmployeesService {
     @Inject(EmployeesRepository) private readonly repo: EmployeesRepository,
     @Inject(TransactionCoordinator) private readonly tx: Pick<TransactionCoordinator, 'run'>,
     @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>,
-    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: Pick<AttendanceDaysService, 'refreshMonth'>
+    @Optional()
+    @Inject(AttendanceDaysService)
+    private readonly attendanceDays?: Pick<AttendanceDaysService, 'refreshMonth' | 'frozenMonths'>
   ) {}
 
-  /** Đọc lại ngày vào làm / nghỉ việc sau commit rồi ghi lại các tháng bị ảnh hưởng (P4: ngoài giao dịch lưu hồ sơ). */
-  private async refreshAfterSave(id: string, before: EmploymentDates | null): Promise<void> {
+  /**
+   * Đọc lại hồ sơ sau commit rồi ghi lại các tháng bị ảnh hưởng (P4: ngoài giao dịch lưu hồ sơ).
+   * Sửa hồ sơ chỉ ghi lại khi một trong năm trường T4 đổi; tạo mới và deactivate (`always`) luôn ghi.
+   * Tháng có kỳ lương đã rời `open` bị bỏ qua, giống job mỗi giờ: hồ sơ hôm nay không viết lại tháng đã chốt.
+   */
+  private async refreshAfterSave(id: string, before: EmploymentDates | null, always = false): Promise<void> {
     if (!this.attendanceDays) return;
     const after = await this.repo.employmentDates(id);
     if (!after) return;
+    if (!always && before && !attendanceFieldsChanged(before, after)) return;
     const currentMonth = businessDateText(this.now()).slice(0, 7);
-    for (const month of monthsAffectedByEmployment(before, after, currentMonth)) {
+    const months = monthsAffectedByEmployment(before, after, currentMonth);
+    const frozen = await this.attendanceDays.frozenMonths(`${months[0]}-01`, `${currentMonth}-01`);
+    for (const month of months) {
+      if (frozen.has(month)) continue;
       await this.attendanceDays.refreshMonth(after.uuid, month, { now: this.now() });
     }
   }
 
-  async list(filter: { shiftType?: string; status?: string; q?: string } = {}): Promise<Employee[]> {
+  async list(filter: { shiftType?: string; status?: string; q?: string; staff?: StaffFilter } = {}): Promise<Employee[]> {
     const list = await this.repo.findAll();
+    const today = businessDateText(this.now());
+    const staff = filter.staff;
+    const needle = staff ? foldText(staff.q) : '';
     return list.filter((emp) => {
+      if (staff) {
+        if (!matchesStaffStatus(staff.staffStatus, this.staffStatusOf(emp, today))) return false;
+        const dept = emp.contract.departmentId;
+        if (staff.departmentId === 'none' ? dept !== null : staff.departmentId !== undefined && dept !== staff.departmentId) return false;
+        if (needle && !foldText(emp.username).includes(needle) && !foldText(emp.profile.name.fullName).includes(needle)) return false;
+      }
       if (filter.status && emp.contract.status !== filter.status) return false;
       if (filter.shiftType && emp.contract.shift.type !== filter.shiftType) return false;
       if (filter.q) {
@@ -119,39 +170,96 @@ export class EmployeesService {
     });
   }
 
-  /** Hôm nay theo giờ Việt Nam. */
-  today(): string {
-    return businessDateText(this.now());
-  }
-
-  /** Số liệu làm việc của một người ở ngày tính của tháng `month` (mặc định: hôm nay). */
-  workOf(employee: Employee, month?: string): WorkInfo {
-    const today = this.today();
-    return workOf(employee.toDTO(), asOfFor(month ?? today.slice(0, 7), today));
-  }
-
-  /** Tóm tắt toàn bộ nhân sự (không theo bộ lọc) cho tháng `month` (mặc định: tháng này). */
-  async summary(month?: string): Promise<StaffSummary> {
-    const today = this.today();
-    const all = await this.repo.findAll();
-    return summarizeStaff(all.map(e => e.toDTO()), month ?? today.slice(0, 7), today);
-  }
-
   async findByUsernameOrUuid(id: string): Promise<Employee | null> {
     return await this.repo.findByUsernameOrUuid(id);
+  }
+
+  private staffStatusOf(emp: Employee, today: string): StaffStatus {
+    return staffStatusOf(
+      { contractStatus: emp.contract.status, onLeaveFrom: emp.contract.onLeaveFrom, onLeaveTo: emp.contract.onLeaveTo },
+      today
+    );
+  }
+
+  /** Hồ sơ kèm tên phòng ban và staffStatus tính sẵn (hôm nay theo giờ Việt Nam), đúng thứ tự đầu vào. */
+  async views(employees: readonly Employee[]): Promise<EmployeeView[]> {
+    const ids = [...new Set(employees.flatMap(e => (e.contract.departmentId === null ? [] : [e.contract.departmentId])))];
+    const names = await this.repo.departmentNames(ids);
+    const today = businessDateText(this.now());
+    return employees.map(emp => {
+      const departmentId = emp.contract.departmentId;
+      return {
+        ...emp.toDTO(),
+        departmentId,
+        departmentName: departmentId === null ? null : (names.get(departmentId) ?? null),
+        staffStatus: this.staffStatusOf(emp, today)
+      };
+    });
+  }
+
+  /** Phòng ban được gán phải có thật; kiểm trong cùng giao dịch với lần lưu. */
+  private async requireDepartment(repo: EmployeesRepository, employee: Employee): Promise<void> {
+    const id = employee.contract.departmentId;
+    if (id !== null && !(await repo.departmentNames([id])).has(id)) throw new DepartmentNotFoundError();
+  }
+
+  /** Gán một trong sáu ca cố định cho nhiều người; mã ca lạ thì cả lô bị từ chối. */
+  async assignShift(usernames: readonly string[], shiftCode: string, actor: string): Promise<BulkResult<EmployeeView>> {
+    const fixed = shiftByCode(shiftCode);
+    if (!fixed) throw new BadRequestError(`Mã ca không hợp lệ: ${String(shiftCode)}`, { code: 'INVALID_SHIFT_CODE' });
+    return this.assignMany(usernames, actor, (existing) => {
+      const allowancePct =
+        fixed.shiftType === 'NIGHT'
+          ? existing.contract.shift.type === 'NIGHT'
+            ? existing.contract.shift.allowancePct
+            : 30
+          : fixed.shiftType === 'FLEX'
+            ? 10
+            : 0;
+      return { contract: { shift: { type: fixed.shiftType, startTime: fixed.startTime, endTime: fixed.endTime, allowancePct } } };
+    });
+  }
+
+  /** Đổi phòng ban cho nhiều người (null = bỏ phòng); phòng không có thì cả lô bị từ chối. */
+  async assignDepartment(usernames: readonly string[], departmentId: number | null, actor: string): Promise<BulkResult<EmployeeView>> {
+    if (departmentId !== null && !(await this.repo.departmentNames([departmentId])).has(departmentId)) throw new DepartmentNotFoundError();
+    return this.assignMany(usernames, actor, () => ({ contract: { departmentId } }));
+  }
+
+  /** Mỗi người một lần lưu như `update` (giao dịch, nhật ký, ghi lại ngày công); người nghỉ việc hay không có thì vào failed. */
+  private async assignMany(
+    usernames: readonly string[],
+    actor: string,
+    patchOf: (existing: Employee) => Record<string, unknown>
+  ): Promise<BulkResult<EmployeeView>> {
+    const out = await runBulk(
+      usernames,
+      (username) => username,
+      async (username) => {
+        const current = await this.repo.findByUsernameOrUuid(username);
+        if (!current) throw new BulkEmployeeError('EMPLOYEE_NOT_FOUND', 'Không tìm thấy nhân viên');
+        if (current.contract.status === 'nghiviec') throw new BulkEmployeeError('EMPLOYEE_RESIGNED', 'Nhân viên đã thôi việc');
+        const saved = await this.update(username, patchOf(current), actor);
+        if (!saved) throw new BulkEmployeeError('EMPLOYEE_NOT_FOUND', 'Không tìm thấy nhân viên');
+        return saved;
+      },
+      (err) => (err instanceof BulkEmployeeError ? { code: err.code, message: err.message } : { code: 'BAD_EMPLOYEE_INPUT', message: bulkFailureOf(err).message })
+    );
+    return { done: await this.views(out.done), failed: out.failed };
   }
 
   async create(body: any, actor: string): Promise<Employee> {
     const employee = this.buildEmployeeFromInput(body);
     const saved = await this.tx.run(async trx => {
       const repo = this.repo.withTransaction(trx);
+      await this.requireDepartment(repo, employee);
       const saved = await repo.save(employee, actor, { createOnly: true });
       const stored = await this.reload(repo, saved);
       const passwordSet = stored.account.passwordHash !== NO_PASSWORD;
       await this.log(trx, actor, saved.username, staffSaveRows(null, stored.toDTO(), passwordSet));
       return saved;
     });
-    await this.refreshAfterSave(saved.username, null);
+    await this.refreshAfterSave(saved.username, null, true);
     return saved;
   }
 
@@ -167,6 +275,7 @@ export class EmployeesService {
       if (built.username !== existing.username || built.profile.uuid !== existing.profile.uuid) {
         throw new Error('Không đổi được tên đăng nhập hoặc mã nhân sự');
       }
+      await this.requireDepartment(repo, built);
       const saved = await repo.save(built, actor);
       const stored = await this.reload(repo, saved);
       const passwordChanged = stored.account.passwordHash !== existing.account.passwordHash;
@@ -199,7 +308,7 @@ export class EmployeesService {
       return { username: updated.username, before };
     });
     if (!outcome) return false;
-    await this.refreshAfterSave(outcome.username, outcome.before);
+    await this.refreshAfterSave(outcome.username, outcome.before, true);
     return true;
   }
 
@@ -459,6 +568,14 @@ export class EmployeesService {
           ? Boolean(body.isDormResident)
           : (existing?.contract.isDormResident ?? false);
 
+    const departmentInput =
+      body.contract?.departmentId !== undefined ? body.contract.departmentId : body.departmentId;
+    const departmentId = departmentInput !== undefined ? parseDepartmentId(departmentInput) : (existing?.contract.departmentId ?? null);
+    const onLeaveFrom =
+      body.contract?.onLeaveFrom !== undefined ? body.contract.onLeaveFrom : body.onLeaveFrom !== undefined ? body.onLeaveFrom : (existing?.contract.onLeaveFrom ?? null);
+    const onLeaveTo =
+      body.contract?.onLeaveTo !== undefined ? body.contract.onLeaveTo : body.onLeaveTo !== undefined ? body.onLeaveTo : (existing?.contract.onLeaveTo ?? null);
+
     return new Employee({
       profile: new EmployeeProfile({
         uuid,
@@ -488,6 +605,9 @@ export class EmployeesService {
         hasTax,
         canAdvance,
         isDormResident,
+        departmentId,
+        onLeaveFrom,
+        onLeaveTo,
       }),
     });
   }

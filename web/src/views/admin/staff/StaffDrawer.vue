@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // Ngăn kéo hồ sơ nhân sự (bảng I2): nổi bên phải, 480px, mở bằng ?nv=<id>. Đầu dựng ngay, thân và chân chờ hồ sơ.
 // Bẫy focus, Escape và trả focus nhờ registerOverlayFocus; việc đổi URL là của màn (emit close, prev, next).
+// Chân: Xem chấm công, và với người chưa nghỉ việc thêm Sửa hồ sơ, Cho nghỉ việc; lưu xong phát changed(câu báo) để màn
+// báo và tải lại danh sách, ngăn kéo tự tải lại hồ sơ.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { employeePath } from '../attendance/links';
@@ -10,14 +12,16 @@ import { useLoad } from '@/composables/useLoad';
 import { workWeekLine } from '@/builders/api/settings';
 import { getStaffProfile } from '@/services/admin-hr';
 import { getWorkWeek, getWorkWeekHistory } from '@/services/settings-store';
+import StaffEndDialog from './StaffEndDialog.vue';
+import StaffFormDialog from './StaffFormDialog.vue';
 import StatusPill from './parts/StatusPill.vue';
 import WorkWeekDialog from './parts/WorkWeekDialog.vue';
 
 const props = defineProps<{ id: string; hasPrev: boolean; hasNext: boolean }>();
-const emit = defineEmits<{ close: []; prev: []; next: [] }>();
+const emit = defineEmits<{ close: []; prev: []; next: []; changed: [message: string] }>();
 
 const route = useRoute();
-const { data } = useLoad(() => getStaffProfile(props.id), () => props.id);
+const { data, reload } = useLoad(() => getStaffProfile(props.id), () => props.id);
 // Đang đổi người thì thân tạm trống, không hiện hồ sơ của người trước dưới địa chỉ của người sau.
 const profile = computed(() => (data.value && data.value.id === props.id ? data.value : null));
 // "NV · Bậc 2" lấy từ dòng Loại · bậc của hồ sơ, để hộp Tuần làm việc ghi dưới tên.
@@ -39,7 +43,29 @@ const weekLine = computed(() => {
   return workWeekLine(d.week, next ? { month: next.month as string, weekdays: next.to } : null);
 });
 const editingWeek = ref(false);
-watch(() => props.id, () => (editingWeek.value = false));
+// Sửa hồ sơ và Cho nghỉ việc: người đã nghỉ việc không còn hai nút này.
+const editing = ref(false);
+const ending = ref(false);
+const active = computed(() => !!profile.value && profile.value.status !== 'out');
+watch(
+  () => props.id,
+  () => {
+    editingWeek.value = false;
+    editing.value = false;
+    ending.value = false;
+  }
+);
+async function edited(who: { name: string }) {
+  editing.value = false;
+  await reload();
+  emit('changed', `Đã lưu hồ sơ của ${who.name}`);
+}
+async function ended(day: string) {
+  const name = profile.value?.name ?? '';
+  ending.value = false;
+  await reload();
+  emit('changed', `Đã cho ${name} nghỉ việc từ ${day}`);
+}
 
 const attendanceTo = computed(() => {
   const thang = route.query.thang;
@@ -136,6 +162,11 @@ watch([() => props.hasPrev, () => props.hasNext], async () => {
 
         <div v-if="profile" class="pf-f">
           <RouterLink class="fl" :to="attendanceTo">Xem chấm công</RouterLink>
+          <template v-if="active">
+            <span class="sp" />
+            <button type="button" class="fl" @click="ending = true">Cho nghỉ việc</button>
+            <button type="button" class="fl" @click="editing = true">Sửa hồ sơ</button>
+          </template>
         </div>
       </aside>
     </div>
@@ -150,6 +181,8 @@ watch([() => props.hasPrev, () => props.hasNext], async () => {
     @reload="reloadWeek"
     @close="editingWeek = false"
   />
+  <StaffFormDialog v-if="editing && active" :id="props.id" @close="editing = false" @saved="edited" />
+  <StaffEndDialog v-if="ending && active && profile" :id="props.id" :name="profile.name" @close="ending = false" @done="ended" />
 </template>
 
 <style scoped>
@@ -339,8 +372,19 @@ dd.none {
   background: var(--raised);
 }
 .pf-f {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   padding: 12px 24px 16px;
   border-top: 1px solid var(--border);
+}
+.pf-f .sp {
+  flex: 1 1 0;
+}
+button.fl {
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
 }
 .fl {
   display: inline-flex;

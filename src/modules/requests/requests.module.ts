@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AttendanceModule } from '../attendance';
+import { DepartmentsModule } from '../departments';
 import { HolidaysModule } from '../holidays';
 import { PayrollModule } from '../payroll';
 import { PeriodsModule } from '../periods/periods.module';
@@ -12,7 +13,7 @@ import { RequestsService } from './requests.service';
 import { RequestsController } from './requests.controller';
 
 @Module({
-  imports: [AttendanceModule, HolidaysModule, PayrollModule, PeriodsModule, SettingsModule],
+  imports: [AttendanceModule, DepartmentsModule, HolidaysModule, PayrollModule, PeriodsModule, SettingsModule],
   controllers: [RequestsController],
   providers: [RequestsRepository, DayStatusRepository, ExplanationRemindersRepository, ExplanationsService, RequestsService],
   exports: [RequestsService, ExplanationsService, RequestsRepository, DayStatusRepository, ExplanationRemindersRepository],

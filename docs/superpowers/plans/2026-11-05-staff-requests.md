@@ -595,7 +595,7 @@ export interface ExplanationView {
    - `needs.checkIn` mà thiếu giờ vào → `Nhập giờ vào thực tế`;
    - `needs.checkOut` mà thiếu giờ ra → `Nhập giờ ra thực tế`;
    - giờ không cần thì ghi `null`;
-   - ca không qua đêm và giờ ra ≤ giờ vào → `Giờ ra phải sau giờ vào` (R-P5).
+   - ca không qua đêm và giờ ra < giờ vào → `Giờ ra không được trước giờ vào` (R-P5; bằng nhau vẫn nhận, người dùng chốt 06/11).
 5. `summary` = `{ cases, needs }`.
 
 **Các bước:**
@@ -941,3 +941,28 @@ Ledger thực thi là thư mục nháp và sẽ bị xoá; các quyết định 
 - **T11c:** FE xét lỗi theo `code`, không theo mã HTTP (`DAY_CONFLICT` là 400, mock dùng 409) — nếu sai: không có hại gì.
 - **T11d:** chỉ số "Yêu cầu chờ duyệt" ở Tổng quan chỉ đếm việc cần quyết định, như mock; dòng "Còn N việc phải xong trước khi chốt lương" đếm cả ngày cần giải trình; ô "Cần xử lý" ở Chấm công ghi "X chưa giải trình · Y yêu cầu chờ duyệt" (mock ghi "quên chấm", nhưng ngày cần giải trình còn gồm đi muộn, về sớm) — nếu sai: đổi một chữ.
 - **Chưa kiểm:** chưa chạy FE với BE thật (demo e2e ở nhánh `claude/demo-db`); `getInbox` ghép ngày cần giải trình, `remindDue` và việc bỏ cổng `__MOCK__` ở `RequestCancel` không có test node.
+
+**Đợt sửa 06/11 (sau khi gộp main 0725b1f của Lena; luật người dùng chốt D5–D8 ngày 06/11):**
+- **S1:** test FE (`fe-staff-requests.test.ts`) dựng `request-context` qua `filingDayStates` của server (fixture chung `test/v2/helpers/staff-requests-fixture.ts`), nên builder FE được thử trên luật thật; test máy luật mock chuyển sang `fe-staff-requests-engine.test.ts`, có test song song mock = server qua chín biến thể — nếu sai: chỉ đổi cách dựng test.
+- **S2:** Ruling: giữ việc FE chặn giờ ở các dòng khung bù (bỏ giờ dòng khác cùng ngày đã chiếm, không quá số phút còn thiếu, khoá "Thêm khung bù" khi đã đủ giờ), lọc trên bảng `hours` của BE — luật đã chốt và "chặn trước, không báo lỗi"; chỉ form biết các dòng khác nên không đưa về BE được — nếu sai: form đưa thêm giờ, BE vẫn từ chối khi xem trước.
+- **S3:** Ruling: D7 bỏ việc so giờ khai với lần chấm thật còn lại; vẫn giữ R-P5 (ca ngày: giờ ra khai phải sau giờ vào khai) — đó là so hai giờ khai với nhau, không phải so với giờ chấm — nếu sai (người dùng muốn nhận mọi giờ khai): bỏ một điều kiện trong `planExplanation`.
+- **S4:** Ruling: D8 (`advance_on = 0`) áp cả khi Admin nộp thay, kiểm trước cửa sổ ngày 16–17; `advance_on` null coi là được ứng, như repo nhân viên đang đọc — nếu sai: Admin vẫn nộp được cho người ngoài diện, hoặc người chưa có cờ bị khoá.
+- **S5:** Ruling: `ordersThisMonth` = số đơn tạm ứng chờ duyệt hay đã duyệt của tháng (đúng tập luật "mỗi tháng một đơn" đếm) cộng đơn đang nộp, nên khi form mở được thì là 1; đơn bị từ chối hay đã huỷ không tính. `windowEnd` lấy từ cùng hằng ngày 16–17 với `advanceDayOpen` — nếu sai: FE hiện số thứ tự đơn khác đi.
+- **S6:** bỏ `fitSlots`/`slotHourOptions` không ai dùng trong máy luật mock; builder FE là chỗ duy nhất lọc giờ của dòng khung bù — nếu sai: không có hại gì.
+- **Chưa kiểm:** mock chưa có nhân viên ngoài diện tạm ứng (khoá D8 chỉ có test node và test BE); vẫn chưa chạy FE với BE thật.
+
+**Cổng kỳ trước luật (06/11, điều phối giao sau khi main lên b582131):**
+- **G1:** Ruling: `fileRequest` qua cổng kỳ trước tiên, trên các ngày client gửi (đọc như planner nhưng bỏ giá trị sai dạng, để planner báo sau), trước mọi kiểm tra khác: giờ tròn và khoảng nộp khi nhân viên tự nộp, tìm nhân sự, NOT_EMPLOYED, ADVANCE_NOT_ELIGIBLE, luật ngày trong khoá. Cổng trong khoá vẫn giữ để giữ khoá chia sẻ của tháng tới khi ghi xong — "PERIOD_LOCKED thắng lỗi luật" áp cho mọi lỗi luật, kể cả khoảng nộp của nhân viên — nếu sai (muốn câu "Chỉ chọn ngày từ…" thắng khi nhân viên tự nộp): chuyển `assertSelfFiling` lên trước cổng.
+- **G2:** Ruling: Admin nộp cho mã nhân viên không có, vào tháng đã khoá, nhận PERIOD_LOCKED chứ không phải "không tìm thấy nhân sự", vì cổng không cần biết là ai — nếu sai: tìm nhân sự trước cổng.
+- **G3 (ngoài phạm vi, chưa sửa):** đơn iSAT (`createIsatRequest`, không đi qua `fileRequest`) vẫn kiểm luật trước cổng kỳ. iSAT chỉ nhận Thứ Bảy sắp tới, nên chỉ gặp khi tháng hiện tại đã chốt công.
+
+**R-P5 sau câu trả lời của người dùng (06/11, chuyển qua điều phối):** "giờ ra phải lớn hơn hoặc bằng giờ vào" — giữ kiểm tra giữa hai giờ khai (thay S3), nhưng giờ ra bằng giờ vào được nhận; câu lỗi đổi thành `Giờ ra không được trước giờ vào`; ca đêm vẫn không xét.
+- **R1:** Ruling: mock FE (`web/src/mock/staff-requests.ts`) đổi cùng luật và cùng câu, không thêm test: dữ liệu giả không có ngày nào cần cả giờ vào lẫn giờ ra (chỉ 24/10 thiếu giờ ra, 09/10 vào muộn), nên nhánh này không chạm được từ UI — nếu sai: mock lệch BE mà không test nào bắt.
+- **R2:** sửa luôn hai câu của contract đã cũ sau G1 ("cổng chỉ xét sau các luật", "xét sau mọi lỗi 400") — nếu sai: không có hại gì.
+
+**Giải trình ngày không ca có khung bù (06/11, người dùng duyệt thiết kế qua điều phối):** vào trễ ở khung bù đã duyệt thì giải trình được; phiên Chấm công ghi đủ giờ bù khi đơn được duyệt (FP6), đọc trường hợp LATE_CHECK_IN đã lưu trong đơn.
+- **E1:** Ruling: chỉ ngày không ca có khung OT/bù đã duyệt dùng bộ dò duy nhất (`detectCases`); ngày có ca giữ `explanationCasesOf` — trên ngày có ca hai bộ dò khác nhau (ân hạn lấy từ cài đặt hay cố định 15 phút; LATE_CHECK_OUT 15–30 phút; ra sớm theo lần ra đầu trong ca, L7; thiếu giờ theo mốc xét hay "ngày đã qua"; khung sau ca dời mốc cuối), đổi luôn sẽ đổi ngày nào cần giải trình — rủi ro: ngày có ca vẫn có thể lệch dòng ngày (xem câu hỏi Q-E1 trong báo cáo cho điều phối).
+- **E2:** Ruling: "đã tới mốc xét" tính như bộ dựng dòng ngày (đủ giờ vào và ra, hoặc qua giờ cuối khung 30 phút). Ban đầu hằng 30 phút được chép lại vì `attendance-day.ts` không export; từ khi phiên Chấm công export `EVALUATE_AFTER_MS` (da52c9e, có test giữ giá trị), `explanations.service.ts` import thẳng hằng đó, không còn bản chép.
+- **E3:** chỉ khung của đơn đã duyệt, như dòng ngày; khung của đơn còn chờ thì ngày vẫn "không phải ngày làm".
+- **E4:** ngày lễ rơi vào ngày không làm (vd. Chủ nhật) có khung đã duyệt vẫn bị từ chối như mọi ngày lễ, dù dòng ngày ghi `EXTRA` có trường hợp — nếu sai: bỏ điều kiện ngày lễ cho ngày không ca có khung.
+- **E5:** ngày không ca có khung đã duyệt mà không chấm lần nào, qua giờ cuối khung 30 phút, thành ngày cần giải trình (thiếu giờ vào và giờ ra), vì bộ dò báo như vậy.

@@ -68,11 +68,8 @@ async function signIn(page: Page, username: string, password: string) {
 }
 
 // Số đang lưu của một nhóm ở tháng `month` (mặc định tháng đang mở), đọc bằng phiên của trang.
-// Không nêu tháng thì đọc ở tháng mà màn Cài đặt ghi vào (`minMonth`, tháng sớm nhất còn áp dụng được): các kịch bản kỳ lương
-// (scenarios/flow-payroll.spec.ts) dùng tháng cũ nên tháng đó đổi theo DB; đọc theo tháng hôm nay sẽ lệch trên DB đã chạy nhiều lần.
 async function saved(page: Page, group: string, month?: string) {
-  const at = month ?? (await (await page.request.get('/api/v2/settings')).json()).minMonth;
-  const res = await page.request.get(`/api/v2/settings?month=${at}`);
+  const res = await page.request.get(`/api/v2/settings${month ? `?month=${month}` : ''}`);
   expect(res.ok(), await res.text()).toBeTruthy();
   return (await res.json()).groups[group].values as Record<string, any>;
 }

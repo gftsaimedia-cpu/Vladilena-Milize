@@ -1,6 +1,6 @@
 // Bản in phiếu lương A4 (board P1, P2 của Đợt 8) trên dữ liệu giả: không page.route, không gọi /api.
-// Số tiền và ngày công là tháng mẫu chung; tên, loại · bậc, hợp đồng và trạng thái lấy theo phiếu của mã trên đường dẫn.
-// Phiếu dùng ở đây là phiếu Nháp (GFT-0123), dạng cao nhất của đầu trang 1 (có dòng bản nháp).
+// Số tiền và ngày công là tháng mẫu chung; tên, loại · bậc, hợp đồng và trạng thái nhân sự lấy theo phiếu của mã trên
+// đường dẫn. Phiếu dùng ở đây là phiếu Nháp (GFT-0123); bản in không ghi trạng thái phiếu (D11, 06/11).
 import { expect, test, type Page } from '@playwright/test';
 
 const SLIP = '/in/phieu-luong/2026-10/GFT-0123';
@@ -32,12 +32,11 @@ test('page 1 header follows P1 for the slip on the URL', async ({ page }) => {
   await page.goto(SLIP);
   const p1 = sheetPage(page, 1);
   await expect(p1.getByRole('img', { name: 'GFT' })).toBeVisible();
-  await expect(p1.getByRole('heading', { level: 1 })).toHaveText('Phiếu lương tháng 10/2026 · tạm tính');
-  await expect(p1.locator('.sub')).toHaveText('Từ 01/10 đến 31/10/2026 · tạm tính cả tháng, số liệu tới 02/11 · công chuẩn theo quy chế: 26 ngày');
-  await expect(p1.locator('.dr')).toHaveText('Bản nháp, chưa phải lương chính thức');
+  await expect(p1.getByRole('heading', { level: 1 })).toHaveText('Phiếu lương tháng 10/2026');
+  await expect(p1.locator('.sub')).toHaveText('Từ 01/10 đến 31/10/2026 · công chuẩn theo quy chế: 26 ngày');
+  await expect(p1.locator('header p')).toHaveCount(1);
   await expect(p1.locator('.who > div')).toHaveText([
-    /Họ tên\s*Võ Đức Thịnh/, /Loại · bậc\s*NV · Bậc 3/, /Tình trạng\s*Nháp/, /Trạng thái nhân sự\s*Chính thức/,
-    /Kỳ lương\s*Tháng 10\/2026/
+    /Họ tên\s*Võ Đức Thịnh/, /Loại · bậc\s*NV · Bậc 3/, /Trạng thái nhân sự\s*Chính thức/, /Kỳ lương\s*Tháng 10\/2026/
   ]);
   await expect(p1.getByRole('heading', { level: 2 })).toHaveText('Chấm công tháng 10/2026');
   await expect(p1.locator('.sh .lb')).toHaveText('Lương ngày 230.769 · số tiền tính bằng đồng');

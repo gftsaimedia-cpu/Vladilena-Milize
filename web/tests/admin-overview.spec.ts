@@ -302,8 +302,43 @@ test('overview rows and totals follow the payroll mock', async ({ page }) => {
   const nam = page.getByRole('region', { name: 'Bảng lương tháng 10' }).locator('tbody tr', { hasText: 'Lê Hoàng Nam' });
   for (const text of ['24 / 26', '12.000.000', '2.215.384', '14.278.183', 'Chờ duyệt']) await expect(nam).toContainText(text);
   const period = page.getByRole('region', { name: 'Kỳ lương tháng 10' });
-  for (const text of ['2,11 tỷ ₫', '0,37 tỷ ₫', '85%', '86']) await expect(period).toContainText(text);
+  // Đơn vị theo độ lớn: thực nhận 2,11 tỷ, khấu trừ 370 triệu (không còn "0,37 tỷ ₫").
+  for (const text of ['2,11 tỷ ₫', '370 triệu ₫', '85%', '86']) await expect(period).toContainText(text);
+  await expect(period).not.toContainText('0,37 tỷ');
+  // Ngày trả lương mặc định là ngày 10 tháng sau (cài đặt Ngày trả lương), như board A.
+  await expect(period).toContainText('10/11/2026');
 });
+
+// Chú thích phiếu lương (người dùng 06/11): 4 mục trên một hàng, trải từ mép trái tới mép phải thanh,
+// số và nhãn đứng liền nhau, không mục nào rớt xuống hàng hai. Đo ở thẻ hẹp nhất (3 cột, 1300px), 1440px,
+// thẻ rộng cả hàng (1024px) và điện thoại (375px).
+for (const width of [1300, 1440, 1024, 375]) {
+  test(`slip legend stays on one row across the bar at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/admin/tong-quan');
+    await page.evaluate(() => document.fonts.ready);
+    const period = page.getByRole('region', { name: 'Kỳ lương tháng 10' });
+    const items = period.getByRole('list', { name: 'Phiếu lương theo trạng thái' }).getByRole('listitem');
+    await expect(items).toHaveText(['86 Đã duyệt', '29 Chờ duyệt', '12 Nháp', '1 Từ chối']);
+    const bar = await period.locator('.bar').boundingBox();
+    const boxes = await items.evaluateAll(els =>
+      els.map(e => {
+        const r = e.getBoundingClientRect();
+        const d = e.querySelector('.dot')!.getBoundingClientRect();
+        const n = e.querySelector('b')!.getBoundingClientRect();
+        const l = e.querySelector('span')!.getBoundingClientRect();
+        return { top: r.top, left: r.left, right: r.right, dotRight: d.right, numLeft: n.left, labelLeft: l.left, labelRight: l.right };
+      })
+    );
+    expect(new Set(boxes.map(b => Math.round(b.top))).size).toBe(1);
+    expect(Math.abs(boxes[0].left - bar!.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(boxes[3].right - (bar!.x + bar!.width))).toBeLessThanOrEqual(1);
+    // Chấm màu sát số (6px), nhãn ngay dưới và cùng mép trái với chấm; không phần nào bị đẩy ra mép ô.
+    for (const b of boxes) expect(b.numLeft - b.dotRight).toBeLessThanOrEqual(7);
+    for (const b of boxes) expect(b.labelRight).toBeLessThanOrEqual(b.right + 0.5);
+    for (const b of boxes) expect(Math.abs(b.labelLeft - b.left)).toBeLessThanOrEqual(1);
+  });
+}
 
 test('Xem tất cả opens the bell drawer on the overview and keeps the month', async ({ page }) => {
   await page.goto('/admin/tong-quan?thang=2026-11');

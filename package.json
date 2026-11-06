@@ -10,7 +10,9 @@
   "scripts": {
     "start": "node --no-warnings=ExperimentalWarning --import tsx src/server.ts",
     "db:reset-dev": "node scripts/dev/reset-dev-db.cjs",
+    "seed:demo": "node scripts/dev/ts.cjs scripts/dev/seed-demo.ts",
     "sandbox": "node scripts/dev/ts.cjs scripts/dev/sandbox-bootstrap.ts",
+    "demo": "node --no-warnings=ExperimentalWarning --import tsx scripts/demo/run.ts",
     "test": "node --import tsx --test \"test/v2/**/*.test.ts\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

@@ -78,13 +78,6 @@ const months = computed(() =>
   gap: 20px 24px;
   padding: 8px 24px 16px;
 }
-@media (max-width: 760px) {
-  .months {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-}
 .mo h4 {
   margin: 0 0 6px;
   font-size: 13px;

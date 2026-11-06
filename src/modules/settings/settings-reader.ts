@@ -6,7 +6,7 @@ import type { DB } from '../../database/schema';
 import type { Zone } from './domain/attendance-zone';
 import { decodeValues, GROUP_KEYS, SETTING_GROUPS, type Bracket } from './domain/setting-groups';
 import { standardWorkdaysForWeek } from './domain/work-week';
-import { TypeWeekMissingError } from './settings.errors';
+import { SettingsMissingError, TypeWeekMissingError } from './settings.errors';
 import { SettingsRepository } from './settings.repository';
 
 type Q = Kysely<DB>;
@@ -48,7 +48,7 @@ export class SettingsReader {
     for (const g of GROUP_KEYS) {
       const chain = await this.repo.groupChain(q, g);
       const version = versionAt(chain, month);
-      if (!version) throw new Error(`Không có cài đặt ${g} nào có hiệu lực ở tháng ${month}`);
+      if (!version) throw new SettingsMissingError(g, month);
       out[SETTING_GROUPS[g].responseKey] = decodeValues(g, version.values);
     }
     return out as unknown as SettingsSnapshot;
@@ -85,29 +85,18 @@ export class SettingsReader {
 
   /** Tuần làm của mọi người đã có tài khoản ở `month`, khoá theo username tăng dần; cùng quyết định với `workWeekOf`. */
   async workWeeksAt(month: string, q: Q = this.repo.db): Promise<Record<string, number[]>> {
-    const out: Record<string, number[]> = {};
-    for (const { staff, weekdays } of await this.weeksOf(month, q)) out[staff.username] = weekdays;
-    return out;
-  }
-
-  /** Như `workWeeksAt` nhưng khoá theo uuid (chấm công dựng lại hàng loạt không có username). */
-  async workWeeksByUuid(month: string, q: Q = this.repo.db): Promise<Map<string, number[]>> {
-    return new Map((await this.weeksOf(month, q)).map(({ staff, weekdays }) => [staff.uuid, weekdays]));
-  }
-
-  private async weeksOf(month: string, q: Q): Promise<Array<{ staff: { uuid: string; username: string }; weekdays: number[] }>> {
     const staff = await this.repo.staffList(q);
     const own = await this.repo.ownWeeksAt(q, month);
     const typeWeeks = new Map<string, number[] | null>();
     for (const type of new Set(staff.map(s => s.type))) {
       typeWeeks.set(type, (await this.repo.typeWeekAt(q, type, month))?.weekdays ?? null);
     }
-    const out: Array<{ staff: { uuid: string; username: string }; weekdays: number[] }> = [];
+    const out: Record<string, number[]> = {};
     for (const s of staff) {
       // Loại không có tuần ở tháng này thì bỏ qua, kể cả khi có tuần riêng (workWeekOf cũng không trả lời cho người đó).
       const typeWeekdays = typeWeeks.get(s.type);
       if (!typeWeekdays) continue;
-      out.push({ staff: s, weekdays: parseWeekdays(own.get(s.uuid) ?? null) ?? typeWeekdays });
+      out[s.username] = parseWeekdays(own.get(s.uuid) ?? null) ?? typeWeekdays;
     }
     return out;
   }

@@ -16,17 +16,26 @@ import type {
   RequestStep,
   RequestsView
 } from '../../mock/staff-phone';
-import { dmy, initials, vnd } from '../../utils/format';
+import { dmy, initials, num, vnd } from '../../utils/format';
 import type { RequestDTO } from './inbox';
 import type { Zone } from './settings';
 
-export type MeLeave = 'paid' | 'unpaid' | 'holiday';
-export type MeDay = { date: string; kind: CellKind; leave?: MeLeave; in: string | null; out: string | null; lateMinutes: number };
+export type MeLeave = 'paid' | 'unpaid' | 'holiday' | 'isat' | 'makeup';
+// halfShift: ngày nghỉ giữa ca (BE), nửa nhân viên làm; khi có thì `shift` của ngày là nửa ca làm.
+export type MeHalfShift = 'FIRST' | 'SECOND';
+export type MeDay = {
+  date: string;
+  kind: CellKind;
+  leave?: MeLeave;
+  in: string | null;
+  out: string | null;
+  lateMinutes: number;
+  halfShift?: MeHalfShift | null;
+};
 // Các tháng được xem: từ tháng vào làm tới tháng hiện tại (BE quyết).
 export type MeRange = { from: string; to: string };
 export type MeMonth = {
   month: string;
-  today: string; // ngày hôm nay theo máy chủ
   periodState?: 'open' | 'locked';
   range?: MeRange;
   totals: { workDays: number; standardDays: number; lateCount: number; paidLeaveDays: number };
@@ -34,8 +43,8 @@ export type MeMonth = {
 };
 export type MeToday = {
   date: string;
-  now: string; // giờ Việt Nam của máy chủ 'HH:mm'
   shift: { type: string; start: string; end: string } | null;
+  halfShift?: MeHalfShift | null; // hôm nay nghỉ giữa ca: `shift` là nửa ca làm
   punches: { in: string | null; out: string | null };
   workedMinutes: number;
   week: MeDay[];
@@ -82,7 +91,13 @@ const KIND_TEXT: Record<CellKind, string> = {
 };
 const DAY_STATUS: Record<DayKind, string> = { work: 'Đi làm', late: 'Đi muộn', leave: 'Nghỉ có lương', absent: 'Vắng', todo: 'Cần xử lý' };
 // Ngày nghỉ gọi đúng loại theo bảng công; thiếu loại thì giữ nhãn chung.
-const LEAVE_KIND: Record<MeLeave, string> = { paid: 'Nghỉ có lương', unpaid: 'Nghỉ không lương', holiday: 'Nghỉ lễ' };
+const LEAVE_KIND: Record<MeLeave, string> = {
+  paid: 'Nghỉ có lương',
+  unpaid: 'Nghỉ không lương',
+  holiday: 'Nghỉ lễ',
+  isat: 'Nghỉ iSAT',
+  makeup: 'Nghỉ có làm bù'
+};
 const statusOf = (d: MeDay) => (d.kind === 'leave' && d.leave ? LEAVE_KIND[d.leave] : DAY_STATUS[d.kind as DayKind]);
 
 const dowOf = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay();
@@ -112,11 +127,14 @@ const quote = (s: string | null | undefined) => `“${String(s || '').trim()}”
 const shiftText = (type: string, start: string, end: string) => `${type === 'NORMAL' ? 'HC' : type} ${start}–${end}`;
 
 export const workedText = (min: number) => `${Math.floor(min / 60)}g ${min % 60}p`;
+// 240 → '4', 90 → '1,5' (giờ, dấu phẩy thập phân).
+const hoursOf = (min: number) => String(Math.round((min / 60) * 10) / 10).replace('.', ',');
 
 function cellOf(d: MeDay, today: string, padDay: boolean): CalendarCell {
   const isToday = d.date === today;
   const live = isToday && !!d.in && !d.out;
-  const text = live ? 'đang làm' : d.kind === 'leave' && d.leave ? lower(LEAVE_KIND[d.leave]) : KIND_TEXT[d.kind];
+  const base = live ? 'đang làm' : d.kind === 'leave' && d.leave ? lower(LEAVE_KIND[d.leave]) : KIND_TEXT[d.kind];
+  const text = d.halfShift ? `${base} · nửa ca` : base;
   const dow = dowOf(d.date);
   return {
     date: d.date,
@@ -148,6 +166,10 @@ function kindOf(r: MeRequest): { icon: RequestRowData['icon']; kindLabel: string
     case 'ISAT': {
       const date = r.isat?.saturday || r.createdAt.slice(0, 10);
       return { icon: 'leave', kindLabel: 'Nghỉ Thứ Bảy (iSAT)', title: `iSAT ${ddmm(date)}`, date };
+    }
+    case 'HALF_SHIFT_LEAVE': {
+      const date = r.halfShiftDate || r.createdAt.slice(0, 10);
+      return { icon: 'leave', kindLabel: 'Nghỉ giữa ca', title: `Nghỉ giữa ca ${ddmm(date)}`, date };
     }
     case 'ADVANCE': {
       const date = r.advancePeriod ? `${r.advancePeriod}-01` : r.createdAt.slice(0, 10);
@@ -191,6 +213,14 @@ function factsOf(r: MeRequest): [string, string][] {
       ];
     case 'OVERTIME':
       return [['Ngày', dmy(r.otDate || '')], ['Khung giờ', `${r.otStartTime || '?'}–${r.otEndTime || '?'}`], ['Lý do', quote(r.reason)]];
+    case 'HALF_SHIFT_LEAVE':
+      return [
+        ['Ngày', dmy(r.halfShiftDate || '')],
+        ['Làm', r.halfShiftWork ? `${r.halfShiftWork.start}–${r.halfShiftWork.end}` : NONE],
+        ['Nghỉ', r.halfShiftLeave ? `${r.halfShiftLeave.start}–${r.halfShiftLeave.end}` : NONE],
+        ['Cần bù', r.owedMinutes ? `${hoursOf(r.owedMinutes)} giờ` : NONE],
+        ['Lý do', quote(r.reason)]
+      ];
     case 'EXPLANATION':
       return [
         ['Ngày', dmy(r.explanationDate || '')],
@@ -255,7 +285,8 @@ export function attendanceViewOf(m: MeMonth, shiftLine: string, today: string, r
     state: m.periodState === 'locked' ? 'Kỳ công đã chốt' : 'Kỳ công đang mở',
     shiftLine: `Ca ${shiftLine} · thứ Hai – thứ Bảy`,
     tiles: [
-      { value: String(m.totals.workDays), of: String(m.totals.standardDays), label: 'Ngày công' },
+      // Ngày công có thể lẻ (nửa ca = 0,5 công): viết "12,5".
+      { value: num(m.totals.workDays), of: num(m.totals.standardDays), label: 'Ngày công' },
       { value: String(m.totals.lateCount), of: null, label: 'Lần đi muộn' },
       { value: String(m.totals.paidLeaveDays), of: null, label: 'Ngày nghỉ có lương' }
     ],
@@ -281,7 +312,7 @@ export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } |
   return {
     date: d.date,
     title: `${DOW_LONG[dowOf(d.date)]} ${dmy(d.date)}`,
-    shiftLine: `Ca ${shift.start}–${shift.end}`,
+    shiftLine: `${d.halfShift ? 'Nửa ca' : 'Ca'} ${shift.start}–${shift.end}`,
     kind,
     today: d.date === today,
     statusText: d.date === today && d.in && !d.out ? 'Đang làm' : statusOf(d),
@@ -310,8 +341,7 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
   const start = t.shift?.start ?? profile.shift.startTime;
   const end = t.shift?.end ?? profile.shift.endTime;
   const checkIn = t.punches.in ?? '';
-  // Đã ra ca: số phút làm do BE tính. Đang trong ca: chạy theo giờ máy chủ (`now`) để thanh giờ nhích.
-  const workedMin = !checkIn ? 0 : t.punches.out ? t.workedMinutes : Math.max(0, toMin(now) - toMin(checkIn));
+  const workedMin = checkIn ? Math.max(0, toMin(t.punches.out ?? now) - toMin(checkIn)) : 0;
   const days = t.week;
   return {
     greeting: greetingOf(now),
@@ -319,7 +349,7 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
     initials: initials(profile.name),
     weekday: DOW_LONG[dowOf(t.date)],
     date: dmy(t.date),
-    shiftLabel: `Ca ${profile.shift.type === 'NORMAL' ? 'HC' : profile.shift.type} · ${start}–${end}`,
+    shiftLabel: t.halfShift ? `Nửa ca · ${start}–${end}` : `Ca ${profile.shift.type === 'NORMAL' ? 'HC' : profile.shift.type} · ${start}–${end}`,
     shiftStart: start,
     shiftEnd: end,
     now,
@@ -406,6 +436,8 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
       line('cal', 'Lương ngày công', p.baseSalaryActual),
       line('leave', 'Nghỉ phép, iSAT', leavePay),
       ...ifAny('clock', 'Làm thêm giờ', p.otPayTotal || 0),
+      // Giờ làm thêm trả nợ nghỉ giữa ca: khoản riêng của BE, không nằm trong tiền OT.
+      ...ifAny('clock', 'Bù nghỉ giữa ca', p.halfShiftRepaidPay || 0),
       line('gift', 'Phụ cấp', p.totalAllowanceActual),
       line('target', 'Lương KPI', p.kpiActualPay),
       ...ifAny('out', 'Trừ đi muộn, về sớm', p.lateEarlyDeductionAmount || 0, true),

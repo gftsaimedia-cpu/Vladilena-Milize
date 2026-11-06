@@ -4,14 +4,18 @@
 // `otHours` của ngày (BE đã bỏ khung vượt số phút OT còn lại của tháng). Đổi ngày thì giữ giờ còn trong bảng; "Đến" không còn
 // thì về giờ kết thúc đầu tiên (board J15).
 // Hộp tóm tắt nằm giữa hai ô giờ và Lý do: số giờ của khung đang chọn và số giờ OT đã đăng ký trong tháng (builder).
+// Nghỉ giữa ca: tháng có nợ thì thêm dòng nợ của BE (đã đăng ký bù / nợ, còn lại) và cách trả; tháng có Nghỉ có làm bù mà còn nợ
+// thì OT chỉ để trả nợ, nên khung không vượt phần nợ còn lại (otHoursOf). FE không tách bù / OT, không tính tiền.
 // Hợp đồng form như LeaveForm: nhận ctx, ngay, preview; phát `draft` đủ trường hoặc null, ngay trong watcher (không chờ).
 import { computed, ref, useId, watch } from 'vue';
 import {
   dateLabel,
   endHours,
+  otDates,
+  otDebtLines,
   otHoursLine,
+  otHoursOf,
   otMonthLine,
-  startDates,
   startHours
 } from '@/builders/api/staff-requests';
 import type { OvertimeDraft, PreviewResult, RequestContext } from '@/mock/staff-requests-types';
@@ -31,17 +35,17 @@ const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 const hourOf = (t: string) => Number(t.slice(0, 2));
 const month = computed(() => otDate.value.slice(0, 7));
 
-const dates = computed(() => startDates(props.ctx, 'overtime'));
+const dates = computed(() => otDates(props.ctx));
 const day = computed(() => props.ctx.days.find(d => d.date === otDate.value) ?? null);
-const starts = computed(() => (day.value ? startHours(day.value.otHours).map(hh) : []));
-const ends = computed(() =>
-  day.value && startTime.value ? endHours(day.value.otHours, hourOf(startTime.value)).map(e => hh(e.end)) : []
-);
+const hours = computed(() => (day.value ? otHoursOf(props.ctx, day.value) : []));
+const starts = computed(() => startHours(hours.value).map(hh));
+const ends = computed(() => (startTime.value ? endHours(hours.value, hourOf(startTime.value)).map(e => hh(e.end)) : []));
 const lines = computed(() =>
   day.value
     ? [
         startTime.value && endTime.value ? otHoursLine(day.value, hourOf(startTime.value), hourOf(endTime.value)) : '',
-        otMonthLine(props.ctx, month.value)
+        otMonthLine(props.ctx, month.value),
+        ...otDebtLines(props.ctx, month.value)
       ]
     : []
 );

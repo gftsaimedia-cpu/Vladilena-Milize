@@ -151,6 +151,7 @@ function openPassword() {
       :mobile-inert="mobileViewport && !mobileNavOpen"
       :active="route.meta.nav as string"
       :me="shell.me"
+      :counts="{ 'yeu-cau': shell.requests }"
       @open-menu="toggleOverlay('menu-tai-khoan')"
       @navigate="closeMobileNav()"
     />

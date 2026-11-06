@@ -1,19 +1,16 @@
 import { expect, test } from '@playwright/test';
 import { openPhone } from './fixtures/staff-phone';
 
-test('days outside the work week show nghỉ', async ({ page }) => {
+test('days outside the work week are greyed, without a caption', async ({ page }) => {
   await openPhone(page, '/nv/hom-nay');
   const week = page.getByRole('region', { name: 'Tuần này' });
   // Tuần 26/10 – 01/11 của dữ liệu giả chỉ có một ô ngoài tuần làm: Chủ nhật 01/11.
   await expect(week.locator('.dn.off')).toHaveCount(1);
-  await expect(week.locator('.off-cap')).toHaveCount(1);
-  await expect(week.locator('.off-cap')).toHaveText('nghỉ');
+  await expect(week.locator('.off-cap')).toHaveCount(0);
   await openPhone(page, '/nv/cham-cong');
   const off = page.locator('.at-grid .dn.off');
   await expect(off.first()).toBeVisible();
-  const count = await off.count();
-  await expect(page.locator('.at-grid .off-cap')).toHaveCount(count);
-  await expect(page.locator('.off-cap').first()).toHaveText('nghỉ');
+  await expect(page.locator('.off-cap')).toHaveCount(0);
 });
 
 test('income shows the pay date on home, income and desktop', async ({ page }) => {

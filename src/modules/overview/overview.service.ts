@@ -1,7 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
+import { businessTimeText } from '../../common/business-date';
 import { KYSELY_DB, type DB } from '../../database';
 import { AttendanceService } from '../attendance/attendance.service';
+import { matchesStaffStatus, type StaffFilter } from '../departments/domain';
 import type { Employee } from '../employees/domain';
 import { EmployeesService } from '../employees/employees.service';
 import { PayrollService } from '../payroll/payroll.service';
@@ -10,7 +12,7 @@ import { ExplanationsService } from '../requests/explanations.service';
 import { RequestsService } from '../requests/requests.service';
 import type { SystemRequestDTO } from '../requests/domain';
 import { SettingsReader, TypeWeekMissingError } from '../settings';
-import { monthOf, vnToday } from '../me/domain';
+import { DEFAULT_WEEKDAYS, monthOf, vnToday } from '../me/domain';
 import {
   GROUP_LABELS,
   GROUP_OF_TYPE,
@@ -42,8 +44,6 @@ const TOP_LINES = 5;
 const PAYROLL_ROWS = 6;
 const APPROVAL_ITEMS = 8;
 const HISTORY_LIMIT = 50;
-const PENDING_LIMIT = 500;
-const OT_LIMIT = 5000;
 const DEFAULT_RECENT_DAYS = 6;
 export const MAX_WINDOW_DAYS = 35;
 export const MAX_RECENT_DAYS = 14;
@@ -63,10 +63,14 @@ const prevMonthOf = (month: string) => {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 const round1 = (n: number) => Math.round(n * 10) / 10;
-const hhmmVn = (d: Date) => new Date(d.getTime() + 7 * 3600000).toISOString().slice(11, 16);
+const weekdayOf = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay();
 
 type Sheet = Awaited<ReturnType<AttendanceService['listTimesheets']>>[number];
 type Weeks = Map<string, Record<string, number[]>>;
+
+/** Tuần làm của `username` ở tháng của `iso`; người không có tuần (loại chưa có tuần) theo tuần mặc định, như ô ngày. */
+const weekOf = (weeks: Weeks, username: string, iso: string): readonly number[] =>
+  weeks.get(iso.slice(0, 7))?.[username] ?? DEFAULT_WEEKDAYS;
 
 function personOf(emp: Employee) {
   const { position, shift, leave, status, effectiveFrom } = emp.toDTO().contract;
@@ -115,7 +119,8 @@ export class OverviewService {
       who.set(e.uuid, e);
     }
     const [pending, due] = await Promise.all([
-      this.requests.listRequests({ status: 'PENDING', limit: PENDING_LIMIT }),
+      // Mọi đơn chờ của những người này, không giới hạn số dòng (đơn chờ là việc còn mở, không tích luỹ theo thời gian).
+      people.length ? this.requests.listRequests({ status: 'PENDING', employeeIds: [...who.keys()] }) : { items: [] },
       this.explanations.listDue().catch(() => [])
     ]);
     const items: WorkItem[] = [];
@@ -147,30 +152,28 @@ export class OverviewService {
     return items;
   }
 
-  /**
-   * Số trên chuông Admin: đơn chờ duyệt cộng ngày cần giải trình, đúng hai nguồn của danh sách chuông. Lỗi ở nguồn nào
-   * cũng ném ra (không lặng lẽ đếm thiếu) để màn hình báo "không rõ" thay vì một con số sai.
-   */
-  async pendingCount(): Promise<number> {
-    const [pending, due] = await Promise.all([
-      this.requests.listRequests({ status: 'PENDING', limit: 1 }),
-      this.explanations.listDue()
-    ]);
-    return pending.total + due.length;
-  }
-
-  /** Giờ OT đã duyệt trong `month` theo username. */
+  /** Giờ OT đã duyệt có ngày OT trong `month`, theo username: cộng ngay trong SQL theo tháng, không đọc mọi đơn OT. */
   private async approvedOt(people: Employee[], month: string): Promise<Map<string, number>> {
     const who = new Map<string, string>();
     for (const e of people) {
       who.set(e.username, e.username);
       who.set(e.uuid, e.username);
     }
-    const { items } = await this.requests.listRequests({ status: 'APPROVED', type: 'OVERTIME', limit: OT_LIMIT });
     const out = new Map<string, number>();
-    for (const r of items) {
-      const u = who.get(r.employeeId);
-      if (u && r.otDate?.startsWith(month)) out.set(u, (out.get(u) ?? 0) + (r.otHours ?? 0));
+    if (!who.size) return out;
+    const rows = await this.db
+      .selectFrom('system_requests')
+      .select(eb => ['employee_id', eb.fn.sum<number | string | null>('ot_hours').as('hours')])
+      .where('status', '=', 'APPROVED')
+      .where('type', '=', 'OVERTIME')
+      .where('ot_date', '>=', `${month}-01`)
+      .where('ot_date', '<=', monthEnd(month))
+      .where('employee_id', 'in', [...who.keys()])
+      .groupBy('employee_id')
+      .execute();
+    for (const r of rows) {
+      const u = who.get(r.employee_id);
+      if (u) out.set(u, (out.get(u) ?? 0) + Number(r.hours ?? 0));
     }
     return out;
   }
@@ -180,7 +183,7 @@ export class OverviewService {
    * 7 ngày thì tuần hôm nay; nhiều hơn 7 ngày thì tuần cách hôm nay 14 ngày (hôm nay ở tuần thứ ba của lưới 4 tuần).
    * `month` (mặc định tháng hôm nay) chọn tháng của các cột Công / Trễ / OT và thẻ số.
    */
-  async week(opts: { from?: string; days?: number; q?: string; group?: string; month?: string } = {}) {
+  async week(opts: { from?: string; days?: number; q?: string; group?: string; month?: string; staff?: StaffFilter } = {}) {
     const now = this.nowDate();
     const today = vnToday(now);
     const count = opts.days ?? 7;
@@ -194,6 +197,13 @@ export class OverviewService {
     const wantGroup = opts.group?.trim().toLowerCase();
 
     const everyone = (await this.employees.list()).filter(e => activeIn(e, start, last)).sort(byName);
+    // Phòng ban và staffStatus của từng người; bộ lọc chung chạy sau `all` cùng chỗ với q và group nên thẻ số vẫn tính trên mọi người.
+    const views = new Map((await this.employees.views(everyone)).map(v => [v.account.username, v]));
+    const placeOf = (username: string) => {
+      const v = views.get(username)!;
+      return { departmentId: v.departmentId, departmentName: v.departmentName, staffStatus: v.staffStatus };
+    };
+    const staff = opts.staff;
     const [sheets, weeks, items, ot, lockedPeriod] = await Promise.all([
       this.attendance.listTimesheets({ startDate: mFrom < start ? mFrom : start, endDate: mTo > last ? mTo : last }),
       this.weekdaysByMonth([...days, mFrom]),
@@ -219,7 +229,7 @@ export class OverviewService {
         person,
         cells,
         totals: {
-          workDays: mine.filter(s => s.countsAsWorkday).length,
+          workDays: mine.reduce((sum, s) => sum + (s.countsAsWorkday ? ((s.status === 'PRESENT' && (s as any).halfShift) ? 0.5 : 1) : 0), 0),
           lateMinutes: mine.reduce((n, s) => n + (s.metrics?.lateMinutes || 0), 0),
           otHours: round1(ot.get(emp.username) ?? 0)
         },
@@ -232,16 +242,25 @@ export class OverviewService {
       .filter(r => {
         if (needle && !foldText(r.person.username).includes(needle) && !foldText(r.person.name).includes(needle)) return false;
         if (wantGroup && r.person.group !== wantGroup && String(r.person.shift.type).toLowerCase() !== wantGroup) return false;
+        if (staff) {
+          const place = placeOf(r.person.username);
+          if (!matchesStaffStatus(staff.staffStatus, place.staffStatus)) return false;
+          if (staff.departmentId === 'none' ? place.departmentId !== null : staff.departmentId !== undefined && place.departmentId !== staff.departmentId) return false;
+        }
         return true;
       })
-      .map(({ person, cells, totals, needsAction }) => ({ ...person, days: cells, totals, needsAction }));
+      .map(({ person, cells, totals, needsAction }) => ({ ...person, ...placeOf(person.username), days: cells, totals, needsAction }));
     const shown = new Set(rows.map(r => r.username));
+    // Cột là ngày làm khi có ít nhất một người đang hiện trên lưới làm thứ đó; lọc không còn ai thì xét mọi người.
+    const listed = rows.length ? rows.map(r => r.username) : all.map(r => r.person.username);
+    const scheduled = (iso: string) =>
+      listed.length ? listed.some(u => weekOf(weeks, u, iso).includes(weekdayOf(iso))) : DEFAULT_WEEKDAYS.includes(weekdayOf(iso));
 
     const pending = items
       .filter(it => shown.has(it.username))
       .map(it => ({ it, date: it.days.find(d => d >= start && d <= last) }))
       .filter((p): p is { it: WorkItem; date: string } => !!p.date)
-      .map(({ it, date }) => ({ ...it, date }))
+      .map(({ it, date }) => ({ ...it, ...placeOf(it.username), date }))
       .sort((a, b) => a.date.localeCompare(b.date) || a.username.localeCompare(b.username));
 
     const todayAt = days.indexOf(today);
@@ -250,13 +269,11 @@ export class OverviewService {
     const forgot = pending.filter(p => p.action === 'remind').length;
     const countGroup = (g: InboxGroup) => items.filter(i => i.group === g).length;
     const present = todayCells.filter(isPresent).length;
-    // Cùng nghĩa với `kpis.notCheckedIn` của Tổng quan: chỉ người đang phải đi làm hôm nay mà chưa có giờ vào (ngày nghỉ, nghỉ phép, ngoài hợp đồng không tính).
-    const notCheckedIn = todayCells.filter(c => c.base === 'nocheck').length;
     const avgLate = lateToday.length ? Math.round(lateToday.reduce((n, c) => n + c.lateMinutes, 0) / lateToday.length) : 0;
     const otTotal = round1([...ot.values()].reduce((n, h) => n + h, 0));
     const tiles = [
       { key: 'todo', label: 'Cần xử lý', value: pending.length, note: `${forgot} chưa giải trình · ${pending.length - forgot} yêu cầu chờ duyệt` },
-      { key: 'present', label: 'Có mặt hôm nay', value: present, of: all.length, note: `${notCheckedIn} người chưa Check-in` },
+      { key: 'present', label: 'Có mặt hôm nay', value: present, of: all.length, note: `${all.length - present} người chưa Check-in` },
       { key: 'late', label: 'Đi muộn hôm nay', value: lateToday.length, note: avgLate ? `trung bình ${avgLate} phút` : '' },
       { key: 'leave', label: 'Nghỉ có phép', value: todayCells.filter(c => c.base === 'leave').length, note: `${countGroup('leave')} đơn chờ duyệt` },
       { key: 'absent', label: 'Vắng không phép', value: all.reduce((n, r) => n + r.absentDays, 0), note: `trong tháng ${Number(month.slice(5, 7))}` },
@@ -276,7 +293,7 @@ export class OverviewService {
         iso,
         dow: dowShort(iso),
         dm: dm(iso),
-        scheduled: new Date(`${iso}T00:00:00Z`).getUTCDay() !== 0,
+        scheduled: scheduled(iso),
         today: iso === today,
         monday: dowShort(iso) === 'T2',
         periodStart: iso.endsWith('-01')
@@ -396,15 +413,27 @@ export class OverviewService {
     const m = opts.month ?? today.slice(0, 7);
     const count = opts.days ?? DEFAULT_RECENT_DAYS;
 
-    // `count` ngày làm gần nhất tới hôm nay (bỏ Chủ nhật), cũ trước.
+    // `count` ngày làm gần nhất tới hôm nay, cũ trước. Ngày làm: có ít nhất một người đang làm hôm đó mà tuần làm có
+    // thứ đó; hôm đó chưa ai đang làm thì theo tuần mặc định. Lùi tối đa `count` tuần.
+    const staff = await this.employees.list();
+    const weeks: Weeks = new Map();
+    const worksOn = async (date: string) => {
+      const m = date.slice(0, 7);
+      if (!weeks.has(m)) weeks.set(m, await this.settings.workWeeksAt(m));
+      const active = staff.filter(e => activeIn(e, date, date));
+      if (!active.length) return DEFAULT_WEEKDAYS.includes(weekdayOf(date));
+      return active.some(e => weekOf(weeks, e.username, date).includes(weekdayOf(date)));
+    };
     const recent: string[] = [];
-    for (let d = today; recent.length < count; d = addDays(d, -1)) if (new Date(`${d}T00:00:00Z`).getUTCDay() !== 0) recent.unshift(d);
+    for (let d = today, back = 0; recent.length < count && back < count * 7; d = addDays(d, -1), back++) {
+      if (await worksOn(d)) recent.unshift(d);
+    }
+    if (!recent.length) recent.push(today);
 
-    const everyone = (await this.employees.list()).filter(e => activeIn(e, recent[0], today));
+    const everyone = staff.filter(e => activeIn(e, recent[0], today));
     const people = everyone.filter(e => activeIn(e, today, today));
-    const [sheets, weeks, slips, prevSlips, period, payday, items] = await Promise.all([
+    const [sheets, slips, prevSlips, period, payday, items] = await Promise.all([
       this.attendance.listTimesheets({ startDate: recent[0], endDate: today }),
-      this.weekdaysByMonth(recent),
       this.payroll.listPayslips(m),
       this.payroll.listPayslips(prevMonthOf(m)),
       this.periods.snapshot(m),
@@ -499,7 +528,7 @@ export class OverviewService {
         lines,
         rows: slipRows.sort((a, b) => a.name.localeCompare(b.name, 'vi')).slice(0, PAYROLL_ROWS),
         total: slips.length,
-        updatedAt: hhmmVn(now),
+        updatedAt: businessTimeText(now),
         gross,
         insurance: sum('insurance'),
         tax: sum('tax'),

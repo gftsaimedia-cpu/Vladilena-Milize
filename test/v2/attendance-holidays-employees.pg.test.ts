@@ -231,11 +231,29 @@ describe('Hồ sơ nhân sự ghi lại dòng ngày công (T4)', () => {
     });
   });
 
+  it('đổi ca mặc định: tháng 10 đã chốt công giữ nguyên, tháng 11 còn open được tính lại (FP5 I1)', async t => {
+    await withTempDb(t, 'att_emp_frozen', async (db, client) => {
+      const { employees } = build(db);
+      const created = await employees.create(body({ effectiveFrom: '2026-10-01' }), 'admin');
+      const uuid = created.profile.uuid;
+      // Có chấm 08:00–17:00 hai ngày; rồi đánh dấu mọi dòng PENDING để thấy tháng nào được dựng lại.
+      await punch(client, uuid, '2026-10-27');
+      await punch(client, uuid, '2026-11-03');
+      await client.query(`INSERT INTO payroll_periods (month, status) VALUES ('2026-10', 'attendance_locked')`);
+      await db.updateTable('timesheet_entries').set({ status: 'PENDING' }).where('employee_id', '=', uuid).execute();
+
+      await employees.update('c', { shiftType: 'FLEX', shiftStartTime: '13:00', shiftEndTime: '22:00' }, 'admin');
+      assert.equal(await status(client, uuid, '2026-10-27'), 'PENDING', 'tháng đã chốt công không bị dựng lại');
+      assert.equal(await status(client, uuid, '2026-11-03'), 'PRESENT', 'tháng open được dựng lại theo ca mới');
+    });
+  });
+
   it('lỗi ghi lại sau khi lưu hồ sơ: hồ sơ vẫn được lưu, lỗi trả về cho người gọi (P4)', async t => {
     await withTempDb(t, 'att_emp_p4', async (db, client) => {
       const kit = auditKit(db);
       const failing = new EmployeesService(new EmployeesRepository(db), kit.tx, kit.log, {
-        refreshMonth: async () => Promise.reject(new Error('refresh boom'))
+        refreshMonth: async () => Promise.reject(new Error('refresh boom')),
+        frozenMonths: async () => new Set<string>()
       } as unknown as AttendanceDaysService);
       failing.now = () => NOW;
       await assert.rejects(failing.create(body({ effectiveFrom: '2026-11-01' }), 'admin'), /refresh boom/);

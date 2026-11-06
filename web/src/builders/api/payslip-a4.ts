@@ -1,13 +1,14 @@
 // Bản in phiếu lương A4 từ phiếu BE v2 (GET /api/v2/payroll/:month/:id, và GET /api/v2/payroll/:month cho In tất cả).
 // BE tính sẵn mọi số; ở đây chỉ ghép ô theo docs/fe-yeu-cau/in-phieu-luong-a4--noi-api-v2.md. Phiếu lưu trước khi BE có
 // trường mới (loại, bậc, giờ vào/ra, OT theo hệ số, lương ngày) để ô đó trống hay "—", không báo lỗi.
-// Không có nguồn ở v2 nên không in: Vắng, Chờ giải trình, Làm bù (ô tổng hợp in "—"), cột Làm bù và Ghi chú.
+// Không có nguồn ở v2 nên không in: Vắng, Chờ giải trình, Làm bù (ô tổng hợp in "—"). Cột Làm bù và Ghi chú của dòng ngày
+// chỉ có ở ngày nghỉ giữa ca ("Nửa ca") và ngày có giờ làm thêm bù nợ nghỉ giữa ca (repaidMinutes).
 import type { A4Day, A4Group, A4Line, A4Sheet, DayMark } from '../../mock/payslip-a4';
 import { KPI_LABELS, employeeTypeLabel, employmentStatusLabel } from '../../constants/labels';
 import { num } from '../../utils/format';
 import type { SlipRates } from '../../mock/payroll';
 import type { KpiPart } from '../../mock/payroll-calc';
-import { statusOf } from './payroll';
+import { halfShiftNote, halfShiftPayOf, type HalfShiftPayDTO } from './half-shift-pay';
 
 type DailyLineDTO = {
   date: string;
@@ -23,10 +24,12 @@ type DailyLineDTO = {
   otPay?: number;
   deductionAmount?: number;
   dailyTotal: number;
+  halfShift?: 'FIRST' | 'SECOND' | null; // ngày nghỉ giữa ca
+  repaidMinutes?: number; // phút làm thêm của ngày dùng để bù nợ nghỉ giữa ca
 };
 
 // Các trường của `details` mà bản in đọc. Trường đánh dấu ? có thể thiếu ở phiếu lưu trước khi BE thêm chúng.
-export type A4DetailDTO = {
+export type A4DetailDTO = HalfShiftPayDTO & {
   fullName: string;
   contractStatusText?: string;
   employeeType?: string | null;
@@ -114,8 +117,9 @@ function dayOf(l: DailyLineDTO): A4Day {
     out: l.checkOut ?? null,
     hours: mark === 'work' ? l.workHours : null,
     ot: l.otHours || null,
-    makeup: null,
-    note: null,
+    // Giờ làm thêm dùng để bù nghỉ giữa ca vào cột Làm bù; ngày nghỉ giữa ca ghi "Nửa ca".
+    makeup: l.repaidMinutes ? l.repaidMinutes / 60 : null,
+    note: l.halfShift ? 'Nửa ca' : null,
     adjust: adjust || null,
     total: l.dailyTotal
   };
@@ -132,6 +136,12 @@ function otLines(d: A4DetailDTO): A4Line[] {
     { label: `OT ngày cuối tuần${tag(m?.weekend)}`, qty: { n: d.ot20Hours, unit: 'giờ' }, actual: d.ot20Pay ?? 0 },
     { label: `OT ngày lễ${tag(m?.holiday)}`, qty: { n: d.ot30Hours, unit: 'giờ' }, actual: d.ot30Pay ?? 0 }
   ];
+}
+
+// Bù nghỉ giữa ca: khoản riêng của BE (×1, không phụ cấp), chỉ khi tháng có nợ.
+function halfShiftLines(d: A4DetailDTO): A4Line[] {
+  const h = halfShiftPayOf(d);
+  return h ? [{ label: 'Bù nghỉ giữa ca', hint: halfShiftNote(h), actual: h.pay }] : [];
 }
 
 function groupsOf(d: A4DetailDTO): A4Group[] {
@@ -176,7 +186,7 @@ function groupsOf(d: A4DetailDTO): A4Group[] {
         { label: 'Nghỉ lễ', qty: { n: d.holidayPaidDays, unit: 'ngày' }, actual: d.holidayPay }
       ]
     },
-    { title: 'Làm thêm giờ', lines: otLines(d) },
+    { title: 'Làm thêm giờ', lines: [...otLines(d), ...halfShiftLines(d)] },
     {
       title: 'Phụ cấp',
       lines: [
@@ -227,7 +237,6 @@ export function sheetFromRecord(r: A4RecordDTO): A4Sheet {
     contract: d.contractStatusText || '—',
     from: `${d.month}-01`,
     to: `${d.month}-${String(last).padStart(2, '0')}`,
-    periodNote: '',
     stdDays: d.standardWorkdays,
     dayRate: d.dayRate ?? null,
     days: (d.dailyLines ?? []).map(dayOf),
@@ -248,8 +257,7 @@ export function sheetFromRecord(r: A4RecordDTO): A4Sheet {
     totals: totalsOf(d),
     net: d.netIncome ?? r.net,
     leaveLeft: d.remainingAnnualLeaveDays ?? null,
-    otRates: d.rates?.otMultipliers ?? null,
-    slipStatus: statusOf(r.status)
+    otRates: d.rates?.otMultipliers ?? null
   };
 }
 

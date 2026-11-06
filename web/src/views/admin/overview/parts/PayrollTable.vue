@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// Bảng lương của Tổng quan: lọc theo trạng thái và tìm theo tên chạy tại chỗ trên các dòng máy chủ trả (tối đa 6; máy chủ không trả phòng ban).
-// Trạng thái lọc và chữ tìm thuộc về bảng, không ghi lên đường dẫn.
+// Bảng lương của Tổng quan: cặp bộ lọc nhân sự (06/11), lọc theo trạng thái phiếu và tìm theo tên chạy tại chỗ trên các dòng máy chủ
+// trả (tối đa 6). Máy chủ thật chưa trả phòng ban nên ô phòng ban khoá (R6). Bộ lọc và chữ tìm thuộc về bảng, không ghi lên đường dẫn.
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
+import StaffScopeFilter from '@/components/staff-scope/StaffScopeFilter.vue';
+import { deptOptions, matchScope, useMineDepts, type StaffPst } from '@/components/staff-scope/staffScope';
 import Icon from '@/components/ui/Icon.vue';
 import type { OverviewView, PayrollStatus } from '@/mock/overview';
 import { foldText } from '@/utils/format';
@@ -22,6 +24,10 @@ type Filter = 'all' | PayrollStatus;
 
 const filter = ref<Filter>('all');
 const query = ref('');
+const pst = ref<StaffPst>('all');
+const dept = ref('');
+const mine = useMineDepts();
+const depts = computed(() => deptOptions(props.payroll.rows.map(r => ({ dept: r.dept ?? '' }))));
 
 const filters = computed<{ key: Filter; label: string; count: number }[]>(() => [
   { key: 'all', label: 'Tất cả', count: props.slips.total },
@@ -33,8 +39,12 @@ const filters = computed<{ key: Filter; label: string; count: number }[]>(() => 
 
 const rows = computed(() => {
   const q = foldText(query.value);
+  const scope = { pst: pst.value, dept: dept.value };
   return props.payroll.rows.filter(
-    r => (filter.value === 'all' || r.status === filter.value) && (!q || foldText(r.name).includes(q))
+    r =>
+      (filter.value === 'all' || r.status === filter.value) &&
+      matchScope({ dept: r.dept ?? '', ps: r.ps }, scope, mine) &&
+      (!q || foldText(r.name).includes(q))
   );
 });
 </script>
@@ -46,6 +56,7 @@ const rows = computed(() => {
         <h2>{{ payroll.title }}</h2>
         <p class="cap">{{ payroll.total }} phiếu · cập nhật lúc {{ payroll.updatedAt }}</p>
       </div>
+      <StaffScopeFilter v-model:pst="pst" v-model:dept="dept" :depts="depts" />
       <label class="find">
         <Icon name="search" :size="16" />
         <input
@@ -126,9 +137,12 @@ const rows = computed(() => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px 16px;
+  gap: 12px;
   padding: 0 24px;
+}
+/* Tiêu đề bên trái; cặp bộ lọc và ô tìm dồn sang phải. */
+.head > div:first-child {
+  margin-right: auto;
 }
 h2 {
   margin: 0;
@@ -147,7 +161,7 @@ h2 {
   min-width: 0;
   width: 100%;
   max-width: 280px;
-  height: 36px;
+  height: 40px; /* bằng cặp bộ lọc bên cạnh */
   display: flex;
   align-items: center;
   gap: 8px;

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
+import { allocateHalfShiftDebt, type DebtEvent, type WorkPiece } from '../../common/half-shift';
 import type { AttendanceDayRecord } from '../attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../attendance/attendance-days.service';
 import type { AttendanceDayStatus } from '../attendance/domain/attendance-day';
@@ -18,6 +19,7 @@ import {
 import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
 import {
   EmployeePayslip,
+  plannedMakeupMinutes,
   DailyAttendanceLineProps,
   inOutText as presenceText,
   presenceOf,
@@ -50,7 +52,7 @@ import {
   advanceQuoteOf,
   type AdvanceQuote
 } from './domain';
-import { PayrollAllowancePolicy } from './domain/allowance-rates';
+import { PayrollAllowancePolicy, shiftHoursOf } from './domain/allowance-rates';
 
 /** The numbers a payslip is computed with. */
 interface PayRules {
@@ -435,7 +437,7 @@ export class PayrollService {
   /** Số tiền tạm ứng của tháng `month`: 80% lương các ngày công 01–15 theo bảng lương tính ngay lúc này. */
   async advanceQuote(employeeId: string, month: string): Promise<AdvanceQuote> {
     const payslip = await this.generateMonthlyPayslip(employeeId, month);
-    return advanceQuoteOf(payslip.dailyLines, month);
+    return advanceQuoteOf(payslip.dailyLines, month, payslip.baseSalaryPolicy, payslip.standardWorkdays);
   }
 
   async generateMonthlyPayslip(employeeId: string, month: string): Promise<EmployeePayslip> {
@@ -520,15 +522,47 @@ export class PayrollService {
       }
     }
     const otShares = measureOvertime(otWindows, spans, new Set(data.holidayDates ?? []), rules.otRates);
+
+    const holidaySet = new Set(data.holidayDates ?? []);
+    const debtEvents: DebtEvent[] = [];
+    for (const req of requests) {
+      if (req.type === 'HALF_SHIFT_LEAVE' && req.status === 'APPROVED' && req.halfShiftDate) {
+        if (holidaySet.has(req.halfShiftDate)) continue;
+        const rowForDate = shownRows.find(r => r.workDate === req.halfShiftDate);
+        if (rowForDate?.status === 'ABSENT') continue;
+        debtEvents.push({ date: req.halfShiftDate, minutes: 240 });
+      }
+    }
+    const halfShiftOwedMinutes = debtEvents.reduce((sum, e) => sum + e.minutes, 0);
+
+    const pieces: WorkPiece[] = otShares.map(s => ({
+      date: s.otDate,
+      start: s.start,
+      minutes: Math.round(s.hours * 60)
+    }));
+
+    const splits = allocateHalfShiftDebt(debtEvents, pieces);
+    const repaidMinutesByLine = new Map<string, number>();
+    let halfShiftRepaidMinutes = 0;
+
+    for (let i = 0; i < otShares.length; i++) {
+      const split = splits[i];
+      const share = otShares[i];
+      share.hours = split.ot / 60;
+      if (split.repaid > 0) {
+        repaidMinutesByLine.set(share.lineDate, (repaidMinutesByLine.get(share.lineDate) ?? 0) + split.repaid);
+        halfShiftRepaidMinutes += split.repaid;
+      }
+    }
+    const halfShiftDroppedMinutes = Math.max(0, halfShiftOwedMinutes - halfShiftRepaidMinutes);
+
     const otSharesByLine = new Map<string, OtShare[]>();
     for (const share of otShares) {
       otSharesByLine.set(share.lineDate, [...(otSharesByLine.get(share.lineDate) ?? []), share]);
     }
 
     const dailyLines: DailyAttendanceLineProps[] = [];
-    let totalDeductionHours = 0;
     let lateMinutes = 0;
-    const otPayByRate = { x15: 0, x20: 0, x30: 0 };
     const dayWarnings: PayrollWarning[] = [];
 
     for (const row of shownRows) {
@@ -538,10 +572,11 @@ export class PayrollService {
       const shiftType = row.shift?.type ?? 'NORMAL';
       const shiftCode = onShift ? shiftType : (KIND_CODE[kind] ?? kind);
       const paysDay = row.payUnits === 1;
+      // The money of the line is display only, each amount rounded on its own; EmployeePayslip pays every item in one
+      // formula on the quantities (pay units, minutes, hours) and rounds it once (D1).
       const daySalary = Math.round(row.payUnits * dayRate);
       // The deduction is the row's: after the grace, in 30-minute blocks, and only on an approved explanation (L4).
       const deductionHours = row.deductionMinutes / 60;
-      totalDeductionHours += deductionHours;
       lateMinutes += row.lateMinutes;
       const deductionAmount = Math.round(deductionHours * hourRate);
       const makeupPay = Math.round((row.makeupMinutes / 60) * hourRate);
@@ -550,15 +585,18 @@ export class PayrollService {
       let flexAllowancePay = 0;
       let nightAllowancePay = 0;
       let offPaidPay = 0;
-      // The flex and night premiums are paid only on a day that counts as a work day (8.1, R10).
+      // The flex and night premiums are paid only on a day that counts as a work day, and only on the shift hours: the
+      // makeup minutes of the day are paid x1 and earn no premium (8.1, D13).
+      const shiftHours = shiftHoursOf(row.workHours, row.makeupMinutes);
       if (onShift && shiftType === 'FLEX') {
         shiftLabel = `Flex +${pctText(allowancePolicy.flexRate)}%`;
-        if (row.countsAsWorkday) flexAllowancePay = allowancePolicy.flexPremium(hourRate, row.workHours);
+        if (row.countsAsWorkday) flexAllowancePay = allowancePolicy.flexPremium(hourRate, shiftHours);
       } else if (onShift && shiftType === 'NIGHT') {
         shiftLabel = `Night +${pctText(allowancePolicy.nightRate)}%`;
         if (row.countsAsWorkday) {
-          nightAllowancePay = allowancePolicy.nightPremium(dayRate);
-          offPaidPay = allowancePolicy.nightBreakPay(hourRate, row.workHours, deductionAmount);
+          const w = (kind === 'PRESENT' && (row as any).halfShift) ? 0.5 : 1;
+          nightAllowancePay = Math.round(w * allowancePolicy.nightPremium(dayRate));
+          offPaidPay = (row as any).halfShift ? 0 : allowancePolicy.nightBreakPay(hourRate, shiftHours, deductionAmount);
         }
       }
 
@@ -572,14 +610,15 @@ export class PayrollService {
 
       const lineShares = otSharesByLine.get(row.workDate) ?? [];
       const otHours = lineShares.reduce((sum, share) => sum + share.hours, 0);
+      // Display only: the payslip pays each kind of day in one formula on the month's hours of that kind (D1).
       const linePayByRate = otLinePayByRate(lineShares, hourRate);
-      otPayByRate.x15 += linePayByRate.x15;
-      otPayByRate.x20 += linePayByRate.x20;
-      otPayByRate.x30 += linePayByRate.x30;
       const otPay = linePayByRate.x15 + linePayByRate.x20 + linePayByRate.x30;
 
+      const lineRepaidMinutes = repaidMinutesByLine.get(row.workDate) ?? 0;
+      const lineRepaidPay = Math.round((lineRepaidMinutes / 60) * hourRate);
+
       const dailyTotal =
-        daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay + makeupPay - deductionAmount;
+        daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay + makeupPay + lineRepaidPay - deductionAmount;
 
       dailyLines.push({
         date: row.workDate,
@@ -597,13 +636,17 @@ export class PayrollService {
         otHours,
         otPay,
         deductionHours: Math.round(deductionHours * 100) / 100,
+        deductionMinutes: row.deductionMinutes,
         deductionAmount,
         dailyTotal,
         kind,
         payUnits: row.payUnits,
+        halfShift: (row as any).halfShift ?? null,
+        repaidMinutes: lineRepaidMinutes,
         countsAsWorkday: row.countsAsWorkday,
         countsAsDayOff: row.countsAsDayOff,
         makeupMinutes: row.makeupMinutes,
+        makeupCreditMinutes: row.makeupCreditMinutes,
         makeupPay
       });
 
@@ -628,8 +671,6 @@ export class PayrollService {
     // The KPI warnings, then one per day whose pay-affecting case is not approved yet (in date order).
     const warnings: PayrollWarning[] = [...kpi.warnings, ...dayWarnings];
 
-    const roundedLateEarlyHours = Math.round(totalDeductionHours * 100) / 100;
-
     return new EmployeePayslip({
       employeeId: staff.uuid,
       username: staff.username,
@@ -641,7 +682,6 @@ export class PayrollService {
       baseSalaryPolicy,
       dailyLines,
       otHoursByRate,
-      otPayByRate,
       otRates: rules.otRates,
       rates: {
         kpiWeights: rules.kpiWeights,
@@ -652,8 +692,9 @@ export class PayrollService {
       calendar: [...rows]
         .sort((a, b) => a.workDate.localeCompare(b.workDate))
         .map(row => ({ date: row.workDate, kind: calendarKindOf(row) })),
-      lateEarlyHours: roundedLateEarlyHours,
       diligenceLostFromDays: rules.diligenceLostFromDays,
+      // D10: the makeup windows still ahead of the service clock count as worked for the diligence shortfall only.
+      plannedMakeupMinutes: plannedMakeupMinutes(data.makeupWindows, this.now()),
       employeeType,
       level: staff.level,
       employmentStatus: staff.employmentStatus,
@@ -667,7 +708,10 @@ export class PayrollService {
       dependants: staff.dependants,
       warnings,
       advanceDeduction,
-      remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays
+      remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays,
+      halfShiftOwedMinutes,
+      halfShiftRepaidMinutes,
+      halfShiftDroppedMinutes
     });
   }
 }

@@ -43,10 +43,13 @@ export async function saveKpiScore(month: string, id: string, part: KpiPart, val
 }
 
 /** Tính lương cả kỳ (lần chạy nháp mới cho mọi người): POST /api/v2/payroll/:month/calculate. Trả { runId, calculated, errors }. */
-export function calculatePayroll(month: string) {
-  if (!__MOCK__) return api('POST', `/payroll/${enc(month)}/calculate`, {}, { timeoutMs: 180_000 }); // tính cả kỳ có thể lâu hơn mức mặc định
+// employeeIds: tính lại riêng các phiếu này (chế độ "Tính lại lương" của bảng); không có thì tính cả kỳ.
+export function calculatePayroll(month: string, employeeIds?: string[]) {
+  const body = employeeIds?.length ? { employeeIds } : {};
+  if (!__MOCK__) return api.post(`/payroll/${enc(month)}/calculate`, body);
   const view = payrollView(month);
-  return respond({ count: view.empty ? 0 : view.lines.length, errors: [] });
+  const count = employeeIds?.length ? employeeIds.length : view.empty ? 0 : view.lines.length;
+  return respond({ count, errors: [] as { employeeId: string; message?: string }[] });
 }
 
 // Duyệt / từ chối phiếu của một người rồi đọc lại phiếu. Lý do từ chối (không bắt buộc) chỉ gửi khi có chữ.

@@ -188,7 +188,8 @@ describe('Phiếu lương đọc dòng ngày dùng chung trên PostgreSQL (T6, s
           date
         );
       }
-      assert.equal(slip.makeupPay, 230_770);
+      // D1: 480 phút bù của tháng tính một lần: 6.000.000 x 8 / 208 = 230.769 (mỗi dòng vẫn hiện 115.385).
+      assert.equal(slip.makeupPay, 230_769);
 
       // Chủ nhật có OT: dòng EXTRA, không lương ngày, chỉ tiền OT x2 (L12).
       assert.deepEqual(

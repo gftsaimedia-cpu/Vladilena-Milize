@@ -1,5 +1,6 @@
 import { LEAVE_TYPES, type LeaveType } from '../../requests/domain/leave-types';
-import { vnInstant, weekdayOf } from './calendar';
+import type { HalfShift } from '../../../common/half-shift';
+import { addDaysText, vnInstant, weekdayOf } from './calendar';
 import {
   detectCases,
   expectedBounds,
@@ -38,6 +39,13 @@ export interface ShiftFacts {
   allowancePct: number;
 }
 
+export interface HalfShiftFacts {
+  half: HalfShift;
+  start: string;
+  end: string;
+  requestId: string;
+}
+
 export interface ScheduleFacts {
   scheduleType: ScheduleType;
   status: ScheduleStatus;
@@ -63,6 +71,7 @@ export interface DayFacts {
   punches: ReadonlyArray<{ type: 'IN' | 'OUT'; at: Date }>;
   otWindows: ReadonlyArray<{ start: string; end: string }>;
   makeupWindows: ReadonlyArray<{ start: string; end: string }>;
+  halfShift?: HalfShiftFacts | null;
   explanation: ExplanationFacts | null;
   isHoliday: boolean;
 }
@@ -87,6 +96,7 @@ export interface AttendanceDay {
   workDate: string;
   status: AttendanceDayStatus;
   shift: ShiftFacts | null;
+  halfShift: HalfShift | null;
   checkIn: Date | null;
   checkOut: Date | null;
   workHours: number;
@@ -97,11 +107,13 @@ export interface AttendanceDay {
   cases: DetectedCase[];
   explanationStatus: ExplanationStatus;
   explanationRequestId: string | null;
-  payUnits: 0 | 1;
+  payUnits: 0 | 0.5 | 1;
   deductionMinutes: number;
   countsAsWorkday: boolean;
   countsAsDayOff: boolean;
   makeupMinutes: number;
+  /** Phút ghi nhận bù cho nợ nghỉ có bù (L16); bằng `makeupMinutes`, trừ khi vào trễ ở khung bù đã được giải trình duyệt. */
+  makeupCreditMinutes: number;
   // Cột cũ, ghi cho khớp (spec 6).
   dayStatus: DayStatus;
   checkInStatus: CheckInStatus;
@@ -112,7 +124,7 @@ export interface AttendanceDay {
 export const MAX_DEDUCTION_MINUTES = 480;
 
 /** Hết thời gian này sau mốc cuối dự kiến thì ngày được xét (spec 4.3). */
-const EVALUATE_AFTER_MS = 30 * 60 * 1000;
+export const EVALUATE_AFTER_MS = 30 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 
@@ -188,6 +200,7 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
     workDate: date,
     status: 'REST',
     shift: null,
+    halfShift: null,
     checkIn,
     checkOut,
     workHours: checkIn && checkOut ? roundHours(checkOut.getTime() - checkIn.getTime()) : 0,
@@ -203,21 +216,25 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
     countsAsWorkday: false,
     countsAsDayOff: false,
     makeupMinutes: 0,
+    makeupCreditMinutes: 0,
     dayStatus: 'PLANNED',
     checkInStatus: 'PENDING',
     checkOutStatus: 'PENDING'
   };
 
   /** Dò trường hợp; `shift` null trên ngày EXTRA/HOLIDAY nên mọi mã chỉ để biết. */
-  const detect = (shift: ShiftFacts | null) => {
+  const detect = (shift: (ShiftFacts & { startDate?: string }) | null) => {
     const bounds = expectedBounds(date, shift, windows);
     const evaluated =
       (checkIn !== null && checkOut !== null) ||
       (bounds !== null && src.now.getTime() >= bounds.end.getTime() + EVALUATE_AFTER_MS);
     const firstOutInShift = shift
       ? (() => {
-          const end = spanOf(date, shift.start, shift.end).end;
-          const early = outs.filter(o => o < end);
+          const shiftStartDate = shift.startDate ?? date;
+          const span = spanOf(shiftStartDate, shift.start, shift.end);
+          // Lần ra trước giờ vào ca (hết khung bù/OT đứng trước ca) chỉ là ra sớm khi sau đó
+          // không còn lần vào nào: người đó rời đi trước ca và không quay lại.
+          const early = outs.filter(o => o < span.end && (o >= span.start || !ins.some(i => i > o)));
           return early.length ? new Date(Math.min(...early.map(d => d.getTime()))) : null;
         })()
       : null;
@@ -236,26 +253,45 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
     };
   };
 
-  /** Phút có mặt trùng khung bù; thiếu một bên thì dùng giờ ghi trong giải trình đã duyệt (R9). */
-  const makeupMinutesOf = (shift: ShiftFacts | null): number => {
-    if (src.makeupWindows.length === 0) return 0;
+  /**
+   * Phút có mặt trùng khung bù (`makeupMinutes`, trả lương theo số này); thiếu một bên thì dùng giờ ghi trong giải trình
+   * đã duyệt (R9). Phút ghi nhận bù (`credit`, chỉ để xét nợ nghỉ có bù) bằng số trên, trừ khi giải trình của ngày đã
+   * DUYỆT và dòng có ca `LATE_CHECK_IN` chỉ để biết (đo so với khung, không phải so với ca): khi đó khung bù mà người đó
+   * vào trễ được ghi nhận từ giờ bắt đầu khung (người dùng chốt 06/11). Vào trễ so với ca không bao giờ nới ghi nhận.
+   */
+  const makeupOf = (
+    shift: ShiftFacts | null,
+    cases: readonly DetectedCase[]
+  ): { minutes: number; credit: number } => {
+    if (src.makeupWindows.length === 0) return { minutes: 0, credit: 0 };
     const approvedTimes = explanation?.status === 'APPROVED' ? explanation : null;
     const from =
       checkIn ?? (approvedTimes?.checkIn ? vnInstant(date, approvedTimes.checkIn) : null);
     const to =
       checkOut ??
       (approvedTimes?.checkOut ? explainedInstant(date, approvedTimes.checkOut, from) : null);
-    if (!from || !to || to <= from) return 0;
+    if (!from || !to || to <= from) return { minutes: 0, credit: 0 };
     const spans = windowSpans(
       date,
       shift,
       src.makeupWindows.map(w => ({ kind: 'MAKEUP' as const, start: w.start, end: w.end }))
     );
-    return spans.reduce((sum, span) => {
-      const lo = Math.max(from.getTime(), span.start.getTime());
-      const hi = Math.min(to.getTime(), span.end.getTime());
-      return sum + (hi > lo ? Math.floor((hi - lo) / MINUTE_MS) : 0);
-    }, 0);
+    const lateAtWindow =
+      approvedTimes !== null && cases.some(c => c.code === 'LATE_CHECK_IN' && !c.affectsPay);
+    let minutes = 0;
+    let credit = 0;
+    for (const span of spans) {
+      const overlap = (lo: number): number => {
+        const hi = Math.min(to.getTime(), span.end.getTime());
+        return hi > lo ? Math.floor((hi - lo) / MINUTE_MS) : 0;
+      };
+      const present = overlap(Math.max(from.getTime(), span.start.getTime()));
+      // Chỉ khung mà người đó đến giữa chừng mới được nới; khung đã hết trước giờ vào không có gì để ghi nhận.
+      const arrivedInside = from.getTime() > span.start.getTime() && from.getTime() < span.end.getTime();
+      minutes += present;
+      credit += lateAtWindow && arrivedInside ? overlap(span.start.getTime()) : present;
+    }
+    return { minutes, credit };
   };
 
   const finish = (): AttendanceDay => {
@@ -303,17 +339,46 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
     row.status = 'EXTRA';
     const { result } = detect(null);
     row.cases = result.cases;
-    row.makeupMinutes = makeupMinutesOf(null);
+    const makeup = makeupOf(null, row.cases);
+    row.makeupMinutes = makeup.minutes;
+    row.makeupCreditMinutes = makeup.credit;
     return finish();
   }
 
   // 5. Ngày làm.
-  const shift = shiftOf(src);
-  row.shift = shift;
+  const baseShift = shiftOf(src);
+  let shift: ShiftFacts & { startDate?: string } = baseShift;
+  if (src.halfShift) {
+    const isOvernightBase = baseShift.end <= baseShift.start;
+    const startsNextDay = isOvernightBase && src.halfShift.start < baseShift.start;
+    shift = {
+      type: baseShift.type,
+      start: src.halfShift.start,
+      end: src.halfShift.end,
+      allowancePct: baseShift.allowancePct,
+      ...(startsNextDay ? { startDate: addDaysText(date, 1) } : {})
+    };
+    row.halfShift = src.halfShift.half;
+  }
+  row.shift = {
+    type: shift.type,
+    start: shift.start,
+    end: shift.end,
+    allowancePct: shift.allowancePct
+  };
+
   const { evaluated, result } = detect(shift);
   row.cases = result.cases;
   row.lateMinutes = result.lateMinutes;
   row.earlyMinutes = result.earlyMinutes;
+
+  if (src.halfShift && checkIn && checkOut) {
+    const shiftStartDate = shift.startDate ?? date;
+    const shiftSpan = spanOf(shiftStartDate, shift.start, shift.end);
+    const overlapStart = Math.max(checkIn.getTime(), shiftSpan.start.getTime());
+    const overlapEnd = Math.min(checkOut.getTime(), shiftSpan.end.getTime());
+    row.workHours = overlapEnd > overlapStart ? roundHours(overlapEnd - overlapStart) : 0;
+  }
 
   const hasPunch = checkIn !== null || checkOut !== null;
   if (!evaluated) {
@@ -327,18 +392,23 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
   }
 
   row.status = 'PRESENT';
-  row.makeupMinutes = makeupMinutesOf(shift);
+  const makeup = makeupOf(shift, result.cases);
+  row.makeupMinutes = makeup.minutes;
+  row.makeupCreditMinutes = makeup.credit;
   const payAffecting = result.cases.some(c => c.affectsPay);
   if (!payAffecting) {
-    row.payUnits = 1;
+    row.payUnits = src.halfShift ? 0.5 : 1;
   } else if (explanation?.status === 'APPROVED') {
-    row.payUnits = 1;
+    row.payUnits = src.halfShift ? 0.5 : 1;
     row.deductionMinutes = Math.min(
       MAX_DEDUCTION_MINUTES,
       deductionBlock(result.lateMinutes) + deductionBlock(result.earlyMinutes)
     );
   }
-  row.countsAsWorkday = row.payUnits === 1;
+  row.countsAsWorkday = row.payUnits > 0;
+  if (src.halfShift) {
+    row.countsAsDayOff = true;
+  }
   return finish();
 }
 

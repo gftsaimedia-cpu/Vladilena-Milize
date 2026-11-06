@@ -11,6 +11,7 @@ import { SystemModule } from './modules/system';
 import { PeriodsModule } from './modules/periods';
 import { MeModule } from './modules/me';
 import { PositionsModule } from './modules/positions';
+import { DepartmentsModule } from './modules/departments';
 import { SettingsModule } from './modules/settings';
 import { AuditModule } from './modules/audit';
 import { OverviewModule } from './modules/overview';
@@ -30,6 +31,7 @@ import { RealtimeModule } from './modules/realtime';
     PeriodsModule,
     MeModule,
     PositionsModule,
+    DepartmentsModule,
     SettingsModule,
     AuditModule,
     OverviewModule,

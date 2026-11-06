@@ -24,8 +24,6 @@ async function act(verb: DecisionVerb) {
       ok: hit !== null,
       text: hit ? decisionText(verb, hit.name) : ALREADY_HANDLED
     });
-  } catch {
-    /* máy chủ từ chối hoặc mạng rớt: resolveRequest đã hiện thông báo; việc ở nguyên chỗ để thử lại */
   } finally {
     busy.value = false;
   }
@@ -55,6 +53,7 @@ async function act(verb: DecisionVerb) {
           Từ chối
         </button>
         <button
+          v-if="!item.approveBlock"
           type="button"
           class="btn pri"
           :disabled="busy"

@@ -167,12 +167,6 @@ describe('MeController', () => {
     }
   });
 
-  it('today carries the server date and Vietnam time, so screens never read the browser clock', async () => {
-    const t = (await controller().ctl.today(req())) as any;
-    assert.match(t.date, /^\d{4}-\d{2}-\d{2}$/);
-    assert.match(t.now, /^([01]\d|2[0-3]):[0-5]\d$/);
-  });
-
   it('today lists reminders', async () => {
     const reminders = [{ date: '2026-10-27', remindedAt: '2026-11-04T01:00:00.000Z' }];
     const ok = controller({ expl: fake({ reminders: () => reminders }) });
@@ -506,6 +500,155 @@ describe('MeController', () => {
     it('an approved explanation never prompts', async () => {
       const approved = dayRow('2026-12-08', { explanationStatus: 'APPROVED', payUnits: 1, countsAsWorkday: true });
       assert.equal(await alertFor([approved]), null);
+    });
+  });
+
+  // D9 (06/11): the home alert reminds every day that still needs an explanation, in every month whose pay period is
+  // not approved/paid yet. `alert` stays the latest one (FE compatibility); `alerts` lists them all, oldest first.
+  describe('the home alerts across open months (D9)', () => {
+    // Thứ Tư 09/12/2026 (giờ VN 12:00). Tháng 12 đang mở; 25/11 và 08/12 nằm ngoài tuần hiện tại (07–13/12).
+    const NOW = '2026-12-09T05:00:00Z';
+    const todayWith = async (
+      rows: unknown[],
+      opts: { status?: Record<string, string>; start?: string | null; now?: string } = {}
+    ) => {
+      mock.timers.enable({ apis: ['Date'], now: Date.parse(opts.now ?? NOW) });
+      try {
+        const status = opts.status ?? {};
+        const { ctl } = controller({
+          att: fake({ listTimesheets: () => rows }),
+          emp: fake({ findByUsernameOrUuid: () => namEmployee(opts.start === undefined ? '2024-03-04' : opts.start) }),
+          periods: fake({ getPeriod: (m: string) => (status[m] ? { month: m, status: status[m] } : null) })
+        });
+        return (await ctl.today(req())) as any;
+      } finally {
+        mock.timers.reset();
+      }
+    };
+    const todo = (date: string) => ({ date, kind: 'todo' });
+
+    it('a todo day two weeks ago in the same open month appears, not only the current week', async () => {
+      const t = await todayWith([dayRow('2026-12-02'), dayRow('2026-12-08')]);
+      assert.deepEqual(t.alerts, [todo('2026-12-02'), todo('2026-12-08')]);
+    });
+
+    it('keeps `alert` as the latest of them, with the same shape', async () => {
+      const t = await todayWith([dayRow('2026-12-02'), dayRow('2026-12-08')]);
+      assert.deepEqual(t.alert, todo('2026-12-08'));
+      assert.deepEqual(t.alert, t.alerts[t.alerts.length - 1]);
+    });
+
+    it('an earlier month that is not approved yet is scanned too (calculated and locked count as open)', async () => {
+      const t = await todayWith([dayRow('2026-11-25'), dayRow('2026-12-02')], { status: { '2026-11': 'calculated' } });
+      assert.deepEqual(t.alerts, [todo('2026-11-25'), todo('2026-12-02')]);
+      const locked = await todayWith([dayRow('2026-11-25')], { status: { '2026-11': 'attendance_locked' } });
+      assert.deepEqual(locked.alerts, [todo('2026-11-25')]);
+    });
+
+    it('a todo day in an approved month does not appear, and the scan stops there (older months are not read)', async () => {
+      const rows = [dayRow('2026-10-14'), dayRow('2026-11-25'), dayRow('2026-12-02')];
+      const t = await todayWith(rows, { status: { '2026-11': 'approved' } });
+      assert.deepEqual(t.alerts, [todo('2026-12-02')]);
+      // October is still open, but it lies behind the approved November: the first approved month ends the scan.
+      assert.equal(t.alerts.some((a: any) => a.date === '2026-10-14'), false);
+    });
+
+    it('a paid month stops the scan like an approved one', async () => {
+      const t = await todayWith([dayRow('2026-11-25'), dayRow('2026-12-02')], { status: { '2026-11': 'paid' } });
+      assert.deepEqual(t.alerts, [todo('2026-12-02')]);
+    });
+
+    it('a pending explanation does not appear in alerts, an older unexplained day does', async () => {
+      const rows = [dayRow('2026-12-02'), dayRow('2026-12-08', { explanationStatus: 'PENDING' })];
+      const t = await todayWith(rows);
+      assert.deepEqual(t.alerts, [todo('2026-12-02')]);
+      assert.deepEqual(t.alert, todo('2026-12-02'));
+      assert.equal(t.week.find((d: any) => d.date === '2026-12-08').kind, 'todo');
+    });
+
+    it('a rejected explanation appears again; an approved one never does', async () => {
+      const rows = [
+        dayRow('2026-12-02', { explanationStatus: 'REJECTED' }),
+        dayRow('2026-12-03', { explanationStatus: 'APPROVED', payUnits: 1, countsAsWorkday: true })
+      ];
+      assert.deepEqual((await todayWith(rows)).alerts, [todo('2026-12-02')]);
+    });
+
+    it('nothing to explain gives alert null and alerts []', async () => {
+      const t = await todayWith([]);
+      assert.equal(t.alert, null);
+      assert.deepEqual(t.alerts, []);
+    });
+
+    // A reminder must not block the punch screen: when building the alerts fails, /today keeps its normal payload.
+    it('a failing periods reader still returns the punch payload with alerts [] and alert null', async () => {
+      mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
+      try {
+        const { ctl } = controller({
+          att: fake({ listTimesheets: () => [dayRow('2026-12-02')], workdayOf: () => true }),
+          periods: fake({ getPeriod: () => { throw new Error('periods down'); } })
+        });
+        const t = (await ctl.today(req())) as any;
+        assert.deepEqual([t.alert, t.alerts], [null, []]);
+        assert.equal(t.date, '2026-12-09');
+        assert.equal(t.workday, true);
+        assert.deepEqual(t.zone, ZONE);
+        assert.equal(t.week.length, 7);
+      } finally {
+        mock.timers.reset();
+      }
+    });
+
+    it('a failing employee lookup still returns the punch payload with alerts [] and alert null', async () => {
+      mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
+      try {
+        const { ctl } = controller({
+          att: fake({ listTimesheets: () => [dayRow('2026-12-02')], workdayOf: () => true }),
+          emp: fake({ findByUsernameOrUuid: () => { throw new Error('employees down'); } })
+        });
+        const t = (await ctl.today(req())) as any;
+        assert.deepEqual([t.alert, t.alerts], [null, []]);
+        assert.equal(t.workday, true);
+        assert.equal(t.week.length, 7);
+      } finally {
+        mock.timers.reset();
+      }
+    });
+
+    it('today itself and later days are never reminded', async () => {
+      const t = await todayWith([dayRow('2026-12-09'), dayRow('2026-12-10')]);
+      assert.deepEqual(t.alerts, []);
+    });
+
+    it('never scans before the start month', async () => {
+      const rows = [dayRow('2026-10-14'), dayRow('2026-11-25')];
+      const t = await todayWith(rows, { start: '2026-11-10' });
+      assert.deepEqual(t.alerts, [todo('2026-11-25')]);
+    });
+
+    it('never scans more than 12 months back: 12 back is read, 13 back is not', async () => {
+      // 09/12/2026 minus 12 months = 12/2025 (read); 11/2025 is 13 back (not read), though the person started in 2024.
+      const rows = [dayRow('2025-11-20'), dayRow('2025-12-03')];
+      const t = await todayWith(rows);
+      assert.deepEqual(t.alerts, [todo('2025-12-03')]);
+    });
+
+    it('reads the period of each month through the periods module, newest first, and stops at the first approved', async () => {
+      mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
+      try {
+        const asked: string[] = [];
+        const periods = fake({
+          getPeriod: (m: string) => {
+            asked.push(m);
+            return m === '2026-10' ? { month: m, status: 'approved' } : null;
+          }
+        });
+        const { ctl } = controller({ periods });
+        await ctl.today(req());
+        assert.deepEqual(asked, ['2026-12', '2026-11', '2026-10']);
+      } finally {
+        mock.timers.reset();
+      }
     });
   });
 

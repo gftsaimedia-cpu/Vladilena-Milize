@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
 import { describe, it } from 'node:test';
 import type { Kysely } from 'kysely';
 import type { Client } from 'pg';
@@ -26,6 +25,7 @@ import { withTempDb } from './helpers/pg-temp-db';
 // RequestsService (nộp, duyệt) -> AttendanceService.recordPunch -> PayrollService.generateMonthlyPayslip.
 // Loại `nv` có sẵn trong schema.sql: tuần T2–T7, công chuẩn 26, bậc 1 lương 6.000.000, ân hạn 15, mất chuyên cần từ 3.
 const BINH = '11111111-1111-4111-8111-111111111111';
+const CHI = '22222222-2222-4222-8222-222222222222';
 const ADMIN = '99999999-9999-4999-8999-999999999999';
 
 /** Giờ Việt Nam (+07:00) của một thời điểm, để đọc `now` cho dễ. */
@@ -35,8 +35,9 @@ async function seed(client: Client): Promise<void> {
   await client.query(
     `INSERT INTO staff (username, name, role, type, level, pass_hash, created_at, uuid, start_date, leave_balance)
      VALUES ('binh', 'Bình', 'staff', 'nv', 1, 'x', '2026-01-01', $1, '2026-11-02', 12),
+            ('chi', 'Chi', 'staff', 'nv', 1, 'x', '2026-01-01', $3, '2026-11-02', 12),
             ('admin', 'admin', 'admin', 'nv', 1, 'x', '2026-01-01', $2, '2026-01-05', 12)`,
-    [BINH, ADMIN]
+    [BINH, ADMIN, CHI]
   );
 }
 
@@ -93,9 +94,9 @@ describe('Ví dụ đầu–cuối tháng 11/2026 của Bình (spec 13) trên Po
       await seed(client);
       const { requests, attendance, payroll, setNow } = build(db);
 
-      const punch = async (date: string, inTime: string, outTime: string) => {
-        await attendance.recordPunch({ employeeId: BINH, type: 'IN', punchedAt: vn(date, inTime) });
-        await attendance.recordPunch({ employeeId: BINH, type: 'OUT', punchedAt: vn(date, outTime) });
+      const punch = async (date: string, inTime: string, outTime: string, employeeId = BINH) => {
+        await attendance.recordPunch({ employeeId, type: 'IN', punchedAt: vn(date, inTime) });
+        await attendance.recordPunch({ employeeId, type: 'OUT', punchedAt: vn(date, outTime) });
       };
 
       // Chủ nhật 01/11 sáng: Bình tự nộp đơn nghỉ có bù 10/11 (bù 18:00–22:00 ngày 12/11 và 16/11) và phép năm 18/11.
@@ -124,16 +125,21 @@ describe('Ví dụ đầu–cuối tháng 11/2026 của Bình (spec 13) trên Po
       await approve(requests, makeup.id);
       await approve(requests, annual.id);
 
-      // Ruling: đơn OT Chủ nhật 15/11 do Admin ghi thẳng vào bảng đơn, vì luật nộp đơn (planOvertime và planMakeup) không
-      // cho một tháng vừa có đơn nghỉ có làm bù vừa có đơn OT, trong khi ví dụ spec 13 cần cả hai. Đơn có đủ cột như đơn
-      // đã duyệt qua dịch vụ; dòng ngày công vẫn do refreshDays dựng từ đơn này.
-      await client.query(
-        `INSERT INTO system_requests (id, employee_id, title, type, reason, status, created_at, updated_at,
-           ot_date, ot_start_time, ot_end_time, ot_hours, reviewed_by, reviewed_at)
-         VALUES ($1, $2, 'OT Chủ nhật 15/11', 'OVERTIME', 'Chốt số', 'APPROVED', now(), now(),
-           '2026-11-15', '08:00', '12:00', 4, $3, now())`,
-        [randomUUID(), BINH, ADMIN]
+      // D5: luật loại trừ OT và nghỉ có làm bù trong cùng tháng giữ nguyên: Bình đã có đơn nghỉ có làm bù tháng 11 nên
+      // không đăng ký OT được (FP5 #24).
+      await assert.rejects(
+        requests.createOvertimeRequest(
+          { employeeId: 'binh', reason: 'Chốt số', otDate: '2026-11-15', startTime: '08:00', endTime: '12:00' },
+          self
+        ),
+        /Tháng 2026-11 đã có đơn nghỉ có làm bù, không đăng ký OT được/
       );
+      // Vì vậy OT Chủ nhật 15/11 là của Chi (cùng cách trả lương với Bình), nộp và duyệt qua dịch vụ như đơn của Bình.
+      const overtime = await requests.createOvertimeRequest(
+        { employeeId: 'chi', reason: 'Chốt số', otDate: '2026-11-15', startTime: '08:00', endTime: '12:00' },
+        self
+      );
+      await approve(requests, overtime.id);
 
       // Thứ Hai 02/11 và Thứ Ba 03/11: chấm công.
       await punch('2026-11-02', '08:02', '17:05');
@@ -150,10 +156,9 @@ describe('Ví dụ đầu–cuối tháng 11/2026 của Bình (spec 13) trên Po
       // 04/11 trễ như 03/11 nhưng không giải trình; 05/11 không chấm.
       await punch('2026-11-04', '08:40', '17:00');
 
-      // Các ngày làm sau đó: 12/11 và 16/11 làm tới hết khung bù, 15/11 làm hết khung OT, còn lại 08:00–17:00.
+      // Các ngày làm sau đó: 12/11 và 16/11 làm tới hết khung bù, còn lại 08:00–17:00 (Chủ nhật nghỉ; OT 15/11 là của Chi, chấm riêng bên dưới).
       const special: Record<string, [string, string]> = {
         '2026-11-12': ['08:00', '22:00'],
-        '2026-11-15': ['08:00', '12:00'],
         '2026-11-16': ['08:00', '22:00']
       };
       const skipped = new Set(['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-10', '2026-11-18']);
@@ -164,6 +169,9 @@ describe('Ví dụ đầu–cuối tháng 11/2026 của Bình (spec 13) trên Po
         if (special[date]) await punch(date, ...special[date]);
         else if (!sunday) await punch(date, '08:00', '17:00');
       }
+
+      // Chi chấm công ngày OT: Chủ nhật 15/11, 08:00–12:00 (đúng khung OT đã duyệt).
+      await punch('2026-11-15', '08:00', '12:00', CHI);
 
       // 01/12 10:00: tính phiếu lương tháng 11; mọi ngày tháng 11 đã tới mốc xét.
       setNow(vn('2026-12-01', '10:00'));
@@ -204,18 +212,20 @@ describe('Ví dụ đầu–cuối tháng 11/2026 của Bình (spec 13) trên Po
       assert.deepEqual(summary('2026-11-10'), { kind: 'LEAVE_MAKEUP', payUnits: 0, daySalary: 0 });
       assert.equal(line('2026-11-10')?.countsAsDayOff, false);
 
-      // T5 12/11 và T2 16/11: đi làm đủ ngày, thêm 240 phút bù trả x1 lương giờ, làm tròn từng dòng.
+      // T5 12/11 và T2 16/11: đi làm đủ ngày, thêm 240 phút bù trả x1 lương giờ; mỗi dòng hiện 115.385 (chỉ để xem).
       for (const date of ['2026-11-12', '2026-11-16']) {
         assert.deepEqual(summary(date), { kind: 'PRESENT', payUnits: 1, daySalary: 230_769 }, date);
         assert.deepEqual([line(date)?.makeupMinutes, line(date)?.makeupPay], [240, 115_385], date);
         assert.equal(line(date)?.dailyTotal, 346_154, date);
       }
-      assert.equal(slip.makeupPay, 230_770);
+      // D1: tiền bù của phiếu = 6.000.000 x (480 / 60) / (26 x 8) = 230.769,23, làm tròn một lần (không cộng 2 x 115.385).
+      assert.equal(slip.makeupPay, 230_769);
 
-      // CN 15/11: OT 08–12 đã duyệt -> dòng EXTRA, không lương ngày, chỉ tiền OT x2 (4 x 28.846 x 2).
-      assert.deepEqual(summary('2026-11-15'), { kind: 'EXTRA', payUnits: 0, daySalary: 0 });
-      assert.equal(line('2026-11-15')?.otPay, 230_769);
-      assert.equal(line('2026-11-15')?.countsAsWorkday, false);
+      // Bình không có OT (luật loại trừ OT và nghỉ có bù cùng tháng, D5): phiếu không có tiền OT ở dòng nào; 15/11 là Chủ nhật
+      // nên Bình nghỉ (không có đơn OT, không chấm).
+      assert.equal(slip.otPayTotal, 0);
+      assert.deepEqual([slip.ot15Hours, slip.ot20Hours, slip.ot30Hours], [0, 0, 0]);
+      assert.ok(slip.dailyLines.every(l => l.otPay === 0));
 
       // T4 18/11: phép năm đã duyệt -> một lương ngày, ngày nghỉ.
       assert.deepEqual(summary('2026-11-18'), { kind: 'LEAVE_PAID', payUnits: 1, daySalary: 230_769 });
@@ -231,6 +241,20 @@ describe('Ví dụ đầu–cuối tháng 11/2026 của Bình (spec 13) trên Po
       // 21 ngày đi làm trên 26 công chuẩn, phụ cấp chuyên cần 1.500.000 giữ nguyên tỉ lệ ngày đi làm.
       assert.equal(slip.actualWorkDays, 21);
       assert.equal(slip.attendanceAllowanceActual, 1_211_538);
+
+      // Chi (cùng lương 6.000.000, 26 công chuẩn, cùng tuần T2–T7): chỉ có OT Chủ nhật 15/11 08–12, không có đơn nghỉ.
+      // Giờ OT x2 (hệ số cuối tuần của cài đặt): 6.000.000 x 4 x 2 / (26 x 8) = 48.000.000 / 208 = 230.769,23 -> 230.769.
+      const chiSlip = await payroll.generateMonthlyPayslip(CHI, '2026-11');
+      const chiLine = chiSlip.dailyLines.find(l => l.date === '2026-11-15');
+      assert.deepEqual(
+        { kind: chiLine?.kind, payUnits: chiLine?.payUnits, daySalary: chiLine?.daySalary, countsAsWorkday: chiLine?.countsAsWorkday },
+        { kind: 'EXTRA', payUnits: 0, daySalary: 0, countsAsWorkday: false }
+      );
+      assert.equal(chiLine?.otPay, 230_769);
+      assert.deepEqual([chiSlip.ot15Hours, chiSlip.ot20Hours, chiSlip.ot30Hours], [0, 4, 0]);
+      assert.equal(chiSlip.ot20Pay, 230_769);
+      assert.equal(chiSlip.otPayTotal, 230_769);
+      assert.equal(chiSlip.makeupPay, 0);
     });
   });
 });

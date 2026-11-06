@@ -15,6 +15,13 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const VALID_STATUSES: ContractStatus[] = ['tts', 'ctv', 'thuviec', 'nv', 'nghiviec'];
 const VALID_TERMS: ContractTerm[] = ['long', 'short'];
 
+function optionalDate(value: string | null | undefined, label: string): string | null {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const text = String(value).trim();
+  if (!DATE_REGEX.test(text) || Number.isNaN(Date.parse(text))) throw new Error(`${label} phải có dạng YYYY-MM-DD`);
+  return text;
+}
+
 // term null: nhãn theo loại nhân sự (tts → 'short', loại khác → 'long').
 // hasInsurance null: đóng bảo hiểm theo mặc định của hợp đồng.
 export interface EmployeeContractParams {
@@ -30,6 +37,9 @@ export interface EmployeeContractParams {
   hasTax?: boolean;
   canAdvance?: boolean;
   isDormResident?: boolean;
+  departmentId?: number | null;
+  onLeaveFrom?: string | null;
+  onLeaveTo?: string | null;
 }
 
 export class EmployeeContract {
@@ -45,6 +55,10 @@ export class EmployeeContract {
   readonly hasTax: boolean;
   readonly canAdvance: boolean;
   readonly isDormResident: boolean;
+  readonly departmentId: number | null;
+  /** Khoảng tạm nghỉ do Admin đặt; ngày về trống = chưa rõ. Chỉ có ngày về mà không có ngày đi là sai. */
+  readonly onLeaveFrom: string | null;
+  readonly onLeaveTo: string | null;
 
   constructor(params: EmployeeContractParams = {}) {
     this.position = normalizePosition(params.position ?? { type: 'nv', level: 1 });
@@ -95,6 +109,19 @@ export class EmployeeContract {
     this.hasTax = params.hasTax !== undefined ? Boolean(params.hasTax) : true;
     this.canAdvance = params.canAdvance !== undefined ? Boolean(params.canAdvance) : true;
     this.isDormResident = params.isDormResident !== undefined ? Boolean(params.isDormResident) : false;
+
+    const departmentId = params.departmentId ?? null;
+    if (departmentId !== null && !(Number.isInteger(departmentId) && departmentId > 0)) {
+      throw new Error('Phòng ban không hợp lệ');
+    }
+    this.departmentId = departmentId;
+
+    const leaveFrom = optionalDate(params.onLeaveFrom, 'Ngày bắt đầu tạm nghỉ');
+    const leaveTo = optionalDate(params.onLeaveTo, 'Ngày tạm nghỉ kết thúc');
+    if (leaveTo && !leaveFrom) throw new Error('Có ngày kết thúc tạm nghỉ thì phải có ngày bắt đầu');
+    if (leaveFrom && leaveTo && leaveTo < leaveFrom) throw new Error('Ngày kết thúc tạm nghỉ phải từ ngày bắt đầu trở đi');
+    this.onLeaveFrom = leaveFrom;
+    this.onLeaveTo = leaveTo;
   }
 
   update(patch: Partial<EmployeeContractParams>): EmployeeContract {
@@ -110,7 +137,10 @@ export class EmployeeContract {
       isUnionMember: patch.isUnionMember !== undefined ? patch.isUnionMember : this.isUnionMember,
       hasTax: patch.hasTax !== undefined ? patch.hasTax : this.hasTax,
       canAdvance: patch.canAdvance !== undefined ? patch.canAdvance : this.canAdvance,
-      isDormResident: patch.isDormResident !== undefined ? patch.isDormResident : this.isDormResident
+      isDormResident: patch.isDormResident !== undefined ? patch.isDormResident : this.isDormResident,
+      departmentId: patch.departmentId !== undefined ? patch.departmentId : this.departmentId,
+      onLeaveFrom: patch.onLeaveFrom !== undefined ? patch.onLeaveFrom : this.onLeaveFrom,
+      onLeaveTo: patch.onLeaveTo !== undefined ? patch.onLeaveTo : this.onLeaveTo
     });
   }
 
@@ -159,6 +189,9 @@ export class EmployeeContract {
     hasTax: boolean;
     canAdvance: boolean;
     isDormResident: boolean;
+    departmentId: number | null;
+    onLeaveFrom: string | null;
+    onLeaveTo: string | null;
   } {
     return {
       position: typeof this.position.toJSON === 'function' ? this.position.toJSON() : this.position,
@@ -172,7 +205,10 @@ export class EmployeeContract {
       isUnionMember: this.isUnionMember,
       hasTax: this.hasTax,
       canAdvance: this.canAdvance,
-      isDormResident: this.isDormResident
+      isDormResident: this.isDormResident,
+      departmentId: this.departmentId,
+      onLeaveFrom: this.onLeaveFrom,
+      onLeaveTo: this.onLeaveTo
     };
   }
 }

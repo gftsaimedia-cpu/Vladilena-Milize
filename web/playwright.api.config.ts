@@ -7,6 +7,8 @@ const port = Number(process.env.PW_PORT) || 4178;
 
 export default defineConfig({
   testDir: './tests/api',
+  // npm run demo -- test đặt thư mục riêng cho mỗi mảng: Playwright xoá outputDir lúc bắt đầu, các phiên chạy song song không được giẫm nhau.
+  outputDir: process.env.PW_OUTPUT_DIR || 'test-results',
   fullyParallel: false,
   workers: 1,
   reporter: 'list',

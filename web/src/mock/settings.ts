@@ -313,7 +313,6 @@ export function workWeekOf(username: string, month: string = MOCK_MONTH): WorkWe
     standardWorkdays: own ? standardOf(own) : TYPE_STANDARD_WORKDAYS,
     typeWeekdays: [...TYPE_WEEKDAYS],
     typeStandardWorkdays: TYPE_STANDARD_WORKDAYS,
-    standardByDays: { 1: 4, 2: 9, 3: 13, 4: 17, 5: 22, 6: 26 },
     stamp: stampOf(store.history),
   };
 }

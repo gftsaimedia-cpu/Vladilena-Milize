@@ -1,3 +1,5 @@
+import type { HalfShift } from '../../../common/half-shift';
+
 // Hàm thuần dựng dữ liệu "của tôi" từ bảng công và đơn từ: ngày theo giờ Việt Nam, tuần thứ Hai – Chủ nhật,
 // một ô ngày công, công cả tháng và các bước của một đơn.
 
@@ -13,6 +15,7 @@ export type DaySummary = {
   date: string;
   kind: DayKind;
   leave?: LeaveKind;
+  halfShift?: HalfShift | null;
   in: string | null;
   out: string | null;
   lateMinutes: number;
@@ -27,6 +30,7 @@ export type TimesheetLike = {
   actualCheckIn: string | null;
   actualCheckOut: string | null;
   status: string;
+  halfShift?: HalfShift | null;
   isLocked?: boolean;
   metrics?: { lateMinutes?: number };
   cases?: DayCase[];
@@ -52,9 +56,6 @@ const dow = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay();
 
 /** Ngày hôm nay 'YYYY-MM-DD' theo giờ Việt Nam (UTC+7). */
 export const vnToday = (now: Date = new Date()) => new Date(now.getTime() + VN_OFFSET_MS).toISOString().slice(0, 10);
-
-/** Giờ hiện tại 'HH:mm' theo giờ Việt Nam (UTC+7). */
-export const vnTime = (now: Date = new Date()) => new Date(now.getTime() + VN_OFFSET_MS).toISOString().slice(11, 16);
 
 /** Bảy ngày thứ Hai → Chủ nhật của tuần chứa `date`. */
 export function weekOf(date: string): string[] {
@@ -87,14 +88,15 @@ export function daySummaryOf(
   today: string,
   weekdays: readonly number[] = DEFAULT_WEEKDAYS
 ): DaySummary {
-  const base = { date, in: null, out: null, lateMinutes: 0, explanationStatus: 'none' as ExplanationState, cases: [] as DayCase[] };
+  const halfShift = ts?.halfShift ?? null;
+  const base = { date, halfShift, in: null, out: null, lateMinutes: 0, explanationStatus: 'none' as ExplanationState, cases: [] as DayCase[] };
   if (!ts) {
     if (!weekdays.includes(dow(date))) return { ...base, kind: 'off' };
     return { ...base, kind: date > today ? 'future' : 'absent' };
   }
   const cases = ts.cases ?? [];
   const explanationStatus = explanationOf(ts.explanationStatus);
-  const shown = { date, in: hhmm(ts.actualCheckIn), out: hhmm(ts.actualCheckOut), lateMinutes: ts.metrics?.lateMinutes || 0, explanationStatus, cases };
+  const shown = { date, halfShift, in: hhmm(ts.actualCheckIn), out: hhmm(ts.actualCheckOut), lateMinutes: ts.metrics?.lateMinutes || 0, explanationStatus, cases };
   const leave = LEAVE_OF[ts.status];
   if (leave) return { ...base, kind: 'leave', leave, explanationStatus, cases };
   switch (ts.status) {
@@ -141,7 +143,7 @@ export function monthOf(
     month,
     periodState: (periodStatus && periodStatus !== 'open') || inMonth.some(t => t.isLocked) ? ('locked' as const) : ('open' as const),
     totals: {
-      workDays: inMonth.filter(t => t.countsAsWorkday).length,
+      workDays: inMonth.reduce((sum, t) => sum + (t.countsAsWorkday ? ((t.status === 'PRESENT' && t.halfShift) ? 0.5 : 1) : 0), 0),
       standardDays: days.filter(d => weekdays.includes(dow(d.date))).length,
       lateCount: days.filter(d => d.kind === 'late').length,
       // R11: nghỉ hưởng lương gồm phép có lương, lễ có lương và iSAT có lương (payUnits = 1).
@@ -158,6 +160,16 @@ export function monthRangeOf(startDate: string | null | undefined, today: string
   const start = startDate && /^\d{4}-(0[1-9]|1[0-2])/.test(startDate) ? startDate.slice(0, 7) : to;
   return { from: start < to ? start : to, to };
 }
+
+/** Tháng 'YYYY-MM' lùi (n âm) hoặc tiến (n dương) n tháng. */
+export function shiftMonth(month: string, n: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const index = y * 12 + (m - 1) + n;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+/** Số tháng lùi tối đa khi quét ngày còn cần giải trình trên trang chủ (D9). */
+export const ALERT_MONTHS_BACK = 12;
 
 export type RequestStep = { label: string; at: string | null; state: 'done' | 'pend' | 'rej' };
 

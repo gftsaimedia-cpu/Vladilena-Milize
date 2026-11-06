@@ -41,7 +41,7 @@ test('builder maps the real BE response without computing anything', () => {
   expect(k.staff.value).toBe('3');
   expect(k.present).toMatchObject({ value: '1', of: '3', note: '2 người chưa chấm công vào' });
   expect(k.requests.value).toBe('1');
-  expect(k.payroll).toMatchObject({ value: '0,02', note: '2 phiếu lương' });
+  expect(k.payroll).toMatchObject({ value: '16', unit: 'triệu ₫', note: '2 phiếu lương' });
   expect(k.payroll.delta).toBeUndefined();
   expect(v.attendance).toMatchObject({ todayRate: 33, present: 1, total: 3 });
   expect(v.attendance.days).toHaveLength(6);
@@ -50,6 +50,8 @@ test('builder maps the real BE response without computing anything', () => {
     statusLabel: 'Chờ duyệt',
     range: '01/10 – 31/10/2026',
     payday: '10/11/2026',
+    net: '16 triệu ₫',
+    deductions: '0 ₫',
     netShare: 100,
     slips: { done: 0, pending: 0, draft: 2, rejected: 0, total: 2 }
   });

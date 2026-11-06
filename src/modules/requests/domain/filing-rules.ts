@@ -3,6 +3,7 @@ import type { ShiftFrame, FrameShiftType } from './shift-frames';
 import type { SystemRequest } from './system-request';
 import { dayCapError, windowError, workMinutes, type ClockWindow, type ShiftSpan } from './time-window';
 import { formatDayMonth, lastDayOfMonth } from './working-days';
+import type { ClockRange } from '../../../common/half-shift';
 
 export type FiledBy = 'self' | 'admin';
 
@@ -20,10 +21,17 @@ export function isWholeHour(time: string): boolean {
   return /^([01]\d|2[0-3]):00$/.test(time);
 }
 
+/** Các ngày trong tháng nhân viên tự nộp được đơn tạm ứng. */
+const ADVANCE_FILING_DAYS = ['16', '17'] as const;
+
 /** Đơn tạm ứng chỉ mở ngày 16 và 17 hằng tháng. */
 export function advanceDayOpen(today: string): boolean {
-  const day = today.slice(8, 10);
-  return day === '16' || day === '17';
+  return (ADVANCE_FILING_DAYS as readonly string[]).includes(today.slice(8, 10));
+}
+
+/** Ngày cuối nhân viên tự nộp được tạm ứng của tháng `month` (YYYY-MM): '2026-11' → '2026-11-17'. */
+export function advanceWindowEnd(month: string): string {
+  return `${month}-${ADVANCE_FILING_DAYS[ADVANCE_FILING_DAYS.length - 1]}`;
 }
 
 export interface HourOption {
@@ -64,7 +72,8 @@ export type TitleInput =
   | { kind: 'overtime'; date: string; startTime: string; endTime: string }
   | { kind: 'shift-change'; frame: ShiftFrame; startDate: string; endDate: string }
   | { kind: 'explanation'; date: string }
-  | { kind: 'advance'; month: string };
+  | { kind: 'advance'; month: string }
+  | { kind: 'half-shift-leave'; date: string; work: ClockRange };
 
 const FRAME_LABELS: Record<FrameShiftType, string> = { NORMAL: 'Normal', FLEX: 'Flex', NIGHT: 'Night' };
 
@@ -99,6 +108,8 @@ export function requestTitle(input: TitleInput): string {
       return `Giải trình ${formatDayMonth(input.date)}`;
     case 'advance':
       return `Tạm ứng lương tháng ${Number(input.month.slice(5, 7))}`;
+    case 'half-shift-leave':
+      return `Nghỉ giữa ca ${formatDayMonth(input.date)}, làm ${clockText(input.work.start)}–${clockText(input.work.end)}h`;
   }
 }
 

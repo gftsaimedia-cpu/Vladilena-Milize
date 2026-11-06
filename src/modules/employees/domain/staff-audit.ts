@@ -28,7 +28,10 @@ const NORMAL: Record<string, Field> = {
   shiftEndTime: e => e.contract.shift.endTime,
   status: e => e.contract.status,
   effectiveFrom: e => e.contract.effectiveFrom,
-  resignedOn: e => e.contract.resignedOn
+  resignedOn: e => e.contract.resignedOn,
+  departmentId: e => e.contract.departmentId,
+  onLeaveFrom: e => e.contract.onLeaveFrom,
+  onLeaveTo: e => e.contract.onLeaveTo
 };
 
 const PAY: Record<string, Field> = {

@@ -49,8 +49,6 @@ export type WorkWeek = {
   standardWorkdays: number;
   typeWeekdays: number[];
   typeStandardWorkdays: number;
-  /** Công chuẩn theo số ngày làm mỗi tuần, do BE tính. */
-  standardByDays: Record<string, number>;
   stamp: number;
 };
 export type WorkWeekBody = { effectiveMonth: string; weekdays: number[] | null; reason: string | null; stamp: number };
@@ -259,8 +257,8 @@ export async function orNoWorkWeek<T>(request: Promise<T>): Promise<T | null> {
   }
 }
 
-/** Công chuẩn theo số ngày làm trong tuần: tra bảng `standardByDays` BE trả (D5), không tự tính. */
-export const standardWorkdays = (ww: Pick<WorkWeek, 'standardByDays'>, n: number): number => ww.standardByDays[n] ?? 0;
+/** Công chuẩn theo số ngày làm trong tuần (D5): làm tròn n × 52 / 12. */
+export const standardWorkdays = (n: number): number => Math.round((n * 52) / 12);
 
 // Phần "; từ MM/YYYY: …" chỉ có khi tuần sắp tới khác tuần đang áp dụng (tuần riêng hoặc null = theo loại).
 export function workWeekLine(ww: WorkWeek, upcoming?: { month: string; weekdays: number[] | null } | null): string {
@@ -269,7 +267,7 @@ export function workWeekLine(ww: WorkWeek, upcoming?: { month: string; weekdays:
   const now = ww.source === 'own' ? ww.weekdays : null;
   if (upcoming && upcoming.month > ww.month && !same(upcoming.weekdays, now)) {
     const next = upcoming.weekdays
-      ? `${weekdaysText(upcoming.weekdays)} · công chuẩn ${standardWorkdays(ww, upcoming.weekdays.length)}`
+      ? `${weekdaysText(upcoming.weekdays)} · công chuẩn ${standardWorkdays(upcoming.weekdays.length)}`
       : 'theo loại nhân sự';
     line += `; từ ${monthShort(upcoming.month)}: ${next}`;
   }
