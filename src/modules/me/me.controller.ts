@@ -189,6 +189,7 @@ export class MeController {
       date,
       // Ngày không có ca (nghỉ, lễ, ngoài tuần làm) thì ca là null, không phải một đối tượng toàn null.
       shift: ts?.shiftType ? { type: ts.shiftType, start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
+      halfShift: (ts as any)?.halfShift ?? null,
       punches: { in: days.find(d => d.date === date)?.in ?? null, out: days.find(d => d.date === date)?.out ?? null },
       workedMinutes: Math.round(((ts?.metrics as any)?.workHours || 0) * 60),
       week: days,
