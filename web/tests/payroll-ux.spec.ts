@@ -30,14 +30,16 @@ test('October payroll shows the board figures', async ({ page }) => {
   const calls = trackApi(page);
   await page.goto(URL10);
   await expect(page.getByRole('heading', { name: 'Bảng lương', exact: true })).toBeVisible();
-  await expect(page.getByText('Kỳ lương tháng 10/2026 · công 01–31/10 · công chuẩn 26 ngày · trả lương 05/11/2026')).toBeVisible();
+  await expect(page.getByText('Kỳ lương tháng 10/2026 · công 01–31/10 · công chuẩn 26 ngày · trả lương 10/11/2026')).toBeVisible();
   await expect(page.locator('.period .steps .step')).toHaveCount(6);
   await expect(tile(page, 'Tổng thu nhập tháng 10')).toContainText('2,48');
   await expect(tile(page, 'Tổng thu nhập tháng 10')).toContainText('▲ 3,2% so với tháng 9');
   await expect(tile(page, 'Thực nhận')).toContainText('2,11');
   await expect(tile(page, 'Thực nhận')).toContainText('85% tổng thu nhập');
-  await expect(tile(page, 'Khấu trừ')).toContainText('0,37');
-  await expect(tile(page, 'Khấu trừ')).toContainText('Bảo hiểm 0,26 · Thuế 0,09 · Tạm ứng 0,02');
+  // Đơn vị theo độ lớn (người dùng 06/11): khấu trừ 370 triệu, không còn "0,37 tỷ".
+  await expect(tile(page, 'Tổng thu nhập tháng 10')).toContainText('2,48 tỷ ₫');
+  await expect(tile(page, 'Khấu trừ')).toContainText('370 triệu ₫');
+  await expect(tile(page, 'Khấu trừ')).toContainText('Bảo hiểm 260 triệu ₫ · Thuế 90 triệu ₫ · Tạm ứng 20 triệu ₫');
   await expect(tile(page, 'Phiếu đã duyệt')).toContainText('86 / 128');
   for (const name of ['Tất cả 128', 'Nháp 12', 'Chờ duyệt 29', 'Đã duyệt 86', 'Từ chối 1'])
     await expect(filters(page).getByRole('button', { name, exact: true })).toBeVisible();

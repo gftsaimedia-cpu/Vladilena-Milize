@@ -233,7 +233,7 @@ export function overviewDto(month: string): OverviewDTO {
       from: `${month}-01`,
       to: `${month}-${last}`,
       closeOn: `${month}-${last}`,
-      payday: `${nextYear}-${pad(m === 12 ? 1 : m + 1)}-05`,
+      payday: `${nextYear}-${pad(m === 12 ? 1 : m + 1)}-10`, // ngày 10 tháng sau, mặc định của Cài đặt › Ngày trả lương
       daysLeft: 3
     },
     approvals: {
