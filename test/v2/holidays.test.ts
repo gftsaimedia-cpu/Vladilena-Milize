@@ -186,6 +186,11 @@ describe('HolidaysService with the period gate', () => {
     assert.equal(repo.rows.has('2026-09-02'), true);
   });
 
+  it('removing a day that is not in the list is 404 even in a locked month', async () => {
+    const { svc } = makeGatedService();
+    await assert.rejects(svc.remove('2026-09-03', 'admin'), (e: any) => e instanceof HolidayNotFoundError && /Không có ngày lễ 2026-09-03/.test(e.message));
+  });
+
   it('quickAdd skips the days of locked months instead of failing the whole year', async () => {
     const { svc, repo } = makeGatedService();
     assert.deepEqual(await svc.quickAdd(2026, 'admin'), ['2026-01-01', '2026-04-30', '2026-05-01']);
@@ -213,9 +218,11 @@ describe('HolidaysService with the period gate', () => {
   });
 
   it('the controller rethrows the lock error as it is, not as a 400', async () => {
-    const { svc } = makeGatedService();
+    const repo = new MemoryHolidays();
+    await repo.insert({ date: '2026-09-02', name: 'Quốc khánh' }, null);
+    const { svc } = makeGatedService(repo);
     const ctrl = new HolidaysController(svc);
-    await assert.rejects(ctrl.create({ date: '2026-09-02', name: 'Quốc khánh' }, ADMIN), locked);
+    await assert.rejects(ctrl.create({ date: '2026-09-03', name: 'Nghỉ bù' }, ADMIN), locked);
     await assert.rejects(ctrl.remove('2026-09-02', ADMIN), locked);
   });
 });

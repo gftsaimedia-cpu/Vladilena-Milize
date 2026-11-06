@@ -123,8 +123,11 @@ export class HolidaysService {
   async remove(date: string, actor: string): Promise<void> {
     if (!isValidDateText(date)) throw new Error(`Ngày lễ không hợp lệ: ${date}`);
     await this.tx.run(async trx => {
+      const repo = this.repo.withTransaction(trx);
+      // Ngày không có trong lịch thì 404, kể cả ở tháng đã chốt (không có gì để cổng kỳ chặn).
+      if ((await repo.listBetween(date, date)).length === 0) throw new HolidayNotFoundError(date);
       await this.periodGate?.hold(trx, [date.slice(0, 7)], 'holiday');
-      const removed = await this.repo.withTransaction(trx).remove(date);
+      const removed = await repo.remove(date);
       if (!removed) throw new HolidayNotFoundError(date);
       await this.audit.append(trx, {
         actor,
