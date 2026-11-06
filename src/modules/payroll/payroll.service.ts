@@ -18,6 +18,7 @@ import {
 import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
 import {
   EmployeePayslip,
+  plannedMakeupMinutes,
   DailyAttendanceLineProps,
   inOutText as presenceText,
   presenceOf,
@@ -655,6 +656,8 @@ export class PayrollService {
         .map(row => ({ date: row.workDate, kind: calendarKindOf(row) })),
       lateEarlyHours: roundedLateEarlyHours,
       diligenceLostFromDays: rules.diligenceLostFromDays,
+      // D10: the makeup windows still ahead of the service clock count as worked for the diligence shortfall only.
+      plannedMakeupMinutes: plannedMakeupMinutes(data.makeupWindows, this.now()),
       employeeType,
       level: staff.level,
       employmentStatus: staff.employmentStatus,

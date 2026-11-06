@@ -58,6 +58,8 @@ export interface EmployeeMonthlyRawData {
     advancePeriod?: string | null;
   }>;
   holidayDates?: string[]; // company holidays of the month, 'YYYY-MM-DD' (the holiday OT rate)
+  // Makeup windows of the approved leave-with-makeup requests that fall in the month (D10: the estimate counts the ones ahead).
+  makeupWindows?: Array<{ date: string; start: string; end: string; workMinutes: number }>;
   kpi: KpiInput | null;
 }
 
@@ -69,6 +71,7 @@ export interface MonthRows {
   benefits: any[];
   requests: any[];
   holidays?: Array<string | Date>;
+  makeupSlots?: Array<{ work_date: string | Date; start_time: string; end_time: string; work_minutes: number | string }>;
   annualLeaveUsed?: number | string; // approved annual leave days in day_status since the balance date, up to the month end
   kpi: any | null;
 }
@@ -162,6 +165,12 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       advancePeriod: r.advance_period
     })),
     holidayDates: (rows.holidays ?? []).map(dateText),
+    makeupWindows: (rows.makeupSlots ?? []).map(slot => ({
+      date: dateText(slot.work_date),
+      start: slot.start_time.slice(0, 5),
+      end: slot.end_time.slice(0, 5),
+      workMinutes: Number(slot.work_minutes)
+    })),
     kpi: kpiRow
       ? {
           scores: {
@@ -381,6 +390,19 @@ export class PayrollRepository {
       .where('holiday_date', '<=', endDate)
       .execute();
 
+    // Makeup windows of the approved leave-with-makeup requests in the month (D10: the estimate counts the ones ahead)
+    const makeupSlotRows = await this.qb
+      .selectFrom('makeup_slots as ms')
+      .innerJoin('system_requests as sr', 'sr.id', 'ms.request_id')
+      .select(['ms.work_date', 'ms.start_time', 'ms.end_time', 'ms.work_minutes'])
+      .where('sr.employee_id', '=', staffRow.uuid || employeeId)
+      .where('sr.status', '=', 'APPROVED')
+      .where('ms.work_date', '>=', startDate)
+      .where('ms.work_date', '<=', endDate)
+      .orderBy('ms.work_date', 'asc')
+      .orderBy('ms.start_time', 'asc')
+      .execute();
+
     // Approved annual leave days taken since the balance date, up to the month end
     let usedQuery = this.qb
       .selectFrom('day_status')
@@ -410,6 +432,7 @@ export class PayrollRepository {
       benefits,
       requests: requestRows,
       holidays: holidayRows.map(r => r.holiday_date),
+      makeupSlots: makeupSlotRows,
       annualLeaveUsed: annualLeaveUsed?.n ?? 0,
       kpi: kpiRow ?? null
     });

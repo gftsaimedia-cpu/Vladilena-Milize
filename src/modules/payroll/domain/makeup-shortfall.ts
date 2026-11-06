@@ -1,3 +1,5 @@
+import { vnInstant } from './presence';
+
 /** Phút của một ngày nghỉ có làm bù phải bù lại (8 giờ). */
 const MINUTES_PER_DAY = 480;
 
@@ -8,4 +10,20 @@ const MINUTES_PER_DAY = 480;
 export function makeupShortfallDays(lwmDays: number, makeupMinutes: number): number {
   const missing = Math.max(0, MINUTES_PER_DAY * lwmDays - makeupMinutes);
   return Math.min(lwmDays, Math.ceil(missing / MINUTES_PER_DAY));
+}
+
+/** Khung làm bù đã duyệt của một đơn nghỉ có làm bù: ngày, giờ 'HH:mm' (giờ Việt Nam) và số phút làm thực của khung. */
+export type MakeupWindow = { date: string; start: string; end: string; workMinutes: number };
+
+/**
+ * Phút làm bù đã xếp mà chưa tới (D10, 06/11): tổng phút làm thực của các khung kết thúc SAU `now`. Chỉ dùng để xét
+ * chuyên cần ở thu nhập tạm tính giữa tháng, không bao giờ để trả tiền. Khung đã kết thúc không còn ở đây vì số phút
+ * thật đã nằm trên dòng ngày (`makeup_minutes`); sang tháng sau thì mọi khung của tháng đã kết thúc nên còn 0.
+ */
+export function plannedMakeupMinutes(windows: readonly MakeupWindow[] | undefined, now: Date): number {
+  let minutes = 0;
+  for (const w of windows ?? []) {
+    if (vnInstant(w.date, w.end.slice(0, 5)).getTime() > now.getTime()) minutes += w.workMinutes;
+  }
+  return minutes;
 }

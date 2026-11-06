@@ -99,6 +99,9 @@ export interface EmployeePayslipProps {
   lateMinutes?: number; // minutes of late check-in beyond the grace, summed over the lines; default 0
   lateEarlyHours?: number; // display only (2 decimals); default the lines' deduction minutes / 60
   diligenceLostFromDays?: number; // the attendance allowance is lost from this many absence days; default 5
+  /** Work minutes of the approved makeup windows that have not ended yet (D10): they count as made up for the diligence
+   * shortfall only, never for pay. Default 0 (a month that is over has none). */
+  plannedMakeupMinutes?: number;
   kpi?: KpiPay; // default: no KPI pay
   insurance?: InsuranceDeduction; // default: nothing deducted
   taxMethod?: TaxMethod; // default 'none'
@@ -423,7 +426,9 @@ export class EmployeePayslip {
 
     // Actual values. The allowances follow the work days. The days off for the attendance allowance are the lines that
     // count as one (leave, absence) plus the leave-with-makeup days the month's makeup minutes leave short (L15, L16).
-    const absenceDays = dayOffCount + makeupShortfallDays(makeupLeaveCount, makeupMinutes);
+    // D10: the windows still ahead count as worked here, and only here (makeupPay above reads the real minutes).
+    const absenceDays =
+      dayOffCount + makeupShortfallDays(makeupLeaveCount, makeupMinutes + (props.plannedMakeupMinutes ?? 0));
     const keepsDiligence = absenceDays < (props.diligenceLostFromDays ?? 5);
     // rate x base x work days / std
     this.attendanceAllowanceActual =

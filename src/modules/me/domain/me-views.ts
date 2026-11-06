@@ -156,6 +156,16 @@ export function monthRangeOf(startDate: string | null | undefined, today: string
   return { from: start < to ? start : to, to };
 }
 
+/** Tháng 'YYYY-MM' lùi (n âm) hoặc tiến (n dương) n tháng. */
+export function shiftMonth(month: string, n: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const index = y * 12 + (m - 1) + n;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+/** Số tháng lùi tối đa khi quét ngày còn cần giải trình trên trang chủ (D9). */
+export const ALERT_MONTHS_BACK = 12;
+
 export type RequestStep = { label: string; at: string | null; state: 'done' | 'pend' | 'rej' };
 
 /** Các bước của một đơn: Đã gửi → Chờ duyệt / Đã duyệt / Đã từ chối / Đã huỷ. */

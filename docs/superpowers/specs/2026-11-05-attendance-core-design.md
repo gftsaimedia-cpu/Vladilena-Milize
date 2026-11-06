@@ -307,6 +307,8 @@ Phần này dựng trên `payroll.service.ts` của phiên payslip-print (mục 
   - `standardDays` = số ngày làm của tuần người đó trong tháng (qua cổng ở mục 9);
   - `paidLeaveDays` = số dòng `LEAVE_PAID`, `HOLIDAY`, `ISAT` có `pay_units` = 1 (R11).
 - Thu nhập tạm tính đi qua `generateMonthlyPayslip`. Ngày `PENDING` trả 0, nên chỉ ngày đã qua mới được tính (L18).
+- **Cảnh báo trang chủ (D9, 06/11)**: `GET /me/today` trả `alerts` (mọi ngày đã qua có ô `todo` mà giải trình chưa `pending`, cũ nhất trước) và `alert` (ngày cuối của `alerts`, giữ cho app cũ). Quét từ tháng hiện tại lùi về tới trước tháng đầu tiên đã Phê duyệt kỳ hoặc đã trả lương; không lùi quá tháng vào làm, không quá 12 tháng.
+- **Chuyên cần giữa tháng (D10, 06/11)**: ở thu nhập tạm tính, khung làm bù đã duyệt mà chưa kết thúc (giờ kết thúc sau `now`) được tính là sẽ làm: số phút làm thực của khung cộng vào phút đã bù khi xét L16, và chỉ ở đó, không trả tiền. Khung đã qua dùng `makeup_minutes` thật của dòng ngày. Sang tháng sau không còn khung nào chưa kết thúc. Ví dụ: 1 ngày nghỉ có bù nợ 480 phút, hai khung tương lai 240 + 240 phút → thiếu ⌈(480 − 480) ÷ 480⌉ = 0 → giữ chuyên cần; cùng hai khung đã qua mà 0 phút bù → thiếu 1 → mất (nếu đủ ngưỡng).
 
 ### 8.3 Admin
 
