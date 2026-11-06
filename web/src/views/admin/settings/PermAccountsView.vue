@@ -6,6 +6,7 @@ import { ref, watch } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import PageLoadError from '@/components/shell/PageLoadError.vue';
+import ScrollX from '@/components/ui/ScrollX.vue';
 import { getAccounts, setAccountLocked, setAccountRole } from '@/services/admin-settings';
 import { initials } from '@/utils/format';
 import StaffFormDialog from '../staff/StaffFormDialog.vue';
@@ -95,6 +96,7 @@ async function toggleLock(acc?) {
           <input v-model="q" type="text" placeholder="Tìm tên" aria-label="Tìm tên" />
         </label>
       </div>
+      <ScrollX label="Danh sách tài khoản">
       <table class="tbl tk">
         <colgroup>
           <col style="width: 260px" />
@@ -156,6 +158,7 @@ async function toggleLock(acc?) {
           </tr>
         </tbody>
       </table>
+      </ScrollX>
       <div class="foot">
         <span>{{
           data.total ? `${data.from}–${data.to} trên ${data.total} tài khoản` : 'Không có tài khoản nào'

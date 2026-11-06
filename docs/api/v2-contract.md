@@ -2096,6 +2096,11 @@ Lỗi chung:
 
 ### 3.12. Realtime Module (Sự kiện trực tiếp, SSE)
 
+#### `GET /api/v2/overview/pending-count`
+- **Mục đích**: Số trên chuông Admin: một con số do BE tính, bằng đơn chờ duyệt cộng ngày cần giải trình, khớp danh sách việc trong chuông. FE không tự cộng.
+- **Quyền**: `requests.review`.
+- **Response 200**: `{ "count": 3 }`. Một trong hai nguồn lỗi thì cả route lỗi (không đếm thiếu); FE khi đó hiện dấu `?` thay cho số.
+
 #### `GET /api/v2/realtime/stream`
 - **Mục đích**: Luồng Server-Sent Events một chiều server→client; Admin thấy ngay khi nhân viên chấm công. Dùng cookie phiên như mọi route khác (với `EventSource` thì thêm `withCredentials: true` nếu khác origin).
 - **Quyền**: `attendance.correct`. Chưa đăng nhập `401`, nhân viên thường `403`. Mỗi người tối đa 5 luồng cùng lúc, quá thì `429` (`code: TOO_MANY_STREAMS`).

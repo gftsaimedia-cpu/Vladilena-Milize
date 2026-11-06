@@ -100,6 +100,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
   [RealtimeController, 'stream', cap('attendance.correct')],
   [RealtimeController, 'mine', authed],
   [OverviewController, 'week', cap('attendance.correct')],
+  [OverviewController, 'pendingCount', cap('requests.review')],
   [OverviewController, 'employee', cap('attendance.correct')],
   [OverviewController, 'overview', cap('config.read')],
   ...['savePositions', 'saveLevel', 'addLevel'].map(

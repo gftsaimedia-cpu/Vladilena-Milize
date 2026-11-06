@@ -64,6 +64,13 @@ export class OverviewController {
     return view;
   }
 
+  // Số trên chuông: một con số duy nhất khớp với danh sách việc chờ (đơn chờ duyệt + ngày cần giải trình).
+  @RequireCap('requests.review')
+  @Get('overview/pending-count')
+  async pendingCount(): Promise<{ count: number }> {
+    return { count: await this.service.pendingCount() };
+  }
+
   @RequireCap('config.read')
   @Get('overview')
   async overview(@Query('month') month?: string, @Query('days') days?: string): Promise<unknown> {

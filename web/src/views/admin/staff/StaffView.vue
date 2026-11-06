@@ -71,11 +71,16 @@ const moveDepts = computed(() => (serverDepts.value.length ? serverDepts.value :
 const shiftCode = ref<string>(SHIFT_OPTIONS[0].code);
 const toDept = ref('');
 // Máy chủ thật: đủ sáu ca và mọi phòng ban (kể cả phòng chưa có người); dữ liệu giả giữ như board.
-getShiftOptions().then(o => {
-  shiftOptions.value = o;
-  if (!o.some(s => s.code === shiftCode.value)) shiftCode.value = o[0]?.code ?? '';
-});
-getDepartments().then(d => (serverDepts.value = d.map(x => x.name)));
+// Tải lỗi thì giữ danh sách mặc định (hai ô chọn vẫn dùng được với các dòng đang có); không để lỗi chưa bắt.
+getShiftOptions()
+  .then(o => {
+    shiftOptions.value = o;
+    if (!o.some(s => s.code === shiftCode.value)) shiftCode.value = o[0]?.code ?? '';
+  })
+  .catch(() => {});
+getDepartments()
+  .then(d => (serverDepts.value = d.map(x => x.name)))
+  .catch(() => {});
 const pickable = computed(() => shown.value.filter(r => r.status !== 'out').map(r => r.id));
 const chosen = computed(() => sel.pickedIn(pickable.value));
 function start(mode: BulkMode) {

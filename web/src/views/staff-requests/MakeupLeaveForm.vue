@@ -121,19 +121,25 @@ function setRow(i: number, patch: Partial<MakeupSlot>) {
 }
 
 const root = ref<HTMLElement | null>(null);
+// Thêm / bỏ dòng chạy trong hàng đợi, trên danh sách dòng mới nhất lúc tới lượt: sửa `slots` ngoài hàng đợi thì một kết quả cũ
+// về sau sẽ ghi đè mất dòng vừa thêm.
 async function addRow() {
   if (!canAdd.value) return;
-  slots.value = [...slots.value, empty()];
-  keys.value = [...keys.value, nextKey++];
-  await enqueue(() => ask(slots.value));
+  await enqueue(async () => {
+    slots.value = [...slots.value, empty()];
+    keys.value = [...keys.value, nextKey++];
+    await ask(slots.value);
+  });
   await nextTick();
   const selects = root.value?.querySelectorAll<HTMLElement>('.nr-slot select[aria-label^="Ngày bù"]');
   selects?.[selects.length - 1]?.focus();
 }
 async function removeRow(i: number) {
-  keys.value = keys.value.filter((_, j) => j !== i);
-  slots.value = slots.value.filter((_, j) => j !== i);
-  await enqueue(() => ask(slots.value));
+  await enqueue(async () => {
+    keys.value = keys.value.filter((_, j) => j !== i);
+    slots.value = slots.value.filter((_, j) => j !== i);
+    await ask(slots.value);
+  });
   await nextTick();
   const add = root.value?.querySelector<HTMLButtonElement>('.nr-b2');
   (add && !add.disabled ? add : root.value?.querySelector<HTMLElement>('.nr-slot select'))?.focus();
