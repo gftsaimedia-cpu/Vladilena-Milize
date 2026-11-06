@@ -9,6 +9,7 @@ import { SettingsReader } from '../../../src/modules/settings/settings-reader';
 import { SettingsRepository } from '../../../src/modules/settings/settings.repository';
 import { restoreClock, setRunningClock } from '../seed-demo/harness';
 import { seedDemo } from '../seed-demo/index';
+import { AutoPunch } from './auto';
 import { PAGE } from './page';
 
 // Hộp demo: BE thật + DB demo + đồng hồ giả chạy được, trên MỘT cổng. Đường /__box/* là bảng điều khiển (chỉ dùng trên máy dev);
@@ -30,6 +31,7 @@ const PLACES: Record<string, { lat: number; lng: number } | null> = {
   real: null
 };
 let where = 'office';
+const autoPunch = new AutoPunch(`http://127.0.0.1:${PORT}`);
 
 // Nạp lại DB làm các kết nối cũ của app bị cắt (mã 57P01): đó là việc dự kiến, không làm sập hộp.
 process.on('uncaughtException', err => {
@@ -39,6 +41,7 @@ process.on('uncaughtException', err => {
 
 async function runDayJob(): Promise<void> {
   if (!app) return;
+  await autoPunch.tick().catch(e => console.error('tự chấm công:', e));
   jobDb ??= createKysely(createPgPool(URL_DB));
   const repo = new AttendanceDaysRepository(jobDb);
   const tx = new TransactionCoordinator(jobDb);
@@ -48,6 +51,7 @@ async function runDayJob(): Promise<void> {
 
 async function reset(): Promise<void> {
   busy = 'đang nạp lại dữ liệu demo (khoảng 1 phút)';
+  autoPunch.auto.clear();
   lastError = '';
   app = null;
   try {
@@ -105,7 +109,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (path === '/__box/state' && req.method === 'GET') {
-    json(res, 200, { now: new Date().toISOString(), busy, error: lastError, where });
+    json(res, 200, { now: new Date().toISOString(), busy, error: lastError, where, auto: [...autoPunch.auto], lateMinutes: autoPunch.lateMinutes, log: autoPunch.log });
     return;
   }
   if (busy) return json(res, 409, { error: `Hộp đang bận: ${busy}` });
@@ -124,6 +128,24 @@ const server = http.createServer(async (req, res) => {
     setRunningClock(new Date(Date.now() + minutes * 60000).toISOString());
     await runDayJob().catch(e => console.error('job ngày công:', e));
     return json(res, 200, { now: new Date().toISOString() });
+  }
+  if (path === '/__box/staff' && req.method === 'GET') {
+    return json(res, 200, { staff: await autoPunch.staff() });
+  }
+  if (path === '/__box/punch' && req.method === 'POST') {
+    const body = await readBody(req);
+    if (body.type !== 'IN' && body.type !== 'OUT') return json(res, 400, { error: 'Loại chấm không hợp lệ' });
+    const users: string[] = Array.isArray(body.users) ? body.users.map(String) : [];
+    return json(res, 200, { results: await autoPunch.now(users, body.type) });
+  }
+  if (path === '/__box/auto' && req.method === 'POST') {
+    const body = await readBody(req);
+    autoPunch.auto.clear();
+    for (const u of Array.isArray(body.users) ? body.users : []) autoPunch.auto.add(String(u));
+    const late = Number(body.lateMinutes ?? 0);
+    autoPunch.lateMinutes = Number.isFinite(late) && late >= 0 && late <= 600 ? Math.round(late) : 0;
+    await autoPunch.tick().catch(e => console.error('tự chấm công:', e));
+    return json(res, 200, { auto: [...autoPunch.auto], lateMinutes: autoPunch.lateMinutes, log: autoPunch.log });
   }
   if (path === '/__box/where' && req.method === 'POST') {
     const body = await readBody(req);

@@ -50,6 +50,20 @@ export const PAGE = `<!doctype html>
     <p class="mute">Hộp sửa toạ độ trong lượt Check-in / Check-out nên không cần bật định vị trên trình duyệt. Vùng văn phòng: tâm 10.8000, 106.7000, bán kính 500 m.</p>
   </section>
   <section>
+    <h2>Chấm công hộ nhân viên</h2>
+    <div id="staff" class="mute">Đang tải danh sách…</div>
+    <div class="row" style="margin-top:8px">
+      <button id="pin">Chấm vào bây giờ</button><button id="pout">Chấm ra bây giờ</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label><input type="checkbox" id="autoon"> Tự chấm theo ca cho người đã chọn, vào trễ</label>
+      <input type="number" id="late" min="0" max="600" value="0" style="width:72px"> phút
+      <button id="autosave">Áp dụng</button>
+    </div>
+    <p class="mute">Tự chấm: mỗi khi giờ giả qua giờ vào ca thì chấm vào, qua giờ ra ca thì chấm ra (ca đêm tính cả sang hôm sau), bỏ qua Chủ nhật hoặc ngày lễ. Đổi giờ giả thì hộp bù luôn các lượt còn thiếu.</p>
+    <p class="mute" id="log"></p>
+  </section>
+  <section>
     <h2>Cách dùng</h2>
     <p class="mute">1) Giữ trang này ở một tab, mở app ở tab khác. 2) Đặt giờ và vị trí ở đây. 3) Sang tab app, tải lại (F5) rồi đăng nhập nhân viên và bấm Check-in / Check-out. Muốn chấm ngày tiếp theo thì quay lại đây bấm +1 ngày.</p>
   </section>
@@ -92,5 +106,32 @@ export const PAGE = `<!doctype html>
   document.querySelectorAll('[data-where]').forEach(b => b.onclick = async () => { await call('where', { mode: b.dataset.where }); refresh(); });
   $('set').onclick = async () => { if ($('at').value) { await call('clock', { at: $('at').value + ':00+07:00' }); refresh(); } };
   $('reset').onclick = async () => { if (confirm('Xoá mọi thay đổi và nạp lại dữ liệu demo?')) { await call('reset'); refresh(); } };
+  const picked = new Set();
+  async function loadStaff() {
+    const j = await (await fetch('/__box/staff')).json().catch(() => ({ staff: [] }));
+    const box = $('staff');
+    box.textContent = '';
+    for (const p of j.staff || []) {
+      const label = document.createElement('label');
+      label.style.marginRight = '12px';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.onchange = () => (cb.checked ? picked.add(p.username) : picked.delete(p.username));
+      label.append(cb, ' ' + p.name + ' (' + p.start + '–' + p.end + ')');
+      box.append(label);
+    }
+  }
+  async function punchNow(type) {
+    const j = await call('punch', { type, users: [...picked] });
+    $('log').textContent = (j.results || []).join(' · ');
+  }
+  $('pin').onclick = () => punchNow('IN');
+  $('pout').onclick = () => punchNow('OUT');
+  $('autosave').onclick = async () => {
+    const users = $('autoon').checked ? [...picked] : [];
+    const j = await call('auto', { users, lateMinutes: Number($('late').value) });
+    $('log').textContent = (j.log || []).join(' · ');
+  };
+  loadStaff();
   refresh(); setInterval(refresh, 1000);
 </script></body></html>`;
