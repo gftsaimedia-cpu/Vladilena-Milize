@@ -19,7 +19,13 @@ import { DayStatusRepository } from './day-status.repository';
 import { ExplanationRemindersRepository } from './explanation-reminders.repository';
 import { loadEmployeeDays } from './load-days';
 import { AttendanceRepository } from '../attendance/attendance.repository';
-import { detectCases, expectedBounds, type DailyTimesheet, type TimeWindow } from '../attendance/domain';
+import {
+  detectCases,
+  EVALUATE_AFTER_MS,
+  expectedBounds,
+  type DailyTimesheet,
+  type TimeWindow
+} from '../attendance/domain';
 import { HolidaysRepository } from '../holidays/holidays.repository';
 import { gateAllows, type PeriodStatus } from '../periods/domain';
 import { PeriodGate } from '../periods/period-gate';
@@ -121,9 +127,6 @@ function monthsBetween(from: string, to: string): string[] {
 }
 
 const refuse = (message: string): DayRefusal => ({ ok: false, message });
-
-/** Hết thời gian này sau mốc cuối dự kiến thì ngày được xét (spec 4.3), như bộ dựng dòng ngày của chấm công. */
-const EVALUATE_AFTER_MS = 30 * 60 * 1000;
 
 /** Khung OT và khung bù của đơn đã duyệt trên ngày `date`: đúng tập khung dòng ngày của chấm công dùng. */
 function approvedWindowsOn(days: EmployeeDays, date: string): TimeWindow[] {
