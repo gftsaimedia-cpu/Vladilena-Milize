@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Kysely, sql, type Selectable, type Updateable } from 'kysely';
 import { toDateText } from '../../common/date-text';
 import { KYSELY_DB, type DB, type DatabaseTransaction } from '../../database';
+import { employedBetween, monthDays } from '../../database/employment';
 import { requestMonths, type ApproveBlockers } from './domain';
 
 export type PeriodRow = Selectable<DB['payroll_periods']>;
@@ -144,6 +145,7 @@ export class PeriodsRepository {
         if (slip.status !== 'approved') unapprovedSlips += 1;
       }
     }
+    const { from, to } = monthDays(month);
     const staff = await q
       .selectFrom('staff')
       .select(['username', 'name'])
@@ -154,6 +156,8 @@ export class PeriodsRepository {
           eb.and([eb('payroll_subject', 'is', null), eb('role', '<>', 'admin')])
         ])
       )
+      // R2: chỉ người có làm ít nhất một ngày trong tháng (cùng tập với tính cả kỳ, `listEligibleEmployees(month)`).
+      .where(employedBetween(from, to))
       .orderBy('username')
       .execute();
     const missingSlips = staff.filter(s => !have.has(s.username)).map(s => ({ username: s.username, name: s.name }));

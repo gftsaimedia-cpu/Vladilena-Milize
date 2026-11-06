@@ -3,6 +3,7 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 import { Injectable, Inject } from '@nestjs/common';
 import type { Insertable, Kysely, Selectable, Transaction } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
+import { employedBetween, monthDays } from '../../database/employment';
 import type { SettingsSnapshot } from '../settings';
 import {
   CONTRACT_TERM_TEXT,
@@ -287,9 +288,13 @@ export function readPayslipRow(row: Selectable<DB['payslips']>): PayslipRecord {
 export class PayrollRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
 
-  async listEligibleEmployees(): Promise<Array<{ uuid: string; username: string; name: string }>> {
+  /**
+   * Người được tính khi tính cả kỳ. Có `month` thì chỉ người có làm ít nhất một ngày trong tháng (R2: ngoài thời gian làm
+   * việc thì không vắng, không lương); cùng tập với "chưa có phiếu" của bước Phê duyệt kỳ.
+   */
+  async listEligibleEmployees(month?: string): Promise<Array<{ uuid: string; username: string; name: string }>> {
     if (!this.qb) return [];
-    const rows = await this.qb
+    let query = this.qb
       .selectFrom('staff')
       .select(['uuid', 'username', 'name'])
       .where('locked_at', 'is', null)
@@ -298,8 +303,12 @@ export class PayrollRepository {
           eb('payroll_subject', '=', 1),
           eb.and([eb('payroll_subject', 'is', null), eb('role', '<>', 'admin')])
         ])
-      )
-      .execute();
+      );
+    if (month) {
+      const { from, to } = monthDays(month);
+      query = query.where(employedBetween(from, to));
+    }
+    const rows = await query.execute();
 
     return rows.map(r => ({
       uuid: r.uuid || r.username,

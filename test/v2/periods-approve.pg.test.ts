@@ -105,6 +105,50 @@ test('approve is blocked by unapproved payslips, pending requests and people wit
   });
 });
 
+// R2 (06/11): "chưa có phiếu" chỉ tính người có làm việc ít nhất một ngày trong tháng (vào làm ≤ cuối tháng, chưa nghỉ
+// việc trước đầu tháng); ngoài thời gian làm việc thì không vắng, không lương.
+test('people not employed on any day of the month never count as without a payslip', async t => {
+  await withTempDb(t, 'periods_appr', async (db, client) => {
+    const f = await ready(db, client);
+    await approveAll(f);
+    await client.query(
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid, start_date, resigned_on)
+       VALUES ('chi', 'Chi vào 11/11', 'nv', 1, 'x', $1, 'long', 'uuid-chi', '2026-11-11', NULL),
+              ('dung', 'Dũng nghỉ 30/09', 'nv', 1, 'x', $1, 'long', 'uuid-dung', '2026-01-05', '2026-09-30'),
+              ('em', 'Em vào 31/10', 'nv', 1, 'x', $1, 'long', 'uuid-em', '2026-10-31', NULL),
+              ('phuong', 'Phương nghỉ 01/10', 'nv', 1, 'x', $1, 'long', 'uuid-phuong', '2026-01-05', '2026-10-01'),
+              ('giang', 'Giang nghỉ 30/09 (có khoảng trắng)', 'nv', 1, 'x', $1, 'long', 'uuid-giang', ' ', ' 2026-09-30 '),
+              ('hoa', 'Hoa ngày vào sai dạng', 'nv', 1, 'x', $1, 'long', 'uuid-hoa', '11/11/2026', '')`,
+      [new Date().toISOString()]
+    );
+    // Ngày trống hay sai dạng coi như không ghi (Hoa vẫn tính); ngày có khoảng trắng hai đầu vẫn đọc được (Giang không tính).
+    const view = await f.periods.view(MONTH);
+    assert.deepEqual(view.actions.approve?.blockers?.missingSlips, [
+      { username: 'em', name: 'Em vào 31/10' },
+      { username: 'hoa', name: 'Hoa ngày vào sai dạng' },
+      { username: 'phuong', name: 'Phương nghỉ 01/10' }
+    ]);
+  });
+});
+
+test('a full run skips people not employed in the month, so Chi (from 11/11) never blocks October', async t => {
+  await withTempDb(t, 'periods_appr', async (db, client) => {
+    await client.query(
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid, start_date)
+       VALUES ('chi', 'Chi vào 11/11', 'nv', 1, 'x', $1, 'long', 'uuid-chi', '2026-11-11')`,
+      [new Date().toISOString()]
+    );
+    const f = await ready(db, client);
+    const slips = await client.query(
+      `SELECT p.username FROM payslips p JOIN payroll_runs r ON r.id = p.run_id WHERE r.month = $1 ORDER BY p.username`,
+      [MONTH]
+    );
+    assert.deepEqual(slips.rows.map(r => r.username), ['pg-user', 'pg-user-2']);
+    await approveAll(f);
+    assert.equal((await f.periods.approve(MONTH, 'admin')).status, 'approved');
+  });
+});
+
 test('a pending request of another month does not block', async t => {
   await withTempDb(t, 'periods_appr', async (db, client) => {
     const f = await ready(db, client);
