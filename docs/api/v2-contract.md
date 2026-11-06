@@ -1533,8 +1533,8 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | `employmentStatus` | Trạng thái nhân sự (`staff.contract_status`): `probation` (thử việc), `official` (chính thức); `null` khi trống hoặc giá trị khác. Khác với `contractStatusText`, vốn là nhãn hợp đồng |
   | `remainingAnnualLeaveDays` | **Đổi nghĩa**: Phép năm còn lại tính tới hết tháng của phiếu, hoặc `null` khi loại nhân sự không có tài khoản phép. Xem "Phép năm còn lại" bên dưới. Trước đây luôn là 22 |
   | `ot15Hours`, `ot20Hours`, `ot30Hours`, `totalOtHours` | **Đổi nghĩa**: giờ OT theo hệ số ×1,5 / ×2 / ×3 và tổng, cộng từ phần giờ của các dòng ngày; không làm tròn nên có thể lẻ (ví dụ 1,3333333333333333). Không còn lấy từ `otHours` của đơn |
-  | `otPayTotal` | **Đổi nghĩa**: tổng `otPay` của các dòng ngày, nên phiếu cộng ra đúng bảng chấm công |
-  | `ot15Pay`, `ot20Pay`, `ot30Pay` | **Mới**: tiền OT theo hệ số ×1,5 / ×2 / ×3, cộng từ các dòng ngày; mỗi dòng làm tròn mỗi hệ số một lần. Ba số cộng lại bằng `otPayTotal`. Đi cùng giờ `ot15Hours`, `ot20Hours`, `ot30Hours` |
+  | `otPayTotal` | **Đổi nghĩa (06/11, D1)**: `ot15Pay` + `ot20Pay` + `ot30Pay`. Không còn là tổng `otPay` của các dòng ngày: `otPay` của dòng chỉ để xem, nên tổng các dòng có thể lệch phiếu vài đồng |
+  | `ot15Pay`, `ot20Pay`, `ot30Pay` | **Mới**: tiền OT theo hệ số ×1,5 / ×2 / ×3. **Đổi nghĩa (06/11, D1)**: mỗi khoản là một công thức trên giờ OT đúng của cả tháng, làm tròn một lần: `round(lương cơ bản × giờ × hệ số ÷ (công chuẩn × 8))`, ví dụ hai dòng 50 phút ×1,5 → 72.115 (không phải 2 × 36.058). Ba số cộng lại bằng `otPayTotal`. Đi cùng giờ `ot15Hours`, `ot20Hours`, `ot30Hours`. Mọi khoản tiền khác của phiếu cũng theo luật một công thức, làm tròn một lần (spec chấm công 8.1); tiền trên dòng ngày chỉ để xem |
   | `workPay` | **Mới**: tiền ngày công và ngày nghỉ hưởng lương = `baseSalaryActual` + `paidLeavePay` + `leaveSettlementPay` + `isatPay` + `holidayPay` (chưa gồm bù, OT, phụ cấp, KPI, trừ giờ) |
   | `leaveSettlementPay`, `holidayPay`, `holidayPaidDays` | Quyết toán phép dư (hiện luôn 0, chưa có luật), tiền nghỉ lễ hưởng lương và số ngày lễ hưởng lương; FE hiện thẳng |
   | `lateMinutes` | **Mới**: tổng phút đi muộn **quá ân hạn** cộng từ các ngày của tháng (`lateMinutes` của dòng ngày chấm công). Lần muộn trong ân hạn không được ghi nên không có trong số này; 0 khi không có |
@@ -1546,6 +1546,7 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | `dailyLines[].inOutText` | **Đổi nghĩa**: dòng ca `NORMAL`, `FLEX`, `NIGHT` là `${checkIn ?? '—'}–${checkOut ?? '—'}`, ví dụ `08:12–17:05`, `08:12–—`. Trước đây ghi cứng `08:00–17:00` hoặc `22:00–06:00`. Dòng nghỉ giữ chữ cũ: `Hưởng lương ngày` (`LEAVE`, `ISAT`), `Không tính lương` (`UNPAID`) |
   | `dailyLines[].shiftLabel` | Nhãn ca do BE dựng: `Normal`, `Flex +20%`, `Night +40%` (phần trăm theo cấu hình, hiện đúng số lẻ nếu có), `Nghỉ phép`, `iSAT`, `Không lương`. FE hiển thị nguyên chữ này |
   | `dailyLines[].otHours`, `dailyLines[].otPay` | **Đổi nghĩa**: giờ OT và tiền OT thật của dòng ngày (trước đây luôn 0). Cách tính ở "Tiền OT" bên dưới |
+  | `dailyLines[].deductionMinutes` | **Mới (06/11)**: phút bị trừ đúng của ngày (`deductionHours` là số hiện, 2 chữ số lẻ). Tiền trừ của phiếu và tạm ứng tính từ số này |
   | `dailyLines[].dailyTotal` | **Đổi nghĩa**: `daySalary` + `flexAllowancePay` + `nightAllowancePay` + `offPaidPay` + `otPay` − `deductionAmount` (nay có `otPay`) |
   | `dailyLines[].dayOfWeekText` | **Đổi nghĩa**: thứ thật của `date` theo lịch Việt Nam, cho mọi loại dòng: `Thứ 2` … `Thứ 7`, `Chủ nhật`. Ví dụ `2026-10-01` là `Thứ 5`, `2026-10-04` là `Chủ nhật`. Trước đây là chuỗi cố định `Thứ 2 - Thứ 6` hoặc `Thứ 7` |
   | `taxMethod` | Cách tính thuế, chỉ theo nhãn hợp đồng: "HĐLĐ từ 3 tháng" → `progressive` (lũy tiến); "Dưới 3 tháng" → `flat10` (10% của `grossIncome`, chỉ khi `grossIncome` ≥ 5.000.000; dưới mức đó thuế là 0). Cờ `tax_on` và `deduct_on` của nhân sự bị bỏ qua (không có công tắc tắt thuế hay giảm trừ gia cảnh) và ngày bắt đầu hợp đồng không ảnh hưởng thuế. `none` chỉ gặp ở phiếu dựng tay không chọn cách tính thuế; việc tính lương không bao giờ cho ra `none` |
@@ -1596,6 +1597,7 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
     "otHours": 1.3333333333333333,
     "otPay": 57692,
     "deductionHours": 0,
+    "deductionMinutes": 0,
     "deductionAmount": 0,
     "dailyTotal": 288461
   }

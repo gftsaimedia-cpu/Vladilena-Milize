@@ -105,6 +105,7 @@ export function payslipLine(
     otHours: 0,
     otPay: 0,
     deductionHours: 0,
+    deductionMinutes: 0,
     deductionAmount: 0,
     dailyTotal: 0,
     kind,

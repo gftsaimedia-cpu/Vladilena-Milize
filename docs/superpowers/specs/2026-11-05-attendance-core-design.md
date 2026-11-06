@@ -242,12 +242,31 @@ Mỗi lần gọi:
 Phần này dựng trên `payroll.service.ts` của phiên payslip-print (mục 9.2).
 
 - Đầu `generateMonthlyPayslip`: `refreshMonth` (T6). Sau đó đọc các dòng ngày của tháng. Không còn đọc `isat_registrations`.
-- **Dòng ngày trên phiếu:** mọi dòng trừ `OUTSIDE`, `REST` và `PENDING`.
+- **Dòng ngày trên phiếu:** mọi dòng trừ `OUTSIDE`, `REST` và `PENDING`. Tiền trên dòng chỉ để xem (xem "Một công thức, làm tròn một lần" bên dưới).
   - `daySalary` = `pay_units` × lương ngày.
   - `deductionAmount` = làm tròn(`deduction_minutes` ÷ 60 × lương giờ).
   - Tiền bù = làm tròn(`makeup_minutes` ÷ 60 × lương giờ), nằm trên dòng của ngày bù (L14).
   - Phụ cấp flex/đêm theo dòng: chỉ khi `counts_as_workday`.
   - OT giữ cách của payslip-print: giờ có mặt trong khung OT × hệ số, đo trên các dòng `PRESENT`, `EXTRA`, `HOLIDAY`.
+- **Một công thức, làm tròn một lần (D1, D2; người dùng chốt 06/11).** Mỗi khoản tiền của phiếu là một công thức đầy đủ từ lương cơ bản, tính trên số lượng CHƯA làm tròn, và làm tròn đúng một lần ở kết quả của khoản đó (`domain/money.ts`, `moneyOf`).
+  - Không bao giờ nhân đơn giá đã làm tròn (230.769 một ngày, 28.846 một giờ) với số lượng, và không cộng các số tiền từng ngày đã làm tròn.
+  - Tiền từng ngày trên dòng (`daySalary`, `makeupPay`, `otPay`, `flexAllowancePay`, `nightAllowancePay`, `offPaidPay`, `deductionAmount`, `dailyTotal`) chỉ để xem; tổng thu nhập, các dòng tổng và tạm ứng không đọc chúng. Dòng mang thêm `deductionMinutes` (phút trừ đúng) để phiếu và tạm ứng đọc.
+  - Các mức chính sách (`*Policy`) vẫn làm tròn riêng vì được hiện riêng, nhưng không khoản thực tế nào nhân từ chúng.
+
+  | Khoản | Công thức (làm tròn một lần) |
+  |---|---|
+  | `baseSalaryActual`, `paidLeavePay`, `isatPay`, `holidayPay` | lương cơ bản × số ngày ÷ công chuẩn |
+  | `makeupPay` | lương cơ bản × (Σ `makeup_minutes` của tháng ÷ 60) ÷ (công chuẩn × 8) |
+  | `lateEarlyDeductionAmount` | −(lương cơ bản × (Σ `deduction_minutes` ÷ 60) ÷ (công chuẩn × 8)); `lateEarlyHours` chỉ là số hiện, 2 chữ số lẻ |
+  | `ot15Pay`, `ot20Pay`, `ot30Pay` | lương cơ bản × giờ OT của loại ngày đó × hệ số ÷ (công chuẩn × 8); `otPayTotal` = tổng ba khoản |
+  | `flexAllowanceActual` | % flex × lương cơ bản × Σ min(8, `work_hours`) của các ngày flex tính công ÷ (công chuẩn × 8) |
+  | `nightAllowanceActual` | % đêm × lương cơ bản × số ngày đêm tính công ÷ công chuẩn |
+  | `offPaidNightActual` | Σ tiền nghỉ giữa ca đêm từng ngày tính trên số đúng (ca ≥ 8h: 1 + % đêm giờ; ca ngắn: bù phần thiếu, tối đa 1 giờ và tối đa số giờ trừ ĐÚNG của ngày đó), làm tròn một lần |
+  | `attendanceAllowanceActual`, `travelAllowanceActual` | % × lương cơ bản × số ngày đi làm ÷ công chuẩn |
+  | Phần ca đêm của `taxExemptIncome` | Σ min(30% × `work_hours`, 8 × % đêm) giờ của các ngày đêm tính công × lương giờ, làm tròn một lần |
+  | Tạm ứng (D2) | 80% × (lương cơ bản × Σ `pay_units` ÷ công chuẩn − lương cơ bản × (Σ `deduction_minutes` ÷ 60) ÷ (công chuẩn × 8)), trên các dòng 01–15 ca NORMAL/FLEX/NIGHT có lương ngày |
+
+  - Ví dụ: bù 8 giờ chia hai khung 4 giờ = 6.000.000 × 8 ÷ 208 = 230.769 (hai dòng vẫn hiện 115.385 mỗi dòng; cộng lại là 230.770, sai). Tạm ứng của Bình, 10 ngày công 01–15, không trừ: 0,8 × 6.000.000 × 10 ÷ 26 = 1.846.153,85 → 1.846.154. Trừ 35 phút: −6.000.000 × (35 ÷ 60) ÷ 208 = −16.827.
 - **Đếm:**
   - Ngày đi làm (lương cơ bản thực tế, phụ cấp đi lại, tỉ lệ chuyên cần) = số dòng `counts_as_workday`.
   - Ngày nghỉ cho chuyên cần = số dòng `counts_as_day_off` + số ngày bù thiếu (L16): nợ = 480 × số dòng `LEAVE_MAKEUP`; đã bù = Σ `makeup_minutes` của tháng; thiếu = max(0, nợ − đã bù); số ngày = min(số dòng `LEAVE_MAKEUP`, ⌈thiếu ÷ 480⌉).
@@ -393,3 +412,5 @@ Chỉ chạy test. Không chạy typecheck hay prettier, theo quy định của 
 | T4 18/11 | Phép năm đã duyệt | `LEAVE_PAID`, ngày nghỉ | 230.769 |
 
 Ngày nghỉ cho chuyên cần: 05/11 và 18/11 → 2. Nghỉ có bù đã bù đủ → không đếm. Ngày 04/11 không đếm (L17). Với ngưỡng 3 thì Bình giữ chuyên cần.
+
+Tiền bù trên phiếu (`makeupPay`): 480 phút bù của tháng tính một lần = 6.000.000 × (480 ÷ 60) ÷ (26 × 8) = **230.769**. Hai dòng 12/11 và 16/11 vẫn hiện 115.385 mỗi dòng (chỉ để xem); phiếu không cộng 115.385 + 115.385 = 230.770 (D1, mục 8.1).

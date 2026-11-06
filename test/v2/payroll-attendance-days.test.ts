@@ -130,17 +130,19 @@ describe('EmployeePayslip counts the day lines by their row fields', () => {
     assert.equal(slipOf([...worked(19), madeUp(480), leave, ...twoOff]).attendanceAllowanceActual, ATTENDANCE_20);
   });
 
-  it('adds the makeup pay of the lines to the gross income (P8)', () => {
+  // D1: the makeup minutes of the month at the hourly rate, rounded once: 6.000.000 x (480 / 60) / 208 = 230.769,23. The
+  // lines show 115.385 each, which summed gave 230.770 before.
+  it('adds the makeup pay of the month to the gross income (P8, D1)', () => {
     const plain = slipOf(worked(20));
     const withMakeup = slipOf([
       ...worked(18),
       payslipLine('PRESENT', { date: '2026-11-12', makeupMinutes: 240, makeupPay: 115_385 }),
       payslipLine('PRESENT', { date: '2026-11-16', makeupMinutes: 240, makeupPay: 115_385 })
     ]);
-    assert.equal(withMakeup.makeupPay, 230_770);
-    assert.equal(withMakeup.toJSON().makeupPay, 230_770);
+    assert.equal(withMakeup.makeupPay, 230_769);
+    assert.equal(withMakeup.toJSON().makeupPay, 230_769);
     assert.equal(withMakeup.actualWorkDays, plain.actualWorkDays);
-    assert.equal(withMakeup.grossIncome, plain.grossIncome + 230_770);
+    assert.equal(withMakeup.grossIncome, plain.grossIncome + 230_769);
   });
 });
 

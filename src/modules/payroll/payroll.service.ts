@@ -435,7 +435,7 @@ export class PayrollService {
   /** Số tiền tạm ứng của tháng `month`: 80% lương các ngày công 01–15 theo bảng lương tính ngay lúc này. */
   async advanceQuote(employeeId: string, month: string): Promise<AdvanceQuote> {
     const payslip = await this.generateMonthlyPayslip(employeeId, month);
-    return advanceQuoteOf(payslip.dailyLines, month);
+    return advanceQuoteOf(payslip.dailyLines, month, payslip.baseSalaryPolicy, payslip.standardWorkdays);
   }
 
   async generateMonthlyPayslip(employeeId: string, month: string): Promise<EmployeePayslip> {
@@ -528,7 +528,6 @@ export class PayrollService {
     const dailyLines: DailyAttendanceLineProps[] = [];
     let totalDeductionHours = 0;
     let lateMinutes = 0;
-    const otPayByRate = { x15: 0, x20: 0, x30: 0 };
     const dayWarnings: PayrollWarning[] = [];
 
     for (const row of shownRows) {
@@ -538,6 +537,8 @@ export class PayrollService {
       const shiftType = row.shift?.type ?? 'NORMAL';
       const shiftCode = onShift ? shiftType : (KIND_CODE[kind] ?? kind);
       const paysDay = row.payUnits === 1;
+      // The money of the line is display only, each amount rounded on its own; EmployeePayslip pays every item in one
+      // formula on the quantities (pay units, minutes, hours) and rounds it once (D1).
       const daySalary = Math.round(row.payUnits * dayRate);
       // The deduction is the row's: after the grace, in 30-minute blocks, and only on an approved explanation (L4).
       const deductionHours = row.deductionMinutes / 60;
@@ -572,10 +573,8 @@ export class PayrollService {
 
       const lineShares = otSharesByLine.get(row.workDate) ?? [];
       const otHours = lineShares.reduce((sum, share) => sum + share.hours, 0);
+      // Display only: the payslip pays each kind of day in one formula on the month's hours of that kind (D1).
       const linePayByRate = otLinePayByRate(lineShares, hourRate);
-      otPayByRate.x15 += linePayByRate.x15;
-      otPayByRate.x20 += linePayByRate.x20;
-      otPayByRate.x30 += linePayByRate.x30;
       const otPay = linePayByRate.x15 + linePayByRate.x20 + linePayByRate.x30;
 
       const dailyTotal =
@@ -597,6 +596,7 @@ export class PayrollService {
         otHours,
         otPay,
         deductionHours: Math.round(deductionHours * 100) / 100,
+        deductionMinutes: row.deductionMinutes,
         deductionAmount,
         dailyTotal,
         kind,
@@ -641,7 +641,6 @@ export class PayrollService {
       baseSalaryPolicy,
       dailyLines,
       otHoursByRate,
-      otPayByRate,
       otRates: rules.otRates,
       rates: {
         kpiWeights: rules.kpiWeights,

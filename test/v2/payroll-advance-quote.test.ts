@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { advanceQuoteOf, type DailyAttendanceLineProps } from '../../src/modules/payroll/domain';
 
-const DAY_SALARY = 6_000_000 / 26;
+const BASE = 6_000_000;
+const STD = 26;
+const DAY_SALARY = BASE / STD;
 
 function line(date: string, over: Partial<DailyAttendanceLineProps> = {}): DailyAttendanceLineProps {
   return {
@@ -19,6 +21,7 @@ function line(date: string, over: Partial<DailyAttendanceLineProps> = {}): Daily
     otHours: 0,
     otPay: 0,
     deductionHours: 0,
+    deductionMinutes: 0,
     deductionAmount: 0,
     dailyTotal: DAY_SALARY,
     kind: 'PRESENT',
@@ -55,7 +58,7 @@ function lines(firstOver: Partial<DailyAttendanceLineProps> = {}): DailyAttendan
 
 describe('Số tiền tạm ứng (80% lương ngày công 01–15)', () => {
   it('quote sums work days 01–15', () => {
-    assert.deepEqual(advanceQuoteOf(lines(), '2026-11'), {
+    assert.deepEqual(advanceQuoteOf(lines(), '2026-11', BASE, STD), {
       amount: 2_215_385,
       workDays: 12,
       from: '2026-11-01',
@@ -64,6 +67,18 @@ describe('Số tiền tạm ứng (80% lương ngày công 01–15)', () => {
   });
 
   it('deductions reduce the quote', () => {
-    assert.equal(advanceQuoteOf(lines({ deductionAmount: 7212 }), '2026-11').amount, 2_209_615);
+    assert.equal(advanceQuoteOf(lines({ deductionMinutes: 15, deductionAmount: 7212 }), '2026-11', BASE, STD).amount, 2_209_615);
+  });
+
+  it('D2: reads pay units and minutes, never the rounded day amounts of the lines', () => {
+    // Ten work days as the payslip shows them (daySalary rounded to 230.769, one 30-minute deduction shown as 14.423).
+    const shown = Array.from({ length: 10 }, (_, i) =>
+      line(`2026-11-${String(i + 2).padStart(2, '0')}`, { daySalary: 230_769, dailyTotal: 230_769 })
+    );
+    // 0,8 x 6.000.000 x 10 / 26 = 1.846.153,85 -> 1.846.154 (summing the shown amounts gave 0,8 x 2.307.690 = 1.846.152).
+    assert.equal(advanceQuoteOf(shown, '2026-11', BASE, STD).amount, 1_846_154);
+    shown[1] = { ...shown[1], deductionMinutes: 30, deductionHours: 0.5, deductionAmount: 14_423 };
+    // 0,8 x 6.000.000 x (10 - 30/480) / 26 = 1.834.615,38 (the shown amounts gave 1.834.614).
+    assert.equal(advanceQuoteOf(shown, '2026-11', BASE, STD).amount, 1_834_615);
   });
 });

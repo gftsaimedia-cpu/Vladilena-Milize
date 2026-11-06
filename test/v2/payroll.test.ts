@@ -589,7 +589,8 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     const exemptSlip = (
       dailyLines: Array<typeof nightLine>,
       otHoursByRate?: { x15?: number; x20?: number; x30?: number },
-      nightAllowancePct = 40
+      nightAllowancePct = 40,
+      over: Partial<ConstructorParameters<typeof EmployeePayslip>[0]> = {}
     ) =>
       new EmployeePayslip({
         employeeId: 'exempt',
@@ -603,7 +604,8 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
         nightAllowancePct,
         allowanceRates: SEED_RATES.nv,
         dailyLines,
-        otHoursByRate
+        otHoursByRate,
+        ...over
       });
 
     it('exempts the OT premium of each rate and, per night line, up to 30% of the hourly pay', () => {
@@ -613,7 +615,9 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
       // 4 h at 150% x 0.5 + 3 h at 200% x 1 + 1 h at 300% x 2 = 7 hourly rates = 201,923.08 -> 201,923.
       // Night: per line min(8 h x 28,846.15 x 0.3 = 69,230.77, allowance 92,308) = 69,230.77; 2 lines = 138,461.54
       // -> 138,462. The 92,308 allowance paid per night is larger, so only the 30% part is exempt.
-      assert.equal(slip.nightAllowanceActual, 184_616);
+      // D1: the night allowance is 0.4 x 6,000,000 x 2 nights / 26 = 184,615.38 -> 184,615, rounded once (the two lines
+      // show 92,308 each, which summed gave 184,616 before).
+      assert.equal(slip.nightAllowanceActual, 184_615);
       assert.equal(slip.taxExemptIncome, 340_385);
     });
 
@@ -626,13 +630,18 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
       const slip = exemptSlip(lines, undefined, 60);
 
       // Per line min(8 x 28,846.15 x 0.3 = 69,230.77, 138,462) = 69,230.77; 20 lines = 1,384,615.38 -> 1,384,615.
-      assert.equal(slip.nightAllowanceActual, 2_769_240);
+      // D1: the night allowance is 0.6 x 6,000,000 x 20 nights / 26 = 2,769,230.77 -> 2,769,231, rounded once (20 lines
+      // of 138,462 summed gave 2,769,240 before: 20 x 0.46 of per-line rounding).
+      assert.equal(slip.nightAllowanceActual, 2_769_231);
       assert.equal(slip.taxExemptIncome, 1_384_615);
     });
 
     it('exempts nothing for a night shift that paid no allowance', () => {
-      // A night day that is not a work day pays no night allowance, so nothing is exempt.
-      const slip = exemptSlip([{ ...nightLine, nightAllowancePay: 0 }]);
+      // A night day that is not a work day pays no night allowance, so nothing is exempt. The allowance comes from the
+      // row fields (D1), so the line is one that does not count as a work day.
+      const slip = exemptSlip([
+        { ...nightLine, payUnits: 0, countsAsWorkday: false, daySalary: 0, nightAllowancePay: 0, dailyTotal: 0 }
+      ]);
       assert.equal(slip.taxExemptIncome, 0);
     });
 
@@ -644,8 +653,15 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     });
 
     it('caps the exemption at the allowance when that is lower than 30% of the hourly pay', () => {
-      const slip = exemptSlip([{ ...nightLine, nightAllowancePay: 50_000 }]);
-      assert.equal(slip.taxExemptIncome, 50_000);
+      // A night rate of 20% (a level override): the allowance 0.2 x 230,769.23 = 46,153.85 is below 8 h x 28,846.15 x 0.3
+      // = 69,230.77, so the exemption is the allowance, exact, rounded once -> 46,154. (D1: the allowance is the rate
+      // of the row, no longer an amount written on the line; this test used a 50,000 line amount before.)
+      const slip = exemptSlip([{ ...nightLine, nightAllowancePay: 46_154 }], undefined, 40, {
+        employeeType: 'tts',
+        allowanceRates: { ...SEED_RATES.tts, levelNightPct: 20 }
+      });
+      assert.equal(slip.nightAllowanceActual, 46_154);
+      assert.equal(slip.taxExemptIncome, 46_154);
     });
 
     it('exempts nothing from lines of other shifts', () => {
@@ -1070,7 +1086,9 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
     assert.equal(slip.otPayTotal, 0);
   });
 
-  it('adds the weekday and the Saturday OT: the total is the sum of the line pay', async () => {
+  // D1: the total is the sum of the three kinds of day, each one formula on its hours. With one line per kind, as
+  // here, the lines add up to the same; in general they may differ by a few dong (the line amounts are display only).
+  it('adds the weekday and the Saturday OT: the total is the sum of the kinds of day', async () => {
     const slip = await generate({
       days: [punch('2026-10-07', '08:12', '19:20'), punch('2026-10-10', '08:00', '20:30')],
       requests: [overtime('ot-1', '2026-10-07'), overtime('ot-2', '2026-10-10')]

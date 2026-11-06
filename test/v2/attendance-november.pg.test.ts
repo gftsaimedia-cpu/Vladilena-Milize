@@ -204,13 +204,14 @@ describe('Ví dụ đầu–cuối tháng 11/2026 của Bình (spec 13) trên Po
       assert.deepEqual(summary('2026-11-10'), { kind: 'LEAVE_MAKEUP', payUnits: 0, daySalary: 0 });
       assert.equal(line('2026-11-10')?.countsAsDayOff, false);
 
-      // T5 12/11 và T2 16/11: đi làm đủ ngày, thêm 240 phút bù trả x1 lương giờ, làm tròn từng dòng.
+      // T5 12/11 và T2 16/11: đi làm đủ ngày, thêm 240 phút bù trả x1 lương giờ; mỗi dòng hiện 115.385 (chỉ để xem).
       for (const date of ['2026-11-12', '2026-11-16']) {
         assert.deepEqual(summary(date), { kind: 'PRESENT', payUnits: 1, daySalary: 230_769 }, date);
         assert.deepEqual([line(date)?.makeupMinutes, line(date)?.makeupPay], [240, 115_385], date);
         assert.equal(line(date)?.dailyTotal, 346_154, date);
       }
-      assert.equal(slip.makeupPay, 230_770);
+      // D1: tiền bù của phiếu = 6.000.000 x (480 / 60) / (26 x 8) = 230.769,23, làm tròn một lần (không cộng 2 x 115.385).
+      assert.equal(slip.makeupPay, 230_769);
 
       // CN 15/11: OT 08–12 đã duyệt -> dòng EXTRA, không lương ngày, chỉ tiền OT x2 (4 x 28.846 x 2).
       assert.deepEqual(summary('2026-11-15'), { kind: 'EXTRA', payUnits: 0, daySalary: 0 });
