@@ -8,7 +8,7 @@ export interface DetectInput {
   /** Ngày công 'YYYY-MM-DD'. */
   date: string;
   /** null trên ngày EXTRA/HOLIDAY. */
-  shift: { start: string; end: string } | null;
+  shift: { start: string; end: string; startDate?: string } | null;
   /** Khung OT/bù đã duyệt của ngày. */
   windows: readonly TimeWindow[];
   /** Lần vào đầu tiên. */
@@ -52,7 +52,7 @@ export function spanOf(date: string, start: string, end: string): Span {
 
 /** Khung theo thời điểm. Với ca đêm, khung bắt đầu từ giờ hết ca trở xuống (trước giờ vào ca) nằm ở ngày hôm sau. */
 export function windowSpans(date: string, shift: DetectInput['shift'], windows: readonly TimeWindow[]): Span[] {
-  const overnight = shift !== null && shift.end <= shift.start;
+  const overnight = shift !== null && (shift.end <= shift.start || shift.startDate != null);
   return windows.map(w => {
     const afterMidnight = overnight && w.start < shift.start && w.start <= shift.end;
     return spanOf(afterMidnight ? addDaysText(date, 1) : date, w.start, w.end);
@@ -77,7 +77,8 @@ export function expectedBounds(
   const starts = spans.map(s => s.start);
   const ends = spans.map(s => s.end);
   if (shift) {
-    const own = spanOf(date, shift.start, shift.end);
+    const shiftStartDate = shift.startDate ?? date;
+    const own = spanOf(shiftStartDate, shift.start, shift.end);
     starts.push(own.start);
     ends.push(own.end);
   }
@@ -106,7 +107,8 @@ export function detectCases(input: DetectInput): DetectResult {
   // Không có ca lẫn khung thì không có mốc nào để so.
   if (!bounds) return { cases: [], lateMinutes: 0, earlyMinutes: 0 };
 
-  const shiftSpan = shift ? spanOf(date, shift.start, shift.end) : null;
+  const shiftStartDate = shift?.startDate ?? date;
+  const shiftSpan = shift ? spanOf(shiftStartDate, shift.start, shift.end) : null;
   const spans = windowSpans(date, shift, windows);
   const hasWindowBefore = shiftSpan ? spans.some(s => s.start < shiftSpan.start) : false;
   const hasWindowAfter = shiftSpan ? spans.some(s => s.end > shiftSpan.end) : false;

@@ -154,7 +154,7 @@ describe('Một ngày công', () => {
   it('carries times, late minutes, explanationStatus and cases', () => {
     const row = ts(D, { actualCheckIn: '08:12', cases: [LATE_CASE], explanationStatus: 'APPROVED', deductionMinutes: 30, metrics: { lateMinutes: 12 } });
     assert.deepEqual(kindOf(row), {
-      date: D, kind: 'late', in: '08:12', out: '17:05', lateMinutes: 12, explanationStatus: 'approved', cases: [LATE_CASE]
+      date: D, halfShift: null, kind: 'late', in: '08:12', out: '17:05', lateMinutes: 12, explanationStatus: 'approved', cases: [LATE_CASE]
     });
   });
 
@@ -170,12 +170,12 @@ describe('Một ngày công', () => {
   });
 
   it('a day without a row has no explanation and no cases', () => {
-    assert.deepEqual(kindOf(undefined, '2026-11-04'), { date: '2026-11-04', kind: 'absent', in: null, out: null, lateMinutes: 0, explanationStatus: 'none', cases: [] });
+    assert.deepEqual(kindOf(undefined, '2026-11-04'), { date: '2026-11-04', halfShift: null, kind: 'absent', in: null, out: null, lateMinutes: 0, explanationStatus: 'none', cases: [] });
   });
 
   it('a leave day shows no punches and no late minutes', () => {
     assert.deepEqual(kindOf(bare(D, 'LEAVE_PAID')), {
-      date: D, kind: 'leave', leave: 'paid', in: null, out: null, lateMinutes: 0, explanationStatus: 'none', cases: []
+      date: D, halfShift: null, kind: 'leave', leave: 'paid', in: null, out: null, lateMinutes: 0, explanationStatus: 'none', cases: []
     });
   });
 });
@@ -211,6 +211,18 @@ describe('Công tháng', () => {
       '2026-11-04'
     );
     assert.equal(m.totals.workDays, 1);
+  });
+
+  it('workDays counts half-shift rows with weight 0.5 (11 normal + 1 half-shift = 11.5)', () => {
+    const list = Array.from({ length: 11 }, (_, i) => ts(`2026-11-${String(i + 2).padStart(2, '0')}`));
+    list.push({
+      ...ts('2026-11-15'),
+      halfShift: 'FIRST',
+      payUnits: 0.5,
+      countsAsWorkday: true
+    } as any);
+    const m = monthOf(list as any, '2026-11', '2026-11-30');
+    assert.equal(m.totals.workDays, 11.5);
   });
 
   it('paidLeaveDays counts LEAVE_PAID, HOLIDAY and ISAT that pay one unit (R11)', () => {

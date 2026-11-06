@@ -47,6 +47,7 @@ function timesheetFromEntry(row: TimesheetEntry): DailyTimesheet {
     explanation_status: row.explanation_status,
     explanation_request_id: row.explanation_request_id,
     pay_units: row.pay_units,
+    half_shift: row.half_shift,
     deduction_minutes: row.deduction_minutes,
     counts_as_workday: row.counts_as_workday,
     counts_as_day_off: row.counts_as_day_off,

@@ -195,6 +195,10 @@ export class RequestsRepository {
           new_shift_type: eb.ref('excluded.new_shift_type'),
           new_start_time: eb.ref('excluded.new_start_time'),
           new_end_time: eb.ref('excluded.new_end_time'),
+          half_shift_date: eb.ref('excluded.half_shift_date'),
+          half_shift_half: eb.ref('excluded.half_shift_half'),
+          half_start_time: eb.ref('excluded.half_start_time'),
+          half_end_time: eb.ref('excluded.half_end_time'),
           updated_at: eb.ref('excluded.updated_at')
         }))
       )
@@ -233,6 +237,10 @@ export class RequestsRepository {
         'new_shift_type',
         'new_start_time',
         'new_end_time',
+        dateText('half_shift_date'),
+        'half_shift_half',
+        'half_start_time',
+        'half_end_time',
         'created_at',
         'updated_at'
       ]);

@@ -3,6 +3,7 @@ import type { ShiftFrame, FrameShiftType } from './shift-frames';
 import type { SystemRequest } from './system-request';
 import { dayCapError, windowError, workMinutes, type ClockWindow, type ShiftSpan } from './time-window';
 import { formatDayMonth, lastDayOfMonth } from './working-days';
+import type { ClockRange } from '../../../common/half-shift';
 
 export type FiledBy = 'self' | 'admin';
 
@@ -71,7 +72,8 @@ export type TitleInput =
   | { kind: 'overtime'; date: string; startTime: string; endTime: string }
   | { kind: 'shift-change'; frame: ShiftFrame; startDate: string; endDate: string }
   | { kind: 'explanation'; date: string }
-  | { kind: 'advance'; month: string };
+  | { kind: 'advance'; month: string }
+  | { kind: 'half-shift-leave'; date: string; work: ClockRange };
 
 const FRAME_LABELS: Record<FrameShiftType, string> = { NORMAL: 'Normal', FLEX: 'Flex', NIGHT: 'Night' };
 
@@ -106,6 +108,8 @@ export function requestTitle(input: TitleInput): string {
       return `Giải trình ${formatDayMonth(input.date)}`;
     case 'advance':
       return `Tạm ứng lương tháng ${Number(input.month.slice(5, 7))}`;
+    case 'half-shift-leave':
+      return `Nghỉ giữa ca ${formatDayMonth(input.date)}, làm ${clockText(input.work.start)}–${clockText(input.work.end)}h`;
   }
 }
 

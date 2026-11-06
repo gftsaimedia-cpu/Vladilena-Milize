@@ -153,10 +153,10 @@ describe('toàn vẹn dữ liệu', { skip: !enabled }, () => {
     assert.equal(v.body.ok, false, JSON.stringify(v.body));
   });
 
-  it('ràng buộc DB không thể bị bypass qua API: pay_units chỉ 0/1, status hợp lệ, UNIQUE công (người, ngày)', async () => {
+  it('ràng buộc DB không thể bị bypass qua API: pay_units chỉ 0/0.5/1, status hợp lệ, UNIQUE công (người, ngày)', async () => {
     const u = env.uuid('nv1');
     await workDay(admin, u, '2026-10-05');
-    await assert.rejects(env.q(`UPDATE timesheet_entries SET pay_units = 0.5`), /pay_units|check/i);
+    await assert.rejects(env.q(`UPDATE timesheet_entries SET pay_units = 0.7`), /pay_units|check/i);
     await assert.rejects(env.q(`UPDATE timesheet_entries SET status = 'KHONG_CO'`), /check/i);
     await assert.rejects(
       env.q(`INSERT INTO timesheet_entries (id, employee_id, work_date, status, created_at, updated_at) VALUES (gen_random_uuid(), $1, '2026-10-05', 'REST', now(), now())`, [u]),
