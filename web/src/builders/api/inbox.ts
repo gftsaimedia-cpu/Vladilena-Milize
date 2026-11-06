@@ -10,7 +10,7 @@ import type { ExplanationNeeds } from '../../mock/staff-requests-types';
 export type RequestDTO = {
   id: string;
   employeeId: string;
-  type: 'LEAVE' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION' | 'ISAT';
+  type: 'LEAVE' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION' | 'ISAT' | 'HALF_SHIFT_LEAVE';
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   reason: string | null;
   createdAt: string;
@@ -30,6 +30,12 @@ export type RequestDTO = {
   changeStartDate?: string | null;
   changeEndDate?: string | null;
   isat?: { saturday?: string } | null;
+  // Nghỉ giữa ca (BE half-shift-leave): ngày, nửa nhân viên làm, khung làm và khung nghỉ, số phút cần bù (240).
+  halfShiftDate?: string | null;
+  halfShift?: 'FIRST' | 'SECOND' | null;
+  halfShiftWork?: { start: string; end: string } | null;
+  halfShiftLeave?: { start: string; end: string } | null;
+  owedMinutes?: number | null;
   dates?: string[];
 };
 
@@ -39,6 +45,7 @@ const GROUP_OF: Record<RequestDTO['type'], InboxGroup> = {
   LEAVE: 'leave',
   LEAVE_WITH_MAKEUP: 'leave',
   ISAT: 'leave',
+  HALF_SHIFT_LEAVE: 'leave',
   OVERTIME: 'ot',
   SHIFT_CHANGE: 'ot',
   EXPLANATION: 'exp',

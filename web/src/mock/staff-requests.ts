@@ -9,6 +9,7 @@ import {
   buildChoices,
   endDates,
   endHours,
+  halfShiftOf,
   leaveCountedOf,
   leaveDates,
   makeupCounter,
@@ -45,6 +46,8 @@ import type {
   RequestContext,
   LeaveDraft,
   MakeupDraft,
+  HalfShiftDraft,
+  HalfShiftDebt,
   OvertimeDraft,
   ShiftChangeDraft,
   ExplanationDraft,
@@ -116,6 +119,7 @@ const FRAME_LABEL: Record<string, string> = { NORMAL: 'Normal', FLEX: 'Flex', NI
 const KIND_LABEL: Record<RequestKind, string> = {
   leave: 'Đơn nghỉ',
   'leave-with-makeup': 'Nghỉ có làm bù',
+  'half-shift-leave': 'Nghỉ giữa ca',
   overtime: 'Làm thêm giờ',
   'shift-change': 'Đổi ca',
   explanation: 'Giải trình',
@@ -124,6 +128,7 @@ const KIND_LABEL: Record<RequestKind, string> = {
 const KIND_ICON: Record<RequestKind, RequestDetail['icon']> = {
   leave: 'leave',
   'leave-with-makeup': 'leave',
+  'half-shift-leave': 'leave',
   overtime: 'clock',
   'shift-change': 'clock',
   explanation: 'clock',
@@ -148,6 +153,11 @@ const nextMonthOf = (iso: string) => monthOf(isoOf(new Date(Date.UTC(+iso.slice(
 const prevMonthFirst = (iso: string) => isoOf(new Date(Date.UTC(+iso.slice(0, 4), monthNo(iso) - 2, 1)));
 const nowTime = () => new Date(Date.parse(MOCK_NOW) + 7 * 3600000).toISOString().slice(11, 16); // '09:40'
 const quote = (s: string) => `“${s.trim()}”`;
+// Mỗi đơn nghỉ giữa ca đã duyệt nợ 4 giờ (BE rules.halfShiftOwedMinutes).
+const HALF_SHIFT_OWED_MINUTES = 240;
+// Loại nhân sự của Nam là nv (có ot và makeup). Móc cho test: window.__mockPositionType = 'tts' thì Nam là thực tập sinh.
+const positionType = () => (globalThis as { __mockPositionType?: string }).__mockPositionType ?? 'nv';
+const HALF_SHIFT_LOCKED = 'Loại nhân sự này chưa dùng được nghỉ giữa ca';
 // Khoảng ngày trong tiêu đề: '13/11', '13–16/11', '30/11–02/12' (spec 2.4).
 const rangeText = (a: string, b: string) =>
   a === b ? ddmm(a) : monthOf(a) === monthOf(b) ? `${a.slice(8, 10)}–${ddmm(b)}` : `${ddmm(a)}–${ddmm(b)}`;
@@ -195,7 +205,7 @@ function claimOn(date: string): ContextDay['claim'] {
   for (const e of live())
     for (const c of e.claims) if (c.date === date) found.push({ status: c.status, pending: statusOf(e) === 'pend' });
   // Đơn nghỉ chiếm chỗ của đổi ca (BE planClaims): ngày nghỉ thắng.
-  const rank = (s: ClaimStatus) => ['LEAVE', 'LEAVE_WITH_MAKEUP', 'ISAT', 'SHIFT_CHANGE'].indexOf(s);
+  const rank = (s: ClaimStatus) => ['LEAVE', 'LEAVE_WITH_MAKEUP', 'ISAT', 'HALF_SHIFT', 'SHIFT_CHANGE'].indexOf(s);
   return found.sort((a, b) => rank(a.status) - rank(b.status))[0] ?? null;
 }
 
@@ -242,20 +252,45 @@ function contextDay(date: string): EngineCtx['days'][number] {
   return { date, workday: dowOf(date) !== 0, shift, holiday: null, claim, hours: off ? [] : hoursOf(shift, windowsOn(date)) };
 }
 
+/**
+ * Xếp khung OT (chờ và đã duyệt, phút đăng ký) vào nợ nghỉ giữa ca của tháng như BE allocateHalfShiftDebt: nợ là 240 phút mỗi
+ * đơn nghỉ giữa ca đã duyệt; khung xét theo ngày rồi giờ bắt đầu, chỉ trả được nợ của các đơn từ ngày khung trở về trước.
+ * Trả nợ của tháng và số phút OT thật (phần khung không trả nợ).
+ */
+function halfShiftDebtOf(month: string, ot: Entry[]): { debt: HalfShiftDebt; realOtMinutes: number } {
+  const events = live()
+    .filter(e => e.kind === 'half-shift-leave' && statusOf(e) === 'done' && e.month === month)
+    .map(e => e.claims[0].date);
+  const pieces = ot.flatMap(e => e.windows).sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
+  let repaid = 0;
+  let realOtMinutes = 0;
+  for (const w of pieces) {
+    const minutes = (w.end - w.start) * 60;
+    const owedSoFar = events.filter(date => date <= w.date).length * HALF_SHIFT_OWED_MINUTES;
+    const part = Math.min(Math.max(0, owedSoFar - repaid), minutes);
+    repaid += part;
+    realOtMinutes += minutes - part;
+  }
+  const owedMinutes = events.length * HALF_SHIFT_OWED_MINUTES;
+  return { debt: { owedMinutes, registeredMinutes: repaid, remainingMinutes: owedMinutes - repaid }, realOtMinutes };
+}
+
 function monthOfContext(month: string): ContextMonth {
   const seed = MONTH_SEED[month] ?? { otMinutes: 0, hasOvertime: false };
   const entries = live().filter(e => e.month === month);
   const ot = entries.filter(e => e.kind === 'overtime');
   const otMinutes =
     seed.otMinutes + ot.reduce((sum, e) => sum + e.windows.reduce((s, w) => s + (w.end - w.start) * 60, 0), 0);
+  const { debt, realOtMinutes } = halfShiftDebtOf(month, ot);
   return {
     month,
     closed: month < FIRST_OPEN_MONTH,
     otMinutes,
     otCapMinutes: OT_CAP_MINUTES,
     otLeftMinutes: Math.max(0, OT_CAP_MINUTES - otMinutes),
-    hasOvertime: seed.hasOvertime || ot.length > 0,
-    hasMakeupLeave: entries.some(e => e.kind === 'leave-with-makeup')
+    hasOvertime: seed.hasOvertime || realOtMinutes > 0,
+    hasMakeupLeave: entries.some(e => e.kind === 'leave-with-makeup'),
+    halfShiftDebt: debt
   };
 }
 
@@ -371,11 +406,18 @@ export function requestContext(): RequestContext {
     explanationDays,
     advance: adv.advance
   };
+  for (const d of days) d.halfShift = halfShiftOf(raw, d);
   const open = (kind: RequestKind, reason: string) =>
     startDates(raw, kind).length > 0 ? { enabled: true } : { enabled: false, reason };
   raw.kinds = [
     { kind: 'leave', enabled: true },
     { kind: 'leave-with-makeup', ...open('leave-with-makeup', 'Không còn ngày đăng ký được') },
+    {
+      kind: 'half-shift-leave',
+      ...(positionType() === 'tts'
+        ? { enabled: false, reason: HALF_SHIFT_LOCKED }
+        : open('half-shift-leave', 'Không còn ngày đăng ký được'))
+    },
     { kind: 'overtime', ...open('overtime', 'Không còn ngày đăng ký được') },
     { kind: 'shift-change', enabled: true },
     { kind: 'explanation', ...open('explanation', 'Không có ngày cần giải trình') },
@@ -390,7 +432,12 @@ export function requestContext(): RequestContext {
       otHours: otHoursOf(raw, d)
     })),
     choices: buildChoices(raw),
-    rules: { makeupMinutesPerLeaveDay: 480, dayCapMinutes: 720, monthOtCapMinutes: 2400 }
+    rules: {
+      makeupMinutesPerLeaveDay: 480,
+      dayCapMinutes: 720,
+      monthOtCapMinutes: 2400,
+      halfShiftOwedMinutes: HALF_SHIFT_OWED_MINUTES
+    }
   };
 }
 
@@ -410,6 +457,7 @@ function rangeRefusal(ctx: RequestContext, kind: RequestKind, start: string, end
   for (const day of ctx.days.filter(x => x.date >= start && x.date <= end)) {
     if (day.claim?.status === 'LEAVE' || day.claim?.status === 'LEAVE_WITH_MAKEUP')
       return { ok: false, code: 'DAY_CONFLICT', message: `Ngày ${ddmm(day.date)} đã có đơn nghỉ` };
+    if (day.claim?.status === 'HALF_SHIFT' && kind !== 'shift-change') return halfShiftConflict(day.date);
     if (pendingIsat(day)) return isatPendingConflict(day.date);
   }
   const first = ctx.days.find(x => x.date === start);
@@ -430,6 +478,11 @@ const isatApprovedConflict = (date: string): Refusal => ({
   message: `${satText(date)} đã có iSAT được duyệt, không chọn được ngày này.`
 });
 const isatSkipped = (date: string) => `${satText(date)} đã có iSAT được duyệt, không tính vào đơn.`;
+const halfShiftConflict = (date: string): Refusal => ({
+  ok: false,
+  code: 'DAY_CONFLICT',
+  message: `Ngày ${ddmm(date)} đã có đơn nghỉ giữa ca`
+});
 
 // Thứ Bảy đã có iSAT được duyệt bị bỏ khỏi đơn nghỉ, kèm cảnh báo (spec 2.2).
 const isatWarnings = (ctx: RequestContext, start: string, end: string) =>
@@ -510,10 +563,17 @@ function build(ctx: RequestContext, kind: RequestKind, draft: RequestDraft[Reque
       const day = ctx.days.find(x => x.date === d.otDate);
       if (!day) return { ok: false, message: windowText(ctx) };
       const month = monthOf(d.otDate);
+      const info = ctx.months.find(m => m.month === month)!;
       const ends = startDates(ctx, kind).includes(d.otDate) ? endHours(day, hourOf(d.startTime), { capMinutes: otLeftMinutes(ctx, month) }) : [];
       const pick = ends.find(e => e.end === hourOf(d.endTime));
       if (!pick) return { ok: false, message: `Giờ làm thêm ${ddmm(d.otDate)} không chọn được` };
-      const info = ctx.months.find(m => m.month === month)!;
+      // Tháng có Nghỉ có làm bù: OT chỉ để trả nợ nghỉ giữa ca còn lại (BE T6).
+      const left = info.halfShiftDebt?.remainingMinutes ?? 0;
+      if (info.hasMakeupLeave && pick.minutes > left)
+        return {
+          ok: false,
+          message: `Tháng ${monthNo(d.otDate)} có đơn nghỉ có làm bù, chỉ đăng ký OT để trả nợ nghỉ giữa ca (còn ${left / 60} giờ)`
+        };
       const start = hourOf(d.startTime);
       return {
         ok: true,
@@ -544,6 +604,12 @@ function build(ctx: RequestContext, kind: RequestKind, draft: RequestDraft[Reque
       }
       // Ngày nghỉ và Thứ Bảy có iSAT được duyệt giữ nguyên, kèm cảnh báo; các ngày còn lại đổi ca.
       const keptDays = work.filter(x => x.claim);
+      const keptWhy = (x: (typeof work)[number]) =>
+        approvedIsat(x)
+          ? isatSkipped(x.date)
+          : x.claim?.status === 'HALF_SHIFT'
+            ? `Ngày ${ddmm(x.date)} đã có đơn nghỉ giữa ca, giữ nguyên, không đổi ca.`
+            : `Ngày ${ddmm(x.date)} đang nghỉ, giữ nguyên ngày nghỉ, không đổi ca.`;
       const kept = keptDays.map(x => x.date);
       const dates = work.filter(x => !x.claim).map(x => x.date);
       if (!dates.length)
@@ -555,9 +621,7 @@ function build(ctx: RequestContext, kind: RequestKind, draft: RequestDraft[Reque
         ok: true,
         title: `Đổi ca ${label}, ${rangeText(d.startDate, d.endDate)}`,
         summary: { dates, keptDates: kept },
-        warnings: keptDays.map(x =>
-          approvedIsat(x) ? isatSkipped(x.date) : `Ngày ${ddmm(x.date)} đang nghỉ, giữ nguyên ngày nghỉ, không đổi ca.`
-        ),
+        warnings: keptDays.map(keptWhy),
         entry: {
           kind,
           claims: dates.map(date => ({ date, status: 'SHIFT_CHANGE' })),
@@ -569,6 +633,40 @@ function build(ctx: RequestContext, kind: RequestKind, draft: RequestDraft[Reque
           ['Ca mới', `${FRAME_LABEL[frame.shiftType] ?? frame.shiftType} ${frame.start}–${frame.end}`],
           ['Ngày đổi', dayList(dates)],
           ...(kept.length ? [['Giữ nguyên ngày nghỉ', dayList(kept)] as [string, string]] : []),
+          ['Lý do', quote(d.reason)]
+        ]
+      };
+    }
+    case 'half-shift-leave': {
+      const d = draft as HalfShiftDraft;
+      if (!filled(d.date, d.half, d.reason)) return MISSING;
+      if (monthOf(d.date) < FIRST_OPEN_MONTH)
+        return { ok: false, code: 'PERIOD_LOCKED', message: `Tháng ${monthNo(d.date)} đã chốt công` };
+      if (d.half !== 'FIRST' && d.half !== 'SECOND') return { ok: false, message: `Nửa ca không hợp lệ: ${d.half}` };
+      if (positionType() === 'tts') return { ok: false, message: 'Loại nhân sự này không dùng được nghỉ giữa ca' };
+      const day = ctx.days.find(x => x.date === d.date);
+      if (!day) return { ok: false, message: windowText(ctx) };
+      if (!day.halfShift) {
+        const claim = day.claim?.status;
+        if (claim === 'HALF_SHIFT') return halfShiftConflict(d.date);
+        if (claim === 'LEAVE' || claim === 'LEAVE_WITH_MAKEUP')
+          return { ok: false, code: 'DAY_CONFLICT', message: `Ngày ${ddmm(d.date)} đã có đơn nghỉ` };
+        if (pendingIsat(day)) return isatPendingConflict(d.date);
+        if (approvedIsat(day)) return isatApprovedConflict(d.date);
+        return { ok: false, message: `Ngày ${ddmm(d.date)} không phải ngày làm việc` };
+      }
+      const { work, leave } = day.halfShift[d.half];
+      return {
+        ok: true,
+        title: `Nghỉ giữa ca ${ddmm(d.date)}, làm ${work.start.slice(0, 2)}–${work.end.slice(0, 2)}h`,
+        summary: { date: d.date, half: d.half, work, leave, owedMinutes: HALF_SHIFT_OWED_MINUTES },
+        warnings: [],
+        entry: { kind, claims: [{ date: d.date, status: 'HALF_SHIFT' }], windows: [], month: monthOf(d.date) },
+        facts: [
+          ['Ngày', `${DOW_LONG[dowOf(d.date)]} ${dmy(d.date)}`],
+          ['Làm', `${work.start}–${work.end}`],
+          ['Nghỉ', `${leave.start}–${leave.end}`],
+          ['Cần bù', `${HALF_SHIFT_OWED_MINUTES / 60} giờ`],
           ['Lý do', quote(d.reason)]
         ]
       };

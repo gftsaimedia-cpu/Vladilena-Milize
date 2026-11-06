@@ -8,10 +8,11 @@ import { useRoute, useRouter, type LocationQuery } from 'vue-router';
 import type { PreviewResult, RequestContext, RequestDraft, RequestKind } from '@/mock/staff-requests-types';
 import { createRequest, getRequestContext, previewRequest } from '@/services/staff-requests';
 
-export type TaoSlug = 'nghi' | 'nghi-bu' | 'ot' | 'doi-ca' | 'giai-trinh' | 'tam-ung';
+export type TaoSlug = 'nghi' | 'nghi-bu' | 'nghi-giua-ca' | 'ot' | 'doi-ca' | 'giai-trinh' | 'tam-ung';
 export const TAO_SLUG: Record<RequestKind, TaoSlug> = {
   leave: 'nghi',
   'leave-with-makeup': 'nghi-bu',
+  'half-shift-leave': 'nghi-giua-ca',
   overtime: 'ot',
   'shift-change': 'doi-ca',
   explanation: 'giai-trinh',

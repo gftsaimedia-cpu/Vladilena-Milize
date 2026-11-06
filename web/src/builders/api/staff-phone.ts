@@ -110,6 +110,8 @@ const quote = (s: string | null | undefined) => `“${String(s || '').trim()}”
 const shiftText = (type: string, start: string, end: string) => `${type === 'NORMAL' ? 'HC' : type} ${start}–${end}`;
 
 export const workedText = (min: number) => `${Math.floor(min / 60)}g ${min % 60}p`;
+// 240 → '4', 90 → '1,5' (giờ, dấu phẩy thập phân).
+const hoursOf = (min: number) => String(Math.round((min / 60) * 10) / 10).replace('.', ',');
 
 function cellOf(d: MeDay, today: string, padDay: boolean): CalendarCell {
   const isToday = d.date === today;
@@ -146,6 +148,10 @@ function kindOf(r: MeRequest): { icon: RequestRowData['icon']; kindLabel: string
     case 'ISAT': {
       const date = r.isat?.saturday || r.createdAt.slice(0, 10);
       return { icon: 'leave', kindLabel: 'Nghỉ Thứ Bảy (iSAT)', title: `iSAT ${ddmm(date)}`, date };
+    }
+    case 'HALF_SHIFT_LEAVE': {
+      const date = r.halfShiftDate || r.createdAt.slice(0, 10);
+      return { icon: 'leave', kindLabel: 'Nghỉ giữa ca', title: `Nghỉ giữa ca ${ddmm(date)}`, date };
     }
     case 'ADVANCE': {
       const date = r.advancePeriod ? `${r.advancePeriod}-01` : r.createdAt.slice(0, 10);
@@ -189,6 +195,14 @@ function factsOf(r: MeRequest): [string, string][] {
       ];
     case 'OVERTIME':
       return [['Ngày', dmy(r.otDate || '')], ['Khung giờ', `${r.otStartTime || '?'}–${r.otEndTime || '?'}`], ['Lý do', quote(r.reason)]];
+    case 'HALF_SHIFT_LEAVE':
+      return [
+        ['Ngày', dmy(r.halfShiftDate || '')],
+        ['Làm', r.halfShiftWork ? `${r.halfShiftWork.start}–${r.halfShiftWork.end}` : NONE],
+        ['Nghỉ', r.halfShiftLeave ? `${r.halfShiftLeave.start}–${r.halfShiftLeave.end}` : NONE],
+        ['Cần bù', r.owedMinutes ? `${hoursOf(r.owedMinutes)} giờ` : NONE],
+        ['Lý do', quote(r.reason)]
+      ];
     case 'EXPLANATION':
       return [
         ['Ngày', dmy(r.explanationDate || '')],
