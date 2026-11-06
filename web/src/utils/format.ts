@@ -16,6 +16,18 @@ export const num = (n?, digits = 2) =>
 export const dmy = (iso?) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '');
 /** "2026-10-05" → "05/10" */
 export const dm = (iso?) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+/**
+ * Các ngày của một đơn thành cụm chữ sau chữ "ngày": cùng tháng → "02 và 03/11", "02, 03 và 04/11"; khác tháng →
+ * "30/11 và 01/12"; trên 4 ngày → "từ 02/11 đến 13/11". Rỗng → "".
+ */
+export function datesText(dates?: string[]) {
+  const list = [...new Set(dates || [])].sort();
+  if (list.length === 0) return '';
+  if (list.length > 4) return `từ ${dm(list[0])} đến ${dm(list[list.length - 1])}`;
+  const sameMonth = list.every(d => d.slice(0, 7) === list[0].slice(0, 7));
+  const parts = sameMonth ? list.map((d, i) => (i === list.length - 1 ? dm(d) : d.slice(8, 10))) : list.map(dm);
+  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} và ${parts[parts.length - 1]}`;
+}
 /** "2026-10" → "Tháng 10/2026" */
 export const monthLabel = (ym?) => (ym ? `Tháng ${ym.slice(5, 7)}/${ym.slice(0, 4)}` : '');
 /** '2026-11' → 11 */

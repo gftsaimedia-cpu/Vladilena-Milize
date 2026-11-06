@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
+import { NotEmployedError, assertEmployed } from '../../common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import {
   SystemRequest,
@@ -26,13 +28,20 @@ import {
   vietnamToday,
   filingWindow,
   isWholeHour,
-  isClosedPeriod,
   advanceDayOpen,
   planClaims,
   DayConflictError,
+  requestDates,
   requestTitle,
   annualLeaveLeftOf,
   dayHourOptions,
+  filingChoices,
+  leaveCounted,
+  shiftChangeable,
+  overtimeHours,
+  FILING_RULES,
+  MAKEUP_MINUTES_PER_LEAVE_DAY,
+  MONTH_OT_CAP_MINUTES,
   LEAVE_TYPES,
   SHIFT_FRAMES,
   type ClaimPlan,
@@ -49,13 +58,17 @@ import { DayStatusRepository } from './day-status.repository';
 import { ExplanationsService } from './explanations.service';
 import { loadEmployeeDays } from './load-days';
 import { AttendanceRepository } from '../attendance/attendance.repository';
+import { AttendanceDaysService } from '../attendance/attendance-days.service';
 import { HolidaysRepository, type Holiday } from '../holidays/holidays.repository';
 import { businessMonthText } from '../../common/business-date';
-import { SystemService } from '../system/system.service';
 import { PayrollService } from '../payroll/payroll.service';
+import { gateAllows, requestMonths, type GateUse, type PeriodStatus, type RequestDates } from '../periods/domain';
+import { PeriodGate } from '../periods/period-gate';
+import { PeriodLockedError } from '../periods/periods.errors';
 import { SettingsReader } from '../settings';
+import { AuditLog } from '../audit/audit-log';
 import { withPersonWeek } from './staff-week';
-import type { AdvanceQuote } from '../payroll/domain';
+import { ADVANCE_RATE_PCT, type AdvanceQuote } from '../payroll/domain';
 
 /**
  * Loại đơn nộp qua `fileRequest` (nộp và xem trước). iSAT nộp riêng bằng `createIsatRequest`.
@@ -68,10 +81,14 @@ export interface FilingOptions {
   filedBy?: FiledBy;
 }
 
-/** Kết quả xem trước (spec 2.2); `code` chỉ có khi là xung đột ngày. */
+/**
+ * Kết quả xem trước (spec 2.2); `code` chỉ có khi là xung đột ngày, hoặc khi tháng của đơn đã khoá (cổng kỳ, kèm
+ * `month` và `status` như lỗi 409 `PERIOD_LOCKED` lúc nộp).
+ */
 export type PreviewResult =
   | { ok: true; title: string; summary: Record<string, unknown>; warnings: string[] }
-  | { ok: false; message: string; code?: 'DAY_CONFLICT' };
+  | { ok: false; message: string; code?: 'DAY_CONFLICT' | 'NOT_EMPLOYED' }
+  | { ok: false; message: string; code: 'PERIOD_LOCKED'; month: string; status: PeriodStatus };
 
 /** Thân đơn nghỉ (§6.1). Số ngày do server đếm: `daysCount` client gửi (nếu có) không được đọc. */
 export interface CreateLeaveInput {
@@ -187,12 +204,6 @@ export interface CreateOvertimeInput {
   endTime?: unknown;
 }
 
-/** Mỗi ngày nghỉ của đơn nghỉ có làm bù cần đúng 480 phút (8 giờ) làm bù (§6.2). */
-const MAKEUP_MINUTES_PER_LEAVE_DAY = 480;
-
-/** Trần OT tháng: 40 giờ (Điều 107 Bộ luật Lao động), giữ như v2. */
-const MONTH_OT_CAP_MINUTES = 40 * 60;
-
 /** Đơn OT đang chờ hoặc đã duyệt có ngày OT trong tháng `month` (YYYY-MM). */
 const otRequestsIn = (requests: readonly SystemRequest[], month: string): SystemRequest[] =>
   requests.filter(r => r.type === 'OVERTIME' && isActive(r) && r.otDate !== null && monthOf(r.otDate) === month);
@@ -237,7 +248,7 @@ export interface CreateExplanationInput {
   title?: string;
   reason: string;
   workDate: unknown;
-  cases: unknown;
+  cases?: unknown;
   actualCheckIn?: unknown;
   actualCheckOut?: unknown;
 }
@@ -248,6 +259,12 @@ export interface CreateIsatInput {
   team?: unknown;
   conditions?: unknown;
 }
+
+/** Kết quả tự tính lại phiếu lương của một tháng sau khi duyệt đơn (spec kỳ lương §6); `error` chỉ có khi `ok` là false. */
+export type RecalcResult = { month: string; ok: boolean; error?: string };
+
+/** Phần của PayrollService mà đơn từ dùng: số tiền tạm ứng, và tính lại / đưa phiếu về nháp sau khi duyệt đơn. */
+type RequestsPayroll = Pick<PayrollService, 'advanceQuote' | 'calculatePeriodPayslips' | 'resetDecision'>;
 
 /**
  * Các repository một thao tác dùng. Trong khoá, cả bốn chạy trên giao dịch của khoá: thao tác thành một khối
@@ -299,23 +316,32 @@ export class RequestsService {
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
     @Optional() @Inject(HolidaysRepository) private readonly holidaysRepo?: HolidaysRepository,
     @Optional() @Inject(DayStatusRepository) private readonly dayStatusRepo?: DayStatusRepository,
-    @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>,
-    @Optional() @Inject(PayrollService) private readonly payroll?: Pick<PayrollService, 'advanceQuote'>,
+    @Optional() @Inject(PeriodGate) private readonly periodGate?: Pick<PeriodGate, 'statusOf' | 'hold'>,
+    @Optional() @Inject(PayrollService) private readonly payroll?: RequestsPayroll,
     @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService,
-    @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf'>
+    // Ruling: `settings` giữ chỗ thứ 9 như main (bắt buộc trong DI, không @Optional; kiểu TS tuỳ chọn cho test dựng tay),
+    // `audit` (bắt buộc trong DI) thứ 10 như main; `attendanceDays` (@Optional) đứng cuối để không tham số bắt buộc nào
+    // đứng sau nó.
+    @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf'>,
+    // Bắt buộc khi chạy thật (Nest tiêm); test chạy không có giao dịch thì bỏ qua nhật ký.
+    @Inject(AuditLog) private readonly audit?: Pick<AuditLog, 'append'>,
+    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: AttendanceDaysService
   ) {}
 
-  /** Tháng `month` (YYYY-MM) đã chốt công: kỳ lương có dòng và không còn 'open'. Không có `periods` thì chưa chốt. */
+  /**
+   * Tháng `month` (YYYY-MM) không nhận đơn loại thường (cổng kỳ `file`: kỳ không còn 'open'). Chỉ để dựng form (spec
+   * 2.1); lúc nộp, cổng kỳ trong `fileRequest` mới là nơi chặn. Không có cổng kỳ thì không tháng nào bị khoá.
+   */
   protected async isClosedMonth(month: string): Promise<boolean> {
-    if (!this.periods) return false;
-    return isClosedPeriod(await this.periods.getPeriod(month));
+    if (!this.periodGate) return false;
+    return !gateAllows(await this.periodGate.statusOf(undefined, month), 'file');
   }
 
   /**
    * Luật chỉ áp khi nhân viên tự nộp (`filedBy === 'self'`; Admin giữ hành vi cũ), theo thứ tự: giờ tròn, mọi ngày
-   * nằm trong `filingWindow(hôm nay)`, tháng của các ngày chưa chốt công. Tháng chốt báo theo ngày nhỏ nhất.
+   * nằm trong `filingWindow(hôm nay)`. Tháng đã chốt thì cổng kỳ trong `fileRequest` chặn, cho cả Admin.
    */
-  private async assertSelfFiling(opts: FilingContext, dates: readonly string[], times: readonly string[] = []): Promise<void> {
+  private assertSelfFiling(opts: FilingContext, dates: readonly string[], times: readonly string[] = []): void {
     if (opts.filedBy !== 'self') return;
     if (times.some(time => !isWholeHour(time))) {
       throw new Error('Chỉ chọn giờ tròn');
@@ -323,11 +349,6 @@ export class RequestsService {
     const { from, to } = filingWindow(vietnamToday(this.now()));
     if (dates.some(date => date < from || date > to)) {
       throw new Error(`Chỉ chọn ngày từ ${formatDayMonth(from)} đến ${formatDayMonth(to)}`);
-    }
-    for (const month of [...new Set(dates.map(monthOf))].sort()) {
-      if (await this.isClosedMonth(month)) {
-        throw new Error(`Tháng ${Number(month.slice(5, 7))} đã chốt công`);
-      }
     }
   }
 
@@ -366,6 +387,17 @@ export class RequestsService {
     if (trx && this.txCoordinator) {
       await this.txCoordinator.acquireAdvisoryLock(trx, `requests_${employeeId}`);
     }
+  }
+
+  /**
+   * T2: ghi lại các dòng ngày công mà đơn `req` chạm tới (`requestDates`), trên giao dịch `trx` đang giữ khoá nhân viên.
+   * Gọi sau khi đơn và lịch đã lưu, vì dòng ngày dựng từ chính các bảng đó. Đơn không có ngày (tạm ứng) thì không gọi.
+   */
+  private async rewriteDays(req: SystemRequest, trx?: DatabaseTransaction): Promise<void> {
+    if (!this.attendanceDays) return;
+    const dates = requestDates(req);
+    if (dates.length === 0) return;
+    await this.attendanceDays.refreshDays(req.employeeId, dates, { trx, now: this.now() });
   }
 
   /** Bảng `day_status` của `stores`; thiếu thì báo lỗi (mọi thao tác trên ngày cần bảng này). */
@@ -428,10 +460,37 @@ export class RequestsService {
 
   /**
    * Mỗi lần nộp đơn của một nhân sự chạy dưới khoá `requests_<uuid>` (§5.6); `fn` đọc và ghi qua `stores` (giao dịch
-   * của khoá). Không có txCoordinator thì chạy thẳng trên pool.
+   * của khoá), `trx` là giao dịch đó. Không có txCoordinator thì chạy thẳng trên pool, `trx` là undefined.
    */
-  protected async underEmployeeLock<T>(employeeId: string, fn: (stores: RequestStores) => Promise<T>): Promise<T> {
+  protected async underEmployeeLock<T>(
+    employeeId: string,
+    fn: (stores: RequestStores, trx?: DatabaseTransaction) => Promise<T>
+  ): Promise<T> {
     return await this.underLock(`requests_${employeeId}`, fn);
+  }
+
+  /** Các ngày của đơn theo dạng cổng kỳ đọc, để biết đơn chạm tới những tháng nào. */
+  private datesOf(req: SystemRequest): RequestDates {
+    return {
+      leaveStartDate: req.leaveStartDate,
+      leaveEndDate: req.leaveEndDate,
+      otDate: req.otDate,
+      explanationDate: req.explanationDate,
+      changeStartDate: req.changeStartDate,
+      changeEndDate: req.changeEndDate,
+      advancePeriod: req.advancePeriod,
+      makeupDates: req.makeupSlots.map(s => s.date),
+      isatSaturday: req.isat?.saturday ?? null
+    };
+  }
+
+  /**
+   * Cổng kỳ (spec kỳ lương §5): một tháng đơn chạm tới không cho `use` thì ném `PeriodLockedError` (409 `PERIOD_LOCKED`).
+   * Chạy trên `trx` của khoá nên giữ khoá chia sẻ của các tháng tới hết giao dịch: Chốt công hay Phê duyệt kỳ đợi lần
+   * ghi đang dở xong. Không có cổng (test cũ) thì không chặn gì.
+   */
+  private async guardPeriods(trx: DatabaseTransaction | undefined, req: SystemRequest, use: GateUse): Promise<void> {
+    await this.periodGate?.hold(trx, requestMonths(this.datesOf(req)), use);
   }
 
   /** Số ngày Phép năm còn lại (trước các đơn đang chờ và đã duyệt đã trừ); null nếu loại nhân sự không có tài khoản phép. */
@@ -475,7 +534,7 @@ export class RequestsService {
     kinds.push(advance.kind);
 
     const holidayNames = new Map(holidays.map(h => [h.date, h.name]));
-    const dayStates: FilingDayState[] = eachDate(window.from, window.to).map(date => {
+    const baseDays = eachDate(window.from, window.to).map(date => {
       const shift = days.shiftOf(date);
       const claim = days.claimOn(date);
       return {
@@ -489,6 +548,14 @@ export class RequestsService {
           : dayHourOptions({ date, shifts: days.shiftsAround(date), hasShift: shift !== null, windows: days.windowsOn(date) })
       };
     });
+    const annualLeaveLeft = annualLeaveLeftOfStaff(staff, active);
+    const choices = filingChoices({ days: baseDays, months, annualLeaveLeft });
+    const dayStates: FilingDayState[] = baseDays.map(d => ({
+      ...d,
+      leaveCounted: leaveCounted(d),
+      shiftChangeable: shiftChangeable(d),
+      otHours: overtimeHours(d, months.find(m => m.month === monthOf(d.date)))
+    }));
 
     return {
       today,
@@ -499,11 +566,13 @@ export class RequestsService {
         code,
         label
       })),
-      annualLeaveLeft: annualLeaveLeftOfStaff(staff, active),
+      annualLeaveLeft,
       shiftFrames: SHIFT_FRAMES.map(f => ({ shiftType: f.shiftType, start: f.startTime, end: f.endTime })),
       days: dayStates,
       explanationDays,
-      advance: advance.quote
+      advance: advance.quote,
+      choices,
+      rules: FILING_RULES
     };
   }
 
@@ -517,6 +586,7 @@ export class RequestsService {
           closed: await this.isClosedMonth(month),
           otMinutes: otMinutesOf(ot),
           otCapMinutes: MONTH_OT_CAP_MINUTES as 2400,
+          otLeftMinutes: Math.max(0, MONTH_OT_CAP_MINUTES - otMinutesOf(ot)),
           hasOvertime: ot.length > 0,
           hasMakeupLeave: makeupRequestsIn(active, month).length > 0
         };
@@ -544,7 +614,7 @@ export class RequestsService {
       return locked(ADVANCE_QUOTE_FAILED);
     }
     if (quote.amount === 0) return locked(advanceNoWorkDaysMessage(month));
-    return { kind: { kind: 'advance', enabled: true }, quote: { month, ...quote } };
+    return { kind: { kind: 'advance', enabled: true }, quote: { month, ...quote, windowEnd: `${month}-17`, ordersThisMonth: 1, ratePct: ADVANCE_RATE_PCT } };
   }
 
   async createLeaveRequest(input: CreateLeaveInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
@@ -572,8 +642,9 @@ export class RequestsService {
   }
 
   /**
-   * Xem trước (spec 2.2): lập đơn đúng như lúc nộp, trong cùng khoá nhân viên, rồi bỏ; không ghi gì. Lỗi nghiệp vụ
-   * (Error không có `code`) thành `ok: false`, xung đột ngày kèm `code: 'DAY_CONFLICT'`; lỗi có `code` (lỗi DB) ném lại.
+   * Xem trước (spec 2.2): lập đơn đúng như lúc nộp, trong cùng khoá nhân viên, qua cùng cổng kỳ, rồi bỏ; không ghi gì.
+   * Lỗi nghiệp vụ (Error không có `code`) thành `ok: false`, xung đột ngày kèm `code: 'DAY_CONFLICT'`, tháng đã khoá kèm
+   * `code: 'PERIOD_LOCKED'`, `month`, `status`; lỗi có `code` (lỗi DB) ném lại.
    */
   async previewRequest(kind: FilingKind, input: any, opts?: FilingOptions): Promise<PreviewResult> {
     try {
@@ -582,6 +653,13 @@ export class RequestsService {
     } catch (error) {
       if (error instanceof DayConflictError) {
         return { ok: false, message: error.message, code: 'DAY_CONFLICT' };
+      }
+      if (error instanceof NotEmployedError) {
+        return { ok: false, message: error.message, code: 'NOT_EMPLOYED' };
+      }
+      if (error instanceof PeriodLockedError) {
+        const { month, status } = error.details as { month: string; status: PeriodStatus };
+        return { ok: false, message: error.message, code: 'PERIOD_LOCKED', month, status };
       }
       if (error instanceof Error && (error as { code?: unknown }).code === undefined) {
         return { ok: false, message: error.message };
@@ -592,7 +670,9 @@ export class RequestsService {
 
   /**
    * Nộp (`save`) hoặc xem trước một đơn. Planner của loại đơn kiểm dữ liệu vào và tìm nhân sự, rồi lập đơn trong khoá
-   * `requests_<uuid>` (§5.6). Khi `save`, đơn và các ngày đơn giữ được ghi trong cùng khoá, cùng giao dịch.
+   * `requests_<uuid>` (§5.6). Đơn lập xong thì qua cổng kỳ ngay trên giao dịch của khoá (cả lúc xem trước): giải trình
+   * qua cổng `explain` (nộp được tới khi kỳ được phê duyệt, D2), loại khác qua cổng `file` (chỉ tháng 'open'), cả nhân
+   * viên tự nộp lẫn Admin nộp thay. Khi `save`, đơn và các ngày đơn giữ được ghi trong cùng khoá, cùng giao dịch.
    */
   private async fileRequest(
     kind: FilingKind,
@@ -601,13 +681,15 @@ export class RequestsService {
     save: boolean
   ): Promise<PlannedRequest> {
     const filing = await this.planFiling(kind, input, { filedBy: opts?.filedBy ?? 'admin' });
-    return this.underEmployeeLock(filing.staff.employeeId, async stores => {
+    return this.underEmployeeLock(filing.staff.employeeId, async (stores, trx) => {
       const planned = await filing.plan(stores);
+      await this.guardPeriods(trx, planned.request, kind === 'explanation' ? 'explain' : 'file');
       if (save) {
         await stores.requests.save(planned.request);
         if (planned.claims) {
           await this.claimDays(stores, planned.request, planned.claims.plan, planned.claims.status);
         }
+        await this.rewriteDays(planned.request, trx);
       }
       return planned;
     });
@@ -636,8 +718,9 @@ export class RequestsService {
   private async planLeave(input: CreateLeaveInput, opts: FilingContext): Promise<Filing> {
     const leaveType = requireLeaveType(input.leaveType);
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
-    await this.assertSelfFiling(opts, [startDate, endDate]);
+    this.assertSelfFiling(opts, [startDate, endDate]);
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
+    assertEmployed(staff, [startDate, endDate]);
     this.requireTypeConfig(staff);
 
     const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
@@ -721,8 +804,9 @@ export class RequestsService {
       throw new Error(`Khung ca không hợp lệ: ${String(input.shiftType)} ${String(input.startTime)}`);
     }
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
-    await this.assertSelfFiling(opts, [startDate, endDate]);
+    this.assertSelfFiling(opts, [startDate, endDate]);
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
+    assertEmployed(staff, [startDate, endDate]);
     this.requireTypeConfig(staff);
 
     const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
@@ -814,13 +898,14 @@ export class RequestsService {
   private async planMakeup(input: CreateLeaveWithMakeupInput, opts: FilingContext): Promise<Filing> {
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
     const slots = requireMakeupSlots(input.slots);
-    await this.assertSelfFiling(
+    this.assertSelfFiling(
       opts,
       [startDate, endDate, ...slots.map(slot => slot.date)],
       slots.flatMap(slot => [slot.startTime, slot.endTime])
     );
     const month = monthOf(startDate);
     const staff = await this.resolveStaff(input.employeeId, month);
+    assertEmployed(staff, [startDate, endDate, ...slots.map(slot => slot.date)]);
     this.requireTypeConfig(staff);
     if (!staff.benefits.makeup) {
       throw new Error('Loại nhân sự này không có làm bù');
@@ -908,9 +993,10 @@ export class RequestsService {
     const date = requireDateText(input.otDate ?? input.targetDate, 'otDate');
     const startTime = requireTimeText(input.startTime, 'startTime');
     const endTime = requireTimeText(input.endTime, 'endTime');
-    await this.assertSelfFiling(opts, [date], [startTime, endTime]);
+    this.assertSelfFiling(opts, [date], [startTime, endTime]);
     const month = monthOf(date);
     const staff = await this.resolveStaff(input.employeeId, month);
+    assertEmployed(staff, [date]);
     this.requireTypeConfig(staff);
     if (!staff.benefits.ot) {
       throw new Error('Loại nhân sự này không có OT');
@@ -1040,7 +1126,9 @@ export class RequestsService {
       throw new Error('Chưa cấu hình giải trình');
     }
     const staff = await this.resolveStaff(input.employeeId, monthOf(workDate));
-    const check = await this.explanations.checkStaffDay(staff, workDate);
+    assertEmployed(staff, [workDate]);
+    // Tháng của ngày công do cổng kỳ `explain` trong `fileRequest` xét (trong khoá), không xét ở đây.
+    const check = await this.explanations.checkStaffDay(staff, workDate, { period: false });
     if (!check.ok) {
       throw new Error(check.message);
     }
@@ -1055,7 +1143,11 @@ export class RequestsService {
     }
     // R-P5: ca đêm (giờ hết ca không sau giờ vào ca) thì giờ ra rơi vào sáng hôm sau, không so được với giờ vào.
     const overnight = shift.endTime <= shift.startTime;
-    if (!overnight && actualCheckIn !== null && actualCheckOut !== null && actualCheckOut <= actualCheckIn) {
+    // Giờ khai báo còn phải khớp với lần chấm thật còn lại của ngày: khai giờ ra trước giờ vào thật (hay giờ vào sau giờ
+    // ra thật) là ngày công có giờ ra trước giờ vào.
+    const inTime = actualCheckIn ?? check.checkIn;
+    const outTime = actualCheckOut ?? check.checkOut;
+    if (!overnight && inTime !== null && outTime !== null && outTime <= inTime) {
       throw new Error('Giờ ra phải sau giờ vào');
     }
 
@@ -1108,8 +1200,9 @@ export class RequestsService {
       throw new Error('Chỉ đăng ký iSAT cho Thứ Bảy sắp tới');
     }
     const staff = await this.resolveStaff(profile.employeeId, monthOf(saturday));
+    assertEmployed(staff, [saturday]);
 
-    return this.underEmployeeLock(staff.employeeId, async stores => {
+    return this.underEmployeeLock(staff.employeeId, async (stores, trx) => {
       // Chống trùng Thứ Bảy với các đơn đang chờ hoặc đã duyệt (đơn đã bị từ chối không chặn)
       const existing = await stores.requests.list({
         employeeId: profile.employeeId,
@@ -1130,10 +1223,13 @@ export class RequestsService {
         plan = planClaims({ kind: 'ISAT', dates: [saturday], days });
       }
 
+      // iSAT không đi qua `fileRequest`: cùng cổng kỳ `file`, ngay trước khi lưu.
+      await this.guardPeriods(trx, req, 'file');
       await stores.requests.save(req);
       if (plan) {
         await this.claimDays(stores, req, plan, 'ISAT');
       }
+      await this.rewriteDays(req, trx);
       return { ...req.toJSON(), warnings: [] };
     });
   }
@@ -1142,6 +1238,8 @@ export class RequestsService {
    * `reviewer` là uuid hoặc tên đăng nhập; reviewed_by tham chiếu staff(uuid) nên luôn ghi uuid.
    * Chạy dưới khoá `request_<id>` rồi khoá nhân viên trên cùng giao dịch (§4). Kiểm lại, lịch, `day_status` và trạng thái
    * đơn đọc và ghi trên giao dịch đó: một bước lỗi thì không gì được ghi, đơn vẫn chờ duyệt.
+   * Chỉ chạy giao dịch duyệt, không tính lại phiếu lương sau commit: nơi gọi trong sản phẩm phải dùng
+   * `reviewAndRecalculate` (spec kỳ lương D6). Còn public cho test của phần duyệt đơn.
    */
   async reviewRequest(
     id: string,
@@ -1149,16 +1247,92 @@ export class RequestsService {
     action: 'APPROVE' | 'REJECT',
     note?: string
   ): Promise<SystemRequestDTO> {
+    return (await this.decide(id, reviewer, action, note)).dto;
+  }
+
+  /**
+   * Duyệt hoặc từ chối như `reviewRequest` (trong giao dịch đó, phiếu của người nộp ở mỗi tháng `calculated` đã về
+   * nháp: `resetCalculatedSlips`); sau khi giao dịch đã commit (spec kỳ lương R6), với từng tháng của đơn (tăng dần)
+   * đang ở `calculated`, tính lại phiếu lương của người nộp (§6). Tháng khác không tính lại. Tính lại lỗi thì quyết
+   * định duyệt đơn vẫn giữ: lỗi nằm trong `recalculated`, không ném ra. Không đọc được trạng thái kỳ của một tháng sau
+   * commit thì tháng đó báo lỗi và không tính lại (phiếu đã về nháp trong giao dịch duyệt nếu kỳ đang `calculated`),
+   * rồi xét tháng sau. Thiếu cổng kỳ hay PayrollService (test cũ) thì `recalculated` rỗng.
+   */
+  async reviewAndRecalculate(
+    id: string,
+    reviewer: string,
+    action: 'APPROVE' | 'REJECT',
+    note?: string
+  ): Promise<{ request: SystemRequestDTO; recalculated: RecalcResult[] }> {
+    const { dto, months, employeeId } = await this.decide(id, reviewer, action, note);
+    const recalculated: RecalcResult[] = [];
+    if (this.periodGate && this.payroll) {
+      for (const month of months) {
+        let status: PeriodStatus;
+        try {
+          status = await this.periodGate.statusOf(undefined, month);
+        } catch (err) {
+          recalculated.push({ month, ok: false, error: err instanceof Error ? err.message : String(err) });
+          continue;
+        }
+        if (status !== 'calculated') continue;
+        recalculated.push(await this.recalculate(this.payroll, month, employeeId, reviewer));
+      }
+    }
+    return { request: dto, recalculated };
+  }
+
+  /**
+   * Tính lại phiếu tháng `month` của một người. Lỗi (ném ra, hoặc trả trong `errors`) thì đưa phiếu cũ của người đó
+   * trong lần chạy nháp về nháp thêm một lần (lưới an toàn, vd. Admin đã duyệt lại phiếu đó sau commit); lỗi được trả về
+   * chứ không ném. Lần này lỗi hay không tìm thấy phiếu cũ cũng vô hại: phiếu đã về nháp trong giao dịch duyệt, nên Phê
+   * duyệt kỳ vẫn bị chặn tới khi phiếu người này được duyệt lại (Admin nên tính lại người đó trước).
+   */
+  private async recalculate(
+    payroll: RequestsPayroll,
+    month: string,
+    employeeId: string,
+    actor: string
+  ): Promise<RecalcResult> {
+    let error: string;
+    try {
+      const { errors } = await payroll.calculatePeriodPayslips(month, [employeeId], actor);
+      if (errors.length === 0) return { month, ok: true };
+      error = errors[0].message;
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    }
+    try {
+      await payroll.resetDecision(month, employeeId);
+    } catch {
+      // Đơn đã duyệt xong: phản hồi không được thành lỗi, lỗi tính lại ở trên đã đủ báo cho Admin.
+    }
+    return { month, ok: false, error };
+  }
+
+  /**
+   * Thân của duyệt/từ chối: chạy trong khoá và giao dịch của `reviewRequest`, qua cổng kỳ (`review`) ngay sau khoá nhân
+   * viên; lưu đơn xong thì đưa phiếu của người nộp về nháp ở các tháng `calculated`, rồi ghi nhật ký, cùng giao dịch.
+   * Trả đơn đã lưu, các tháng đơn chạm tới (tăng dần) và người nộp, để tính lại sau commit.
+   */
+  private async decide(
+    id: string,
+    reviewer: string,
+    action: 'APPROVE' | 'REJECT',
+    note?: string
+  ): Promise<{ dto: SystemRequestDTO; months: string[]; employeeId: string }> {
     return await this.underLock(`request_${id}`, async (stores, trx) => {
       const req = await stores.requests.findById(id);
       if (!req) {
         throw new Error(`Request with id '${id}' not found`);
       }
+      const was = req.status;
       const reviewerId = await stores.requests.resolveStaffUuid(reviewer);
       if (!reviewerId) {
         throw new Error(`Không tìm thấy người duyệt: ${reviewer}`);
       }
       await this.lockEmployee(trx, req.employeeId);
+      await this.guardPeriods(trx, req, 'review');
 
       if (action === 'APPROVE') {
         // Đơn iSAT mất dòng đăng ký thì không biết Thứ Bảy nào để ghi lịch: báo lỗi trước khi đổi trạng thái
@@ -1179,8 +1353,6 @@ export class RequestsService {
           await this.markLeaveDays(req, stores);
         } else if (req.type === 'ISAT') {
           await this.markIsatDay(req, stores);
-        } else if (req.type === 'EXPLANATION' && stores.attendance && req.explanationDate) {
-          await stores.attendance.updateDayStatus(req.employeeId, req.explanationDate, 'VALID');
         }
       } else if (action === 'REJECT') {
         req.reject(reviewerId, note);
@@ -1191,17 +1363,47 @@ export class RequestsService {
       }
 
       await stores.requests.save(req);
-      return req.toJSON();
+      await this.rewriteDays(req, trx);
+      const months = requestMonths(this.datesOf(req));
+      await this.resetCalculatedSlips(trx, months, req.employeeId);
+      await this.logRequest(trx, stores, req, 'request.decide', reviewer, was, note);
+      return { dto: req.toJSON(), months, employeeId: req.employeeId };
     });
   }
 
+  /**
+   * D6, trong giao dịch duyệt hoặc từ chối (đang giữ khoá chia sẻ `period:<tháng>` của các tháng của đơn, lấy ở
+   * `guardPeriods`): với mỗi tháng (tăng dần) đọc được là `calculated` trên giao dịch đó, phiếu của người nộp trong lần
+   * chạy nháp về nháp và mất quyết định, ngay trên giao dịch đó. Phê duyệt kỳ cần khoá độc quyền của tháng nên chỉ chạy
+   * sau commit, và khi đó thấy phiếu chưa duyệt; vậy kỳ không thể được duyệt với số cũ của người này, kể cả khi bước
+   * tính lại sau commit lỗi hay tiến trình dừng trước bước đó (R6). Đưa về nháp lỗi thì cả lần duyệt bị huỷ, đơn vẫn chờ.
+   * Thiếu cổng kỳ hay PayrollService (test cũ) thì không làm gì.
+   */
+  private async resetCalculatedSlips(
+    trx: DatabaseTransaction | undefined,
+    months: readonly string[],
+    employeeId: string
+  ): Promise<void> {
+    const { periodGate, payroll } = this;
+    if (!periodGate || !payroll) return;
+    for (const month of months) {
+      if ((await periodGate.statusOf(trx, month)) !== 'calculated') continue;
+      await payroll.resetDecision(month, employeeId, trx);
+    }
+  }
+
   /** Huỷ đơn còn chờ duyệt: cùng khoá và cùng giao dịch như duyệt (§4.3); các ngày đơn giữ được trả lại. */
-  async cancelRequest(id: string, employeeId: string, reason?: string): Promise<SystemRequestDTO> {
+  /**
+   * `actor`: người đăng nhập ở route Admin. Admin huỷ thay người nộp thì ghi `request.cancel`; nhân viên tự huỷ
+   * (route /me, hoặc Admin huỷ đơn của chính mình) thì không ghi (spec audit-log mục 6).
+   */
+  async cancelRequest(id: string, employeeId: string, reason?: string, actor?: string): Promise<SystemRequestDTO> {
     return await this.underLock(`request_${id}`, async (stores, trx) => {
       const req = await stores.requests.findById(id);
       if (!req) {
         throw new Error(`Request with id '${id}' not found`);
       }
+      const was = req.status;
 
       // Đơn iSAT lưu theo uuid còn phiên đăng nhập gửi username: đổi sang uuid khi trùng tác giả, người lạ vẫn bị từ chối.
       let cancellerId = employeeId;
@@ -1215,7 +1417,36 @@ export class RequestsService {
       // Trả ngày trước khi lưu: sau khi lưu, JOIN của `day_status` không còn thấy dòng của đơn đã huỷ.
       await this.releaseDays(req, stores);
       await stores.requests.save(req);
+      await this.rewriteDays(req, trx);
+      if (actor && (await stores.requests.resolveStaffUuid(actor)) !== req.employeeId) {
+        await this.logRequest(trx, stores, req, 'request.cancel', actor, was, reason);
+      }
       return req.toJSON();
+    });
+  }
+
+  /** Một dòng nhật ký cho đơn vừa lưu, ghi cuối giao dịch. Người thao tác và người nộp ghi theo tên đăng nhập. */
+  private async logRequest(
+    trx: DatabaseTransaction | undefined,
+    stores: RequestStores,
+    req: SystemRequest,
+    action: 'request.decide' | 'request.cancel',
+    actor: string,
+    was: string,
+    reason: string | undefined
+  ): Promise<void> {
+    if (!trx || !this.audit) return;
+    await this.audit.append(trx, {
+      actor: (await stores.requests.resolveStaffUsername(actor)) ?? actor,
+      action,
+      entityKind: 'request',
+      entityId: req.id,
+      subject: await stores.requests.resolveStaffUsername(req.employeeId),
+      subjectUuid: req.employeeId,
+      before: { status: was },
+      after: { status: req.status },
+      reason: reason?.trim() || null,
+      requestId: randomUUID()
     });
   }
 

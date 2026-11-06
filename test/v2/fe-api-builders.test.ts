@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { staffListFromEmployees, staffProfileFromEmployee } from '../../web/src/builders/api/staff';
 import { calendarFromHolidays } from '../../web/src/builders/api/calendar';
-import { inboxFromRequests } from '../../web/src/builders/api/inbox';
+import { inboxFromDue, inboxFromRequests } from '../../web/src/builders/api/inbox';
 
 function employee(over: { username: string; name?: string; status?: string; from?: string | null; resigned?: string | null; locked?: boolean; job?: string | null }) {
   return {
@@ -150,6 +150,12 @@ describe('Việc chờ duyệt từ /requests', () => {
 
 import { payrollScreenFromPayslips } from '../../web/src/builders/api/payroll';
 
+// totals do BE cộng sẵn (GET /payroll/:month); builder chỉ ánh xạ, không cộng.
+const TOTALS = {
+  baseSalaryActual: 8_384_615, kpiActualPay: 1_000_000, allowance: 500_000, otPay: 300_000, lateDeduction: 50_000,
+  gross: 10_134_615, insurance: 840_000, tax: 0, advance: 1_000_000, deductions: 1_840_000, net: 8_294_615, netShare: 82
+};
+
 describe('Bảng lương từ /payroll/:month', () => {
   const details = (over: Record<string, unknown> = {}) => ({
     employeeId: 'u-nam', username: 'nam', fullName: 'Lê Hoàng Nam', positionLevelText: 'NV bậc 2', standardWorkdays: 26,
@@ -164,13 +170,14 @@ describe('Bảng lương từ /payroll/:month', () => {
   });
 
   it('is empty when the month has no payslip', () => {
-    assert.deepEqual(payrollScreenFromPayslips([], '2026-10'), { month: '2026-10', empty: true });
+    assert.deepEqual(payrollScreenFromPayslips([], '2026-10', TOTALS), { month: '2026-10', empty: true });
   });
 
   it('maps lines, counts and totals', () => {
     const screen: any = payrollScreenFromPayslips(
       [record(), record({ id: 2, username: 'ha', status: 'final', gross: 1_000_000, insurance: 0, tax: 0, advance: 0, net: 1_000_000 }, { username: 'ha', fullName: 'Nguyễn Thu Hà', kpiApplicable: false })],
-      '2026-10'
+      '2026-10',
+      TOTALS
     );
     assert.equal(screen.empty, false);
     assert.equal(screen.range, '01–31/10');
@@ -182,18 +189,21 @@ describe('Bảng lương từ /payroll/:month', () => {
     assert.deepEqual(nam.kpiMissing, ['Người dùng', 'Tự đánh giá']);
     assert.deepEqual(screen.lines.find((l: any) => l.id === 'ha').kpiMissing, []);
     assert.equal(screen.lines.find((l: any) => l.id === 'ha').status, 'done');
-    const decided: any = payrollScreenFromPayslips([record({ status: 'approved' }), record({ id: 3, username: 'x', status: 'rejected' }, { username: 'x' })], '2026-10');
+    const decided: any = payrollScreenFromPayslips([record({ status: 'approved' }), record({ id: 3, username: 'x', status: 'rejected' }, { username: 'x' })], '2026-10', TOTALS);
     assert.deepEqual(decided.lines.map((l: any) => l.status).sort(), ['done', 'rejected']);
     assert.deepEqual(screen.counts, { all: 2, draft: 1, pending: 0, done: 1, rejected: 0 });
-    assert.deepEqual(screen.totals, { gross: 10_134_615, insurance: 840_000, tax: 0, advance: 1_000_000, deductions: 1_840_000, net: 8_294_615, netShare: 82 });
+    assert.deepEqual(screen.totals, {
+      gross: 10_134_615, insurance: 840_000, tax: 0, advance: 1_000_000, deductions: 1_840_000, net: 8_294_615, netShare: 82,
+      workPay: 8_384_615, kpiPay: 1_000_000, allowance: 500_000, ot: 300_000, lateCut: 50_000
+    });
   });
 });
 
-import { periodStripFromPeriod } from '../../web/src/builders/api/period';
+import { periodStripFromView } from '../../web/src/builders/api/period';
 
 describe('Thanh kỳ lương từ /system/periods', () => {
   it('a month without a period row is still in attendance', () => {
-    assert.deepEqual(periodStripFromPeriod(null, '2026-11'), {
+    assert.deepEqual(periodStripFromView(null, '2026-11'), {
       month: 'Tháng 11/2026',
       state: 'Đang chấm công',
       stateCls: 'draft',
@@ -202,8 +212,8 @@ describe('Thanh kỳ lương từ /system/periods', () => {
   });
 
   it('marks finished steps from the period timestamps', () => {
-    const strip = periodStripFromPeriod(
-      { month: '2026-10', status: 'calculated', attendance_locked_at: 'a', calculated_at: 'b', approved_at: null, paid_at: null } as any,
+    const strip = periodStripFromView(
+      { month: '2026-10', status: 'calculated', steps: { lockedAt: 'a', calculatedAt: 'b', approvedAt: null, paidAt: null }, payday: '2026-11-05', actions: {} },
       '2026-10'
     );
     assert.equal(strip.state, 'Chờ phê duyệt');
@@ -211,8 +221,8 @@ describe('Thanh kỳ lương từ /system/periods', () => {
   });
 
   it('a paid month is all done', () => {
-    const strip = periodStripFromPeriod(
-      { month: '2026-09', status: 'paid', attendance_locked_at: 'a', calculated_at: 'b', approved_at: 'c', paid_at: 'd' } as any,
+    const strip = periodStripFromView(
+      { month: '2026-09', status: 'paid', steps: { lockedAt: 'a', calculatedAt: 'b', approvedAt: 'c', paidAt: 'd' }, payday: '2026-10-05', actions: {} },
       '2026-09'
     );
     assert.equal(strip.state, 'Đã trả lương');
@@ -224,7 +234,12 @@ describe('Thanh kỳ lương từ /system/periods', () => {
 import { payslipFromRecord } from '../../web/src/builders/api/payroll';
 
 describe('Phiếu lương chi tiết từ /payroll/:month/:username', () => {
-  const line = (date: string, shiftCode: string, workHours = 8) => ({ date, shiftCode, workHours });
+  // Dải ngày do BE quyết (details.calendar): 02/11 và 03/11 đi làm, 04/11 phép, 05/11 không lương, Chủ nhật nghỉ tuần, 06/11 trở đi chưa tới.
+  const calendar = Array.from({ length: 30 }, (_, i) => {
+    const date = `2026-11-${String(i + 1).padStart(2, '0')}`;
+    const kind = i === 0 ? 'rest' : i < 3 ? 'work' : i === 3 ? 'leave' : i === 4 ? 'unpaid' : 'future';
+    return { date, kind };
+  });
   const rec = {
     id: 9, username: 'nam', status: 'draft', gross: 9_000_000, insurance: 840_000, tax: 10_000, advance: 0, net: 8_150_000,
     details: {
@@ -238,19 +253,19 @@ describe('Phiếu lương chi tiết từ /payroll/:month/:username', () => {
       kpiTotalScorePct: 64.4, kpiProposedAmount: 2_000_000, kpiMaxSalary: 3_000_000, kpiActualPay: 1_288_000,
       grossIncome: 9_000_000, taxExemptIncome: 0, taxableIncome: 8_000_000, insuranceDeduction: 840_000, incomeAfterInsurance: 8_160_000,
       personalIncomeTax: 10_000, advanceDeduction: 0, netIncome: 8_150_000, dependants: 1, remainingAnnualLeaveDays: 11,
-      dailyLines: [line('2026-11-02', 'NORMAL'), line('2026-11-03', 'FLEX'), line('2026-11-04', 'LEAVE', 0), line('2026-11-05', 'UNPAID', 0)]
+      workPay: 923_077 + 307_692, lateMinutes: 0, calendar
     }
   };
 
   it('maps the money and the KPI from the stored payslip', () => {
-    const s: any = payslipFromRecord(rec as any, '2026-11-05');
+    const s: any = payslipFromRecord(rec as any);
     assert.equal(s.id, 'nam');
     assert.equal(s.name, 'Lê Hoàng Nam');
     assert.equal(s.contract, 'Chính thức');
     assert.equal(s.status, 'draft');
     assert.deepEqual(s.days, { work: 3, leave: 1, isat: 0, pending: 0, unpaid: 1, standard: 26 });
     assert.deepEqual(s.ot, { hours: [2, 0, 0], pay: 138_462 });
-    assert.deepEqual(s.late, { minutes: [], hours: 0.5, cut: 19_231 });
+    assert.deepEqual(s.late, { minutes: 0, hours: 0.5, cut: 19_231 });
     assert.deepEqual(s.allowances.map((a: any) => [a.label, a.rule, a.actual]).slice(0, 2), [['Chuyên cần', 500_000, 0], ['Đi lại', 300_000, 300_000]]);
     assert.deepEqual(s.kpi.scores, { wework: 80, user: null, peer: 70, manager: 90, self: 60 });
     assert.equal(s.kpi.proposal, 2_000_000);
@@ -262,77 +277,58 @@ describe('Phiếu lương chi tiết từ /payroll/:month/:username', () => {
   });
 
   it('builds one calendar cell per day of the month', () => {
-    const s: any = payslipFromRecord(rec as any, '2026-11-05');
+    const s: any = payslipFromRecord(rec as any);
     assert.equal(s.calendar.length, 30);
     assert.deepEqual(s.calendar.slice(0, 7), ['sunday', 'work', 'work', 'leave', 'unpaid', 'future', 'future']);
   });
 });
 
-import { attendanceFromTimesheets, gridFromOf } from '../../web/src/builders/api/attendance';
+import { readFileSync } from 'node:fs';
+import { attendanceFromWeek, dayDetailFromDto, employeeFromDto } from '../../web/src/builders/api/attendance';
 
-describe('Chấm công Admin từ /attendance/timesheets', () => {
-  const emp = employee({ username: 'nam', name: 'Lê Hoàng Nam', job: 'Kinh doanh' });
-  const ts = (workDate: string, over: Record<string, unknown> = {}) => ({
-    employeeId: 'u-nam', workDate, shiftType: 'NORMAL', shiftStartTime: '08:00', shiftEndTime: '17:00',
-    actualCheckIn: '07:55', actualCheckOut: '17:05', status: 'PRESENT', checkInStatus: 'ON_TIME', checkOutStatus: 'ON_TIME',
-    metrics: { lateMinutes: 0, earlyLeaveMinutes: 0, otHours: 0, workHours: 8 }, ...over
-  });
+// Builder Chấm công chỉ ánh xạ DTO của BE (đã tính hết); chạy trên hai file phản hồi thật làm hợp đồng.
+const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../../web/tests/fixtures/api/${name}.json`, import.meta.url), 'utf8'));
 
-  it('starts the grid on the Monday two weeks before today', () => {
-    assert.equal(gridFromOf('2026-11-05'), '2026-10-19');
-  });
+describe('Chấm công Admin từ /attendance/week và /attendance/employees/:username', () => {
+  const week = fixture('attendance-week');
+  const emp = fixture('attendance-employee');
 
-  it('builds cells from timesheets and marks pending items as todo', () => {
-    const view: any = attendanceFromTimesheets({
-      month: '2026-11',
-      today: '2026-11-05',
-      employees: [emp] as any,
-      timesheets: [
-        ts('2026-11-02'),
-        ts('2026-11-03', { actualCheckIn: '08:20', checkInStatus: 'LATE', metrics: { lateMinutes: 20, otHours: 0 } }),
-        ts('2026-11-04', { status: 'LEAVE_PAID', actualCheckIn: null, actualCheckOut: null }),
-        ts('2026-11-05', { actualCheckOut: null, status: 'ABSENT' })
-      ] as any,
-      pending: [{ id: 'r1', personId: 'nam', days: ['2026-11-03'], group: 'exp', what: 'Giải trình' }] as any
-    });
-    assert.equal(view.days.length, 28);
-    assert.equal(view.days[0].iso, '2026-10-19');
+  it('maps the week DTO without recomputing anything', () => {
+    const view: any = attendanceFromWeek(week, []);
+    assert.equal(view.days.length, week.days.length);
+    assert.equal(view.rows.length, week.rows.length);
+    assert.equal(view.total, week.total);
+    assert.equal(view.matched, week.matched);
+    assert.deepEqual(view.groups, week.groups);
     const row = view.rows[0];
-    assert.equal(row.person.name, 'Lê Hoàng Nam');
-    const at = (d: string) => row.cells.find((c: any) => c.date === d);
-    assert.equal(at('2026-11-02').kind, 'work');
-    assert.equal(at('2026-11-02').text, '07:55–17:05');
-    assert.equal(at('2026-11-03').base, 'late');
-    assert.equal(at('2026-11-03').kind, 'todo');
-    assert.equal(at('2026-11-03').itemId, 'r1');
-    assert.equal(at('2026-11-04').kind, 'leave');
-    assert.equal(at('2026-11-05').kind, 'work');
-    assert.equal(at('2026-11-05').live, true);
-    assert.equal(at('2026-11-06').kind, 'fu');
-    assert.equal(at('2026-11-01').kind, 'off'); // Chủ nhật
-    assert.equal(at('2026-10-30').kind, 'absent');
-    assert.equal(view.pending.length, 1);
-    assert.equal(view.total, 1);
-    assert.equal(row.person.lateCount, 1);
+    assert.deepEqual(row.totals, week.rows[0].totals);
+    assert.equal(row.needsAction, week.rows[0].needsAction);
+    assert.deepEqual(row.cells.map((c: any) => [c.date, c.kind, c.base, c.text]), week.rows[0].days.map((c: any) => [c.date, c.kind, c.base, c.text]));
+    assert.equal(view.tiles.length, 6);
+    assert.equal(view.tiles[1].value, '1 / 3');
+    assert.equal(view.tiles[5].value, '0 giờ');
+    assert.equal(view.pending.length, week.pending.length);
+    assert.equal(view.pending[0].item.what, 'Quên chấm công'); // không có trong /requests: dựng tối thiểu từ DTO
   });
 
-  // BUG-requests-9: việc chờ duyệt từ /requests mang personId = uuid (employeeId của đơn), còn người trên lưới khoá theo
-  // tên đăng nhập. Hai bên phải khớp, nếu không Cần xử lý luôn trống và lưới không tô ô "cần xử lý".
-  it('matches pending items keyed by the employee uuid', () => {
-    const view: any = attendanceFromTimesheets({
-      month: '2026-11',
-      today: '2026-11-05',
-      employees: [emp] as any,
-      timesheets: [ts('2026-11-03', { actualCheckIn: '08:20', checkInStatus: 'LATE', metrics: { lateMinutes: 20, otHours: 0 } })] as any,
-      pending: [{ id: 'r1', personId: emp.profile.uuid, days: ['2026-11-03'], group: 'exp', what: 'Giải trình' }] as any
-    });
-    assert.equal(emp.profile.uuid, 'u-nam');
-    assert.equal(view.pending.length, 1);
-    assert.equal(view.pending[0].person.name, 'Lê Hoàng Nam');
-    assert.equal(view.total, 1);
-    const cell = view.rows[0].cells.find((c: any) => c.date === '2026-11-03');
-    assert.equal(cell.kind, 'todo');
-    assert.equal(cell.itemId, 'r1');
+  it('takes head, sub and facts of a pending item from /requests by id', () => {
+    const inbox: any[] = [{ id: week.pending[0].id, head: 'Đầu thật', sub: 'Phụ thật', facts: [['A', 'B']], personId: 'u1' }];
+    const view: any = attendanceFromWeek(week, inbox);
+    assert.equal(view.pending[0].item.head, 'Đầu thật');
+  });
+
+  it('maps the employee DTO and picks a day cell for the detail box', () => {
+    const view: any = employeeFromDto(emp);
+    assert.equal(view.index, emp.index);
+    assert.equal(view.prevId, emp.prev);
+    assert.equal(view.nextId, emp.next);
+    assert.deepEqual(view.data.chips, emp.chips);
+    assert.equal(view.data.strip.length, emp.days.length);
+    assert.equal(view.data.history.length, emp.dayHistory.length);
+    assert.equal(view.data.stats[0].value, String(emp.stats[0].value));
+    const detail: any = dayDetailFromDto(emp, emp.days[0].date, []);
+    assert.equal(detail.cell.kind, emp.days[0].kind);
+    assert.equal(dayDetailFromDto(emp, '2000-01-01', []), null);
   });
 });
 
@@ -489,40 +485,86 @@ describe('Tài khoản từ /roles và /employees', () => {
     assert.deepEqual(src.rolesRes.roles.map((r: any) => r.code), ['admin', 'staff']);
     assert.deepEqual(src.rolesRes.staff.map((s: any) => [s.username, s.roles, s.locked]), [['admin', ['admin'], false], ['nam', ['staff'], true]]);
     assert.deepEqual(src.staffRes.staff.find((s: any) => s.username === 'nam'), { username: 'nam', type: 'nv', level: 2, levelName: 'Bậc 2', payrollSubject: true, rev: 0 });
-    assert.equal(src.staffRes.staff.find((s: any) => s.username === 'admin').payrollSubject, false);
+    assert.equal(src.staffRes.staff.find((s: any) => s.username === 'admin')!.payrollSubject, false);
   });
 });
 
 import { overviewFrom } from '../../web/src/builders/api/overview';
+import { overviewDto } from '../../web/src/mock/overview';
+import { readFileSync } from 'node:fs';
 
-describe('Tổng quan ghép từ các API có sẵn', () => {
-  it('builds kpis, attendance rate, period and payroll rows', () => {
-    const emps = [employee({ username: 'nam', name: 'Lê Hoàng Nam' }), employee({ username: 'ha', name: 'Nguyễn Thu Hà' }), employee({ username: 'quan', status: 'nghiviec', resigned: '2026-10-01' })];
-    const tsIn = (u: string, d: string) => ({ employeeId: `u-${u}`, workDate: d, actualCheckIn: '07:55', actualCheckOut: null, status: 'PRESENT' });
-    const board = payrollScreenFromPayslips([], '2026-11');
-    const v: any = overviewFrom({
-      month: '2026-11',
-      today: '2026-11-05',
-      now: '09:40',
-      payroll: board,
-      employees: emps as any,
-      timesheets: [tsIn('nam', '2026-11-05'), tsIn('nam', '2026-11-04'), tsIn('ha', '2026-11-04')] as any,
-      approvals: [{ id: 'r1' }, { id: 'r2' }] as any,
-      periodState: 'Đang chấm công'
-    });
-    assert.deepEqual(v.headline, { blocking: 2, closeOn: '30/11', daysLeft: 25 });
+describe('Tổng quan ánh xạ từ GET /overview (BE tính hết)', () => {
+  const fixture = JSON.parse(readFileSync(new URL('../../web/tests/fixtures/api/overview.json', import.meta.url), 'utf8'));
+
+  it('maps the real response to the view without computing', () => {
+    const v: any = overviewFrom(fixture);
+    assert.deepEqual(v.headline, { blocking: 93, closeOn: '31/10', daysLeft: 11 });
     const k = Object.fromEntries(v.kpis.map((x: any) => [x.key, x]));
-    assert.equal(k.staff.value, '2');
+    assert.equal(k.staff.value, '3');
     assert.equal(k.present.value, '1');
-    assert.equal(k.present.of, '2');
-    assert.equal(k.requests.value, '2');
-    assert.equal(k.payroll.value, '0,00');
-    assert.equal(v.attendance.todayRate, 50);
-    assert.deepEqual(v.attendance.days.at(-1), { dow: 'Hôm nay', date: '05/11', rate: 50, today: true });
-    assert.deepEqual(v.attendance.days.at(-2), { dow: 'T4', date: '04/11', rate: 100, today: false });
-    assert.equal(v.attendance.days.length, 6);
-    assert.equal(v.period.statusLabel, 'Đang chấm công');
-    assert.deepEqual(v.period.slips, { done: 0, pending: 0, draft: 0, rejected: 0, total: 0 });
-    assert.equal(v.payroll.rows.length, 0);
+    assert.equal(k.present.of, '3');
+    assert.equal(k.requests.value, '1');
+    assert.equal(v.attendance.todayRate, 33);
+    assert.deepEqual(v.attendance.days.at(-1), { dow: 'Hôm nay', date: '20/10', rate: 33, today: true });
+    assert.equal(v.period.statusLabel, 'Chờ duyệt');
+    assert.equal(v.period.payday, '10/11/2026');
+    assert.deepEqual(v.period.slips, { done: 0, pending: 0, draft: 2, rejected: 0, total: 2 });
+    assert.equal(v.approvals.total, 93);
+    assert.equal(v.approvals.items.length, 8);
+  });
+
+  it('mock DTO is built by the same builder', () => {
+    const v: any = overviewFrom(overviewDto('2026-10'));
+    assert.equal(v.approvals.total, v.headline.blocking);
+  });
+});
+
+describe('Việc nhắc giải trình từ /requests/explanations-due', () => {
+  // 28/10/2026 09:40 giờ Việt Nam.
+  const NOW = Date.parse('2026-10-28T02:40:00Z');
+  const people = new Map([['u1', { name: 'Trịnh Văn Long', title: 'Công nhân vận hành' }]]);
+  const due = (over: Record<string, unknown> = {}) => ({
+    employeeId: 'u1', name: 'Long', date: '2026-10-27', cases: ['MISSING_CHECK_IN', 'MISSING_CHECK_OUT'],
+    needs: { checkIn: true, checkOut: true }, remindedAt: null, ...over
+  });
+
+  it('maps a day missing both punches to a remind item in the attendance group', () => {
+    const [item] = inboxFromDue([due()] as any, people, NOW);
+    assert.equal(item.id, 'due:u1:2026-10-27');
+    assert.equal(item.group, 'att');
+    assert.equal(item.groupLabel, 'Chấm công');
+    assert.equal(item.action, 'remind');
+    assert.equal(item.personId, 'u1');
+    assert.equal(item.name, 'Trịnh Văn Long');
+    assert.equal(item.initials, 'VL');
+    assert.equal(item.role, 'Công nhân vận hành');
+    assert.equal(item.what, 'Quên chấm công');
+    assert.equal(item.head, 'Quên chấm công');
+    assert.equal(item.when, '27/10');
+    assert.equal(item.sub, 'Thứ Ba 27/10');
+    assert.equal(item.age, '1 ngày');
+    assert.deepEqual(item.days, ['2026-10-27']);
+    assert.deepEqual(item.facts, [['Giờ vào', 'Chưa có'], ['Giờ ra', 'Chưa có'], ['Giải trình', 'Chưa gửi']]);
+    assert.equal(item.remindedAt, undefined);
+  });
+
+  it('keeps remindedAt, names the cases, and falls back to the server name without a profile', () => {
+    const [item] = inboxFromDue(
+      [due({ employeeId: 'u9', name: 'Ngô Gia Bảo', cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, remindedAt: '2026-10-27T02:40:00.000Z' })] as any,
+      people,
+      NOW
+    );
+    assert.equal(item.what, 'Thiếu giờ ra');
+    assert.equal(item.name, 'Ngô Gia Bảo');
+    assert.equal(item.role, '—');
+    assert.equal(item.remindedAt, '2026-10-27T02:40:00.000Z');
+    // Giờ đã có thì máy chủ không gửi giá trị: dòng đó không hiện, thay vì ghi sai.
+    assert.deepEqual(item.facts, [['Giờ ra', 'Chưa có'], ['Giải trình', 'Chưa gửi']]);
+  });
+
+  it('keeps the server order and gives two days of the same person two ids', () => {
+    const items = inboxFromDue([due(), due({ date: '2026-10-26' })] as any, people, NOW);
+    assert.deepEqual(items.map(i => i.id), ['due:u1:2026-10-27', 'due:u1:2026-10-26']);
+    assert.equal(items[1].age, '2 ngày');
   });
 });

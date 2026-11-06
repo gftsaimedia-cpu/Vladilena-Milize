@@ -1,9 +1,12 @@
 <script setup lang="ts">
 // Thân của một ngày (J3 trên điện thoại, K2 trên máy tính): thanh giờ trên trục ca, dòng khoá – giá trị, hộp giải trình
-// (ngày có giải trình). Không có đầu hộp, không có nút Đóng: vỏ (hộp trượt hay ngăn kéo) tự thêm. Ngày nghỉ không có thanh giờ.
+// (ngày có đơn giải trình chờ duyệt). Không có đầu hộp, không có nút Đóng: vỏ (hộp trượt hay ngăn kéo) tự thêm. Ngày nghỉ không
+// có thanh giờ. Ngày còn cần giải trình (`due`) có nút phụ "Giải trình": liên kết mở form Giải trình điền sẵn ngày này
+// (/nv/yeu-cau?tao=giai-trinh&ngay=…, spec staff-requests 4.3). Đã có đơn thì hộp trạng thái đơn thay cho nút.
 //   <DayBody :day="day" />
 import { computed } from 'vue';
 import type { DayDetail } from '@/mock/staff-phone';
+import { REQUESTS_PATH, TAO_SLUG } from '@/views/staff-requests/useNewRequest';
 
 const props = defineProps<{ day: DayDetail }>();
 
@@ -46,6 +49,7 @@ const track = computed(() => {
 });
 
 const pos = (s: { left: number; width: number }) => ({ left: `${s.left}%`, width: `${s.width}%` });
+const explain = computed(() => ({ path: REQUESTS_PATH, query: { tao: TAO_SLUG.explanation, ngay: props.day.date } }));
 </script>
 
 <template>
@@ -70,9 +74,10 @@ const pos = (s: { left: number; width: number }) => ({ left: `${s.left}%`, width
     <i class="dot pend" />
     <div>
       <div class="ds-b">Đã gửi giải trình lúc {{ day.claim.sentAt }}</div>
-      <div class="mut">Giờ ra khai {{ day.claim.outClaim }} · chờ Admin duyệt</div>
+      <div class="mut">{{ day.claim.outClaim ? `Giờ ra khai ${day.claim.outClaim} · chờ Admin duyệt` : 'Chờ Admin duyệt' }}</div>
     </div>
   </div>
+  <RouterLink v-else-if="day.due" :to="explain" class="b2">Giải trình</RouterLink>
 </template>
 
 <style scoped>

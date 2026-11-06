@@ -1,7 +1,12 @@
 import { Controller, Get, Post, Put, Param, Body, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, ConflictError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
+import { AuditEntryError } from '../audit';
 import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
+import { payrollTotalsOf } from './domain/payroll-totals';
 import { KpiScoreBody, PayrollService } from './payroll.service';
+
+// Tháng 01–12: '2026-13' không phải tháng.
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 @Controller('api/v2/payroll')
 @UseFilters(ApiExceptionFilter)
@@ -15,7 +20,7 @@ export class PayrollController {
     @Body() body: { employeeIds?: string[] },
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 
@@ -43,6 +48,8 @@ export class PayrollController {
         errors: result.errors,
       };
     } catch (err: any) {
+      // Lỗi dựng dòng nhật ký là lỗi lập trình: để bộ lọc trả 500, không đổi thành 400.
+      if (err instanceof AuditEntryError) throw err;
       if (err instanceof PayrollFinalizedError) throw new ConflictError(err.message, { code: 'PAYROLL_FINALIZED' });
       throw new BadRequestError(err.message, { code: 'CALCULATE_ERROR' });
     }
@@ -51,12 +58,12 @@ export class PayrollController {
   @RequireCap('payroll.calculate')
   @Get(':month')
   async listPayslips(@Param('month') month: string): Promise<unknown> {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 
     const items = await this.service.listPayslips(month);
-    return { month, items };
+    return { month, items, totals: payrollTotalsOf(items) };
   }
 
   @RequireCap('payroll.calculate')
@@ -65,7 +72,7 @@ export class PayrollController {
     @Param('month') month: string,
     @Param('employeeId') employeeId: string
   ): Promise<unknown> {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 
@@ -85,7 +92,7 @@ export class PayrollController {
     @Body() body: { decision?: string; note?: string },
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
     const status = body?.decision === 'approve' ? 'approved' : body?.decision === 'reject' ? 'rejected' : null;
@@ -108,13 +115,14 @@ export class PayrollController {
     @Body() body: KpiScoreBody,
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 
     try {
       await this.service.setKpiScore(username, month, body, user.username);
     } catch (err) {
+      if (err instanceof PayrollFinalizedError) throw new ConflictError(err.message, { code: 'PAYROLL_FINALIZED' });
       if (err instanceof KpiValidationError) {
         if (err.code === 'EMPLOYEE_NOT_FOUND') throw new NotFoundError(err.message, { code: err.code });
         throw new BadRequestError(err.message, { code: err.code });

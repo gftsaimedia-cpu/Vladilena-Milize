@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Cài đặt · Lương KPI</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face { font-family: Geist; src: url("/_blob/408154e04f313c54998bea9c3f98f182") format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/cd12623746d6bbfc6da195a4946a6080") format("woff2"); font-weight: 600; unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/fd9de8133057c7ea3e38abcb3bc6c389") format("woff2"); font-weight: 600; }
+body { margin: 0; }
+a { color: #212121; } a:hover { color: #000000; }
+input::placeholder, textarea::placeholder { color: #757575; }
+a:focus-visible, button:focus-visible, input[type="search"]:focus-visible, textarea:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+[hidden] { display: none !important; }
+sc-for { display: contents; }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.mt { font-size: 12px; line-height: 16px; color: #616161; }
+.card { box-sizing: border-box; border-radius: 24px; background: #ffffff; border: 1px solid var(--border); }
+/* Menu con của Cài đặt (SettingsFrame): nhóm + mục, mục đang mở nền vàng nhạt */
+.sg { padding: 16px 12px 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: #616161; }
+.sg:first-child { padding-top: 4px; }
+.sn { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: #212121; }
+.sn:hover { background: var(--page); color: #212121; }
+.sn.on { background: #fce8b2; font-weight: 500; }
+.sn svg { flex: none; color: #616161; }
+.sn.on svg { color: #212121; }
+/* Nút: chính đen, phụ viền xám; tắt = nền xám, chữ xám */
+.bt { height: 40px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border-radius: 8px; font: inherit; font-weight: 500; white-space: nowrap; cursor: pointer; }
+.bt.sm { height: 36px; padding: 0 14px; }
+.bt.p { background: #000000; border: 1px solid #000000; color: #ffffff; }
+.bt.s { background: #ffffff; border: 1px solid var(--control); color: #212121; }
+.bt:disabled { background: var(--draft); border-color: var(--draft); color: #616161; cursor: default; }
+.ic { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #616161; cursor: pointer; }
+/* Ô số và ô chọn: bo 8px, viền xám, chữ số căn phải */
+.fn { height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--control); background: #ffffff; color: #212121; }
+.fn input { flex: 1 1 auto; width: 100%; min-width: 0; margin: 0; padding: 0; border: 0; outline: 0; background: transparent; font: inherit; color: inherit; text-align: right; font-variant-numeric: tabular-nums; }
+.fn .u { flex: none; color: #616161; }
+.sl { position: relative; height: 40px; box-sizing: border-box; display: flex; align-items: center; border-radius: 8px; border: 1px solid var(--control); background: #ffffff; }
+.sl select { appearance: none; -webkit-appearance: none; flex: 1 1 auto; width: 100%; height: 100%; margin: 0; padding: 0 40px 0 12px; border: 0; outline: 0; border-radius: 8px; background: transparent; font: inherit; color: #212121; cursor: pointer; }
+.sl svg { position: absolute; right: 12px; pointer-events: none; color: #616161; }
+.fn:focus-within, .sl:focus-within { border-color: #212121; box-shadow: 0 0 0 3px #e9e9e9; }
+.nt { display: block; width: 100%; height: 88px; box-sizing: border-box; margin: 0; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--control); background: #ffffff; font: inherit; color: #212121; resize: none; }
+.lbl { display: block; margin: 0 0 8px; font-weight: 600; }
+.lbl small { font-size: inherit; font-weight: 400; color: #616161; }
+/* Nhãn trạng thái: chữ thường + chấm nhỏ, không viên thuốc */
+.ed { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ed i { width: 6px; height: 6px; flex: none; border-radius: 50px; background: #b5803f; }
+/* Bảng Cách tính lương */
+.pt { width: 100%; min-width: 720px; border-collapse: collapse; }
+.pt th { padding: 12px 16px; text-align: left; font-size: 12px; line-height: 16px; font-weight: 500; color: #616161; background: var(--page); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.pt td { height: 64px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+.pt .op { width: 32px; padding: 0 0 0 24px; text-align: center; font-size: 20px; color: #757575; }
+.pt .nm { width: 210px; font-weight: 600; white-space: nowrap; }
+.pt .st { width: 120px; }
+.pt .ac { width: 76px; padding-right: 24px; text-align: right; }
+/* Ngăn kéo bên phải */
+.dw { position: absolute; z-index: 6; top: 16px; right: 16px; bottom: 16px; width: 560px; max-width: calc(100% - 32px); box-sizing: border-box; display: flex; flex-direction: column; border-radius: 24px; background: #ffffff; overflow: hidden; }
+.dh { display: flex; align-items: flex-start; gap: 8px; padding: 20px 16px 16px 24px; border-bottom: 1px solid var(--border); }
+.db { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 24px 24px; }
+.df { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--border); }
+.dsh { margin: 0; padding: 20px 0 4px; font-size: 14px; line-height: 20px; font-weight: 600; }
+.dr { display: grid; grid-template-columns: minmax(0, 1fr) 160px; gap: 16px; align-items: center; min-height: 60px; border-bottom: 1px solid var(--border); }
+.dr label { font-weight: 500; }
+.dblk { padding-top: 24px; }
+/* Số chỉ đọc: chữ thường, không phải ô nhập */
+.kl { margin: 0; }
+.kl div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.kl dt { color: #616161; }
+.kl dd { margin: 0; font-weight: 500; }
+</style>
+</helmet>
+<div style="--page: {{c.page}}; --border: {{c.border}}; --draft: {{c.draft}}; --control: {{c.control}}; position: relative; min-height: 1300px; box-sizing: border-box; padding: 16px; display: flex; flex-wrap: wrap; align-items: stretch; gap: 24px; background: {{c.page}}; color: #212121; font-family: Geist, system-ui, sans-serif; font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums;">
+
+<aside style="flex: 1 1 248px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; padding: 24px 12px 16px; border-radius: 24px; background: {{s.bg}}; border: 1px solid {{s.edge}}; color: {{s.ink}};">
+<div style="display: flex; align-items: center; gap: 12px; padding: 0 12px;">
+<img src="{{s.logo}}" alt="GFT" style="width: 52px; height: auto;">
+<span style="padding-top: 4px; font-family: 'League Spartan', Geist, sans-serif; font-size: 22px; line-height: 24px; font-weight: 600; color: {{s.strong}};">AiCB</span>
+</div>
+<nav aria-label="Điều hướng" style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>Tổng quan</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"></path><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>Yêu cầu<span style="margin-left: auto; min-width: 24px; height: 20px; box-sizing: border-box; padding: 0 8px; border-radius: 50px; display: grid; place-items: center; font-size: 12px; line-height: 16px; font-weight: 600; background: {{s.cntBg}}; color: {{s.cntInk}};">9</span></a>
+<div style="padding: 20px 12px 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: {{s.muted}};">Kỳ lương</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Chấm công</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 12h.01M18 12h.01"></path></svg>Bảng lương</a>
+<div style="padding: 20px 12px 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: {{s.muted}};">Đội ngũ</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Nhân sự</a>
+</nav>
+<div style="display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid {{s.foot}};">
+<a href="SettingsPay.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-weight: 500; background: {{s.activeBg}}; color: {{s.activeInk}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg>Cài đặt</a>
+<button type="button" aria-haspopup="menu" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 4px 12px; border: 0; border-radius: 8px; background: transparent; font: inherit; text-align: left; cursor: pointer; color: {{s.ink}};">
+<span aria-hidden="true" style="width: 36px; height: 36px; flex: none; border-radius: 50px; display: grid; place-items: center; background: #fce8b2; color: #212121; font-size: 12px; font-weight: 600;">QT</span>
+<span style="display: flex; flex-direction: column;"><span style="font-weight: 500; color: {{s.strong}};">Quản trị viên</span><span style="font-size: 12px; line-height: 16px; color: {{s.muted}};">HR · GFT</span></span>
+</button>
+</div>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px; padding: 4px 16px 16px 0;">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+<label style="flex: 1 1 280px; max-width: 440px; height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; color: #616161;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input type="search" aria-label="Tìm nhân viên, phiếu lương, yêu cầu" placeholder="Tìm nhân viên, phiếu lương, yêu cầu…" style="flex-grow: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; color: #212121;"></label>
+<div style="flex-grow: 1;"></div>
+<button type="button" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px 0 14px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; font: inherit; color: #212121; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>Kỳ lương tháng 10/2026<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+<button type="button" aria-label="Thông báo, 3 mới" style="position: relative; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50px; background: #ffffff; border: 1px solid {{c.border}}; color: #212121; cursor: pointer;"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 6px; border-radius: 50px; background: #1c1c1c; color: #ffffff; font-size: 12px; line-height: 20px; font-weight: 600;">3</span></button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+<div>
+<h1 style="margin: 0; font-family: 'League Spartan', Geist, sans-serif; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.28px;">Cài đặt</h1>
+<p style="margin: 8px 0 0; color: #616161;">Áp dụng cho mọi phiếu lương · <b style="font-weight: 600; color: #212121;">1 khoản</b> đã chỉnh</p>
+</div>
+<label style="flex: 0 1 360px; height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; color: #616161;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input type="search" aria-label="Tìm cài đặt" placeholder="Tìm cài đặt: tạm ứng, ca đêm, hệ số OT…" style="flex-grow: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; color: #212121;"></label>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px;">
+<nav aria-label="Mục cài đặt" class="card" style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px; padding: 12px;">
+<div class="sg">Lương</div>
+<a href="SettingsPay.dc.html" class="sn on" aria-current="page"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>Cách tính lương</a>
+<a href="#" class="sn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"></path></svg>Chế độ theo loại</a>
+<a href="#" class="sn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Chức vụ và bậc</a>
+<div class="sg">Vận hành</div>
+<a href="SettingsCalendar.dc.html" class="sn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>Lịch, ca &amp; chấm công</a>
+<a href="#" class="sn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5"></circle><circle cx="12" cy="12" r="1"></circle></svg>Quy tắc KPI</a>
+<div class="sg">Kiểm soát</div>
+<a href="#" class="sn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>Phân quyền</a>
+<a href="#" class="sn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>Nhật ký thay đổi</a>
+<div class="sg">Tra cứu</div>
+<a href="SettingsAll.dc.html" class="sn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>Tất cả cài đặt</a>
+</nav>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<section class="card" style="overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 24px 24px 16px;"><h2 style="margin: 0; font-size: 18px; line-height: 24px; font-weight: 600;">Cách tính lương</h2><span class="mt">Thực nhận của mỗi phiếu tính từ trên xuống</span></div>
+<div style="overflow-x: auto;">
+<table class="pt">
+<thead>
+<tr><th class="op"><span class="sr">Cộng hay trừ</span></th><th class="nm">Khoản</th><th>Đang áp dụng</th><th class="st"><span class="sr">Trạng thái</span></th><th class="ac"><span class="sr">Thao tác</span></th></tr>
+</thead>
+<tbody>
+<tr><td class="op">+</td><td class="nm">Lương theo ngày công</td><td>Công chuẩn 22 (T2–T6) · 26 (T2–T7)</td><td class="st"></td><td class="ac"><button type="button" class="bt s sm" aria-label="Xem Lương theo ngày công">Xem</button></td></tr>
+<tr><td class="op">+</td><td class="nm">Tiền làm thêm giờ</td><td>Ngày thường ×1.5 · cuối tuần ×2 · ngày lễ ×3</td><td class="st"></td><td class="ac"><button type="button" class="bt s sm" aria-label="Sửa Tiền làm thêm giờ">Sửa</button></td></tr>
+<tr><td class="op">+</td><td class="nm">Phụ cấp</td><td>Mất chuyên cần khi nghỉ từ 3 ngày</td><td class="st"></td><td class="ac"><button type="button" class="bt s sm" aria-label="Sửa Phụ cấp">Sửa</button></td></tr>
+<tr><td class="op">+</td><td class="nm">Lương KPI</td><td>Trọng số 40 · 24 · 18 · 12 · 6</td><td class="st"></td><td class="ac"><button type="button" class="bt s sm" aria-label="Sửa Lương KPI">Sửa</button></td></tr>
+<tr><td class="op">−</td><td class="nm">Khấu trừ đi muộn</td><td>Đi trễ tới 10 phút vẫn hợp lệ</td><td class="st"><span class="ed"><i aria-hidden="true"></i>Đã chỉnh</span></td><td class="ac"><button type="button" class="bt s sm" aria-label="Sửa Khấu trừ đi muộn">Sửa</button></td></tr>
+<tr><td class="op" style="border-bottom: 0;">−</td><td class="nm" style="border-bottom: 0;">Tạm ứng</td><td style="border-bottom: 0;">80% lương của ngày công 01–15</td><td class="st" style="border-bottom: 0;"></td><td class="ac" style="border-bottom: 0;"><button type="button" class="bt s sm" aria-label="Xem Tạm ứng">Xem</button></td></tr>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 16px 24px; border-top: 1px solid {{c.border}}; color: #616161;">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
+<span style="flex: 1 1 320px;">Thay đổi gần đây: Khấu trừ đi muộn, đi trễ tới 10 phút từ tháng 11/2026. Mỗi lần sửa được ghi vào Nhật ký thay đổi.</span>
+<a href="#" style="font-weight: 500;">Mở nhật ký</a>
+</div>
+</section>
+</div>
+</div>
+
+</main>
+
+<div aria-hidden="true" style="position: absolute; inset: 0; z-index: 5; background: rgba(28, 28, 28, 0.32);"></div>
+<aside role="dialog" aria-modal="true" aria-labelledby="dw-kpi" class="dw">
+<div class="dh">
+<div style="flex-grow: 1; min-width: 0;"><h2 id="dw-kpi" style="margin: 0; font-size: 18px; line-height: 24px; font-weight: 600;">Lương KPI</h2><p class="mt" style="margin: 4px 0 0;">Trọng số của 5 điểm KPI, cộng lại đủ 100</p></div>
+<button type="button" class="ic" aria-label="Đóng"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>
+</div>
+<div class="db">
+<h3 class="dsh">Trọng số</h3>
+<div class="dr"><label for="kpi-1">Base Wework</label><div class="fn"><input id="kpi-1" type="text" inputmode="numeric" autocomplete="off" value="40" onChange="{{noop}}"><span class="u" aria-hidden="true">%</span></div></div>
+<div class="dr"><div><label for="kpi-2">Người dùng</label><div class="mt" style="margin-top: 2px;">Đang áp dụng 24%</div></div><div class="fn"><input id="kpi-2" type="text" inputmode="numeric" autocomplete="off" value="22" onChange="{{noop}}"><span class="u" aria-hidden="true">%</span></div></div>
+<div class="dr"><label for="kpi-3">Đồng nghiệp</label><div class="fn"><input id="kpi-3" type="text" inputmode="numeric" autocomplete="off" value="18" onChange="{{noop}}"><span class="u" aria-hidden="true">%</span></div></div>
+<div class="dr"><label for="kpi-4">Quản lý</label><div class="fn"><input id="kpi-4" type="text" inputmode="numeric" autocomplete="off" value="12" onChange="{{noop}}"><span class="u" aria-hidden="true">%</span></div></div>
+<div class="dr"><label for="kpi-5">Tự đánh giá</label><div class="fn"><input id="kpi-5" type="text" inputmode="numeric" autocomplete="off" value="6" onChange="{{noop}}"><span class="u" aria-hidden="true">%</span></div></div>
+<div class="dblk">
+<label class="lbl" for="kpi-m">Áp dụng từ tháng</label>
+<div class="sl"><select id="kpi-m" value="2026-11" onChange="{{noop}}"><option value="2026-10">Tháng 10/2026</option><option value="2026-11">Tháng 11/2026</option><option value="2026-12">Tháng 12/2026</option><option value="2027-01">Tháng 01/2027</option><option value="2027-02">Tháng 02/2027</option><option value="2027-03">Tháng 03/2027</option></select><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+<p class="mt" style="margin: 8px 0 0;">Áp dụng cho tháng này và các tháng sau. Tháng nào đã đặt số khác thì giữ số đó.</p>
+</div>
+<div class="dblk">
+<label class="lbl" for="kpi-why">Lý do <small>(không bắt buộc)</small></label>
+<textarea id="kpi-why" class="nt" maxlength="300" placeholder="Ví dụ: theo quy chế lương mới" value="" onChange="{{noop}}"></textarea>
+<div class="mt" style="margin-top: 6px; text-align: right;">0/300</div>
+</div>
+<div class="dblk" style="padding-top: 28px;">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding-bottom: 4px; border-bottom: 1px solid {{c.border}};"><h3 style="margin: 0; flex-grow: 1; font-size: 14px; line-height: 20px; font-weight: 600;">KPI tối đa theo bậc</h3><a href="#" style="font-size: 13px; font-weight: 500;">Sửa ở Chức vụ &amp; bậc</a></div>
+<div class="mt" style="padding: 12px 0 0; font-weight: 500;">Chuyên trách viên</div>
+<dl class="kl"><div><dt>Fresher</dt><dd>1.500.000 đ</dd></div><div><dt>Practitioner</dt><dd>3.000.000 đ</dd></div><div><dt>Advanced Practitioner</dt><dd>4.500.000 đ</dd></div><div><dt>Senior Practitioner</dt><dd>6.000.000 đ</dd></div></dl>
+<div class="mt" style="padding: 16px 0 0; font-weight: 500;">Nhân viên</div>
+<dl class="kl"><div><dt>Nhân viên</dt><dd>6.000.000 đ</dd></div><div><dt>Chuyên viên</dt><dd>6.500.000 đ</dd></div><div><dt>Lead</dt><dd>7.000.000 đ</dd></div><div><dt>Advisor</dt><dd>7.500.000 đ</dd></div></dl>
+</div>
+</div>
+<div class="df">
+<span style="flex-grow: 1; font-size: 13px; color: #616161;">Có 1 thay đổi chưa lưu</span>
+<span id="kpi-sum" style="font-weight: 600; white-space: nowrap;">Tổng 98/100</span>
+<button type="button" class="bt s">Huỷ</button>
+<button type="button" class="bt p" disabled="{{ true }}" aria-describedby="kpi-sum">Lưu</button>
+</div>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Nền xám","Nền kem"],"default":"Nền xám","section":"Màu"},"sidebar":{"editor":"enum","options":["Tối","Sáng"],"default":"Tối","section":"Khung"},"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+  // Bảng tĩnh: ô nhập giữ nguyên số đã vẽ
+  noop = () => {};
+  renderVals() {
+    const kem = (this.props.theme ?? 'Nền xám') === 'Nền kem';
+    const light = (this.props.sidebar ?? 'Tối') === 'Sáng';
+    const c = kem
+      ? { page: '#f2ead8', border: '#e6dcc6', control: '#857f74', draft: '#e6dcc6' }
+      : { page: '#f5f5f5', border: '#e0e0e0', control: '#8a8a8a', draft: '#e0e0e0' };
+    const s = light
+      ? { bg: '#ffffff', edge: c.border, ink: '#212121', strong: '#212121', muted: '#616161', activeBg: '#fce8b2', activeInk: '#212121', cntBg: c.draft, cntInk: '#212121', foot: c.border, logo: '/_blob/1f9a9f3eba1fb9a94c201cf9d621b234' }
+      : { bg: '#1c1c1c', edge: '#1c1c1c', ink: '#ffffff', strong: '#ffffff', muted: '#9e9e9e', activeBg: '#2a2a2a', activeInk: '#e8c372', cntBg: '#2a2a2a', cntInk: '#ffffff', foot: '#2a2a2a', logo: '/_blob/3568bf81a6ac57ac1877fa1835f3c03e' };
+    return { c, s, noop: this.noop };
+  }
+}
+</script>
+</body>
+</html>

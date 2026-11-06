@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Param, Body, UseFilters, Inject } from '@nestjs/common';
-import { ApiExceptionFilter, CurrentUser, UserSession, Public, RequireCap } from '../../common';
+import { Controller, Get, Put, Param, Body, UseFilters, Inject } from '@nestjs/common';
+import { ApiExceptionFilter, BadRequestError, CurrentUser, UserSession, Public, RequireCap } from '../../common';
 import { SystemService } from './system.service';
 
 @Controller('api')
@@ -33,24 +33,11 @@ export class SystemController {
     @Body() body: { value: string },
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
+    // Cột value_json NOT NULL: thiếu value (hay null) thì 400 (không để rơi thành 500).
+    if (body?.value === undefined || body.value === null) {
+      throw new BadRequestError('Giá trị cấu hình (value) không được để trống', { code: 'BAD_SETTING_INPUT' });
+    }
     await this.service.setSetting(key, body.value, user.username);
     return { ok: true, key, value: body.value };
-  }
-
-  @RequireCap('config.read')
-  @Get('v2/system/periods')
-  async listPeriods(): Promise<unknown> {
-    const periods = await this.service.listPeriods();
-    return { periods };
-  }
-
-  @RequireCap('attendance.lock')
-  @Post('v2/system/periods/:month/lock')
-  async lockPeriod(
-    @Param('month') month: string,
-    @CurrentUser() user: UserSession
-  ): Promise<unknown> {
-    await this.service.lockPeriod(month, user.username);
-    return { ok: true, month, status: 'attendance_locked' };
   }
 }

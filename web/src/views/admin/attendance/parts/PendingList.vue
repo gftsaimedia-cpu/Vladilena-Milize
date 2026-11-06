@@ -3,7 +3,7 @@
 // - `wide` (từ 900px): bấm dòng chọn việc, emit('pick', id); khung chi tiết nằm bên phải do màn cha dựng. Dòng đang chọn có aria-current.
 // - Màn hẹp: chỉ còn danh sách, bấm dòng mở hộp chi tiết ngày đầu của việc, emit('open-day').
 import { dm } from '@/utils/format';
-import type { PendingDay } from '@/mock/attendance';
+import type { PendingDay } from '@/builders/api/attendance';
 
 defineProps<{ pending: PendingDay[]; wide: boolean; selectedId: string | null }>();
 const emit = defineEmits<{ 'open-day': [personId: string, date: string]; pick: [id: string] }>();

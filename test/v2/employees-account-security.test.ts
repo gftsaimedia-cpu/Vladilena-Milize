@@ -28,14 +28,14 @@ describe('Khoá tài khoản và đặt lại mật khẩu qua PUT /employees', 
     assert.equal(open.account.lockedAt, null);
   });
 
-  it('saving bumps session_version when the password hash changes', async () => {
+  it('saving bumps session_version when the password hash changes or the account becomes locked', async () => {
     const { db, log } = createScriptedKysely();
     const repo = new EmployeesRepository(db);
     // save() đọc lại hồ sơ sau khi ghi: trả null là đủ cho phép kiểm câu lệnh ghi
     repo.findByUsernameOrUuid = async () => existing;
     await repo.save(service.buildEmployeeFromInput({ account: { password: 'Moi@123456' } }, existing));
     const upsert = log.find(e => typeof e === 'object' && /^insert into "staff"/.test(e.sql)) as ScriptedQuery;
-    const m = /"session_version" = case when "staff"\."pass_hash" <> "excluded"\."pass_hash" then "staff"\."session_version" \+ \$(\d+) else "staff"\."session_version" end/.exec(upsert.sql);
+    const m = /"session_version" = case when \("staff"\."pass_hash" <> "excluded"\."pass_hash" or \("staff"\."locked_at" is null and "excluded"\."locked_at" is not null\)\) then "staff"\."session_version" \+ \$(\d+) else "staff"\."session_version" end/.exec(upsert.sql);
     assert.ok(m, upsert.sql);
     assert.equal(upsert.parameters[Number(m[1]) - 1], 1);
   });

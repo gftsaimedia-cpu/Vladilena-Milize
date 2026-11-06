@@ -18,6 +18,7 @@ import type {
 } from '../../mock/staff-phone';
 import { dmy, initials, vnd } from '../../utils/format';
 import type { RequestDTO } from './inbox';
+import type { Zone } from './settings';
 
 export type MeLeave = 'paid' | 'unpaid' | 'holiday';
 export type MeDay = { date: string; kind: CellKind; leave?: MeLeave; in: string | null; out: string | null; lateMinutes: number };
@@ -37,7 +38,12 @@ export type MeToday = {
   workedMinutes: number;
   week: MeDay[];
   alert: { date: string; kind: string } | null;
+  zone?: Zone | null; // vùng chấm công của máy chủ; thiếu hoặc null = không giới hạn
+  workday?: boolean; // hôm nay có phải ngày làm; thiếu = có
+  reminders?: { date: string; remindedAt: string }[]; // ngày Admin đã nhắc giải trình, mới nhất trước; thiếu = không có
 };
+/** Đơn giải trình mới nhất không bị huỷ của một ngày (GET /me/attendance/:date); `sentAt` là ISO UTC. */
+export type MeExplanation = { id: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; sentAt: string; actualCheckOut: string | null };
 export type MeProfile = {
   name: string;
   username: string;
@@ -47,7 +53,7 @@ export type MeProfile = {
   shift: { type: string; startTime: string; endTime: string };
   leave: { totalDays: number; usedDays: number; remainingDays: number };
 };
-export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange };
+export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange; payDate?: string | null };
 export type MeStep = { label: string; at: string | null; state: RequestStatus };
 export type MeRequest = RequestDTO & { reviewedAt?: string | null; reviewNote?: string | null };
 
@@ -126,7 +132,7 @@ const STATUS: Record<string, [RequestStatus, string]> = {
   PENDING: ['pend', 'Chờ duyệt'],
   APPROVED: ['done', 'Đã duyệt'],
   REJECTED: ['rej', 'Từ chối'],
-  CANCELLED: ['rej', 'Đã huỷ']
+  CANCELLED: ['cancel', 'Đã huỷ']
 };
 
 function kindOf(r: MeRequest): { icon: RequestRowData['icon']; kindLabel: string; title: string; date: string } {
@@ -209,6 +215,7 @@ export function requestDetailOf(r: MeRequest, steps: MeStep[]): RequestDetail {
     ...requestRowOf(r),
     kindLabel: kindOf(r).kindLabel,
     facts: factsOf(r),
+    dates: r.dates ?? [],
     steps: steps.map((s, i) => ({ label: s.label, at: vnStamp(s.at), state: s.state, ...(note && i === last ? { note } : {}) }))
   };
 }
@@ -255,8 +262,17 @@ export function attendanceViewOf(m: MeMonth, shiftLine: string, today: string, r
   };
 }
 
+// Đơn giải trình chờ duyệt của ngày (chỉ khi PENDING): giờ gửi theo giờ Việt Nam, gửi ngay trong ngày thì chỉ 'HH:mm', gửi
+// ngày khác thì thêm ngày gửi ('09:40 28/10'), như claimOf của mock.
+function claimOf(date: string, e?: MeExplanation | null): DayDetail['claim'] {
+  if (e?.status !== 'PENDING') return null;
+  const sent = new Date(Date.parse(e.sentAt) + 7 * 3600000).toISOString();
+  const time = sent.slice(11, 16);
+  return { sentAt: sent.slice(0, 10) === date ? time : `${time} ${ddmm(sent.slice(0, 10))}`, outClaim: e.actualCheckOut };
+}
+
 /** Hộp chi tiết một ngày; null khi ngày không có ca hoặc chưa tới. */
-export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } | null }, fallback: { start: string; end: string }, today: string, now: string): DayDetail | null {
+export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } | null; due?: DayDetail['due']; explanation?: MeExplanation | null }, fallback: { start: string; end: string }, today: string, now: string): DayDetail | null {
   if (d.kind === 'off' || d.kind === 'future') return null;
   const shift = d.shift ?? fallback;
   const kind = d.kind as DayKind;
@@ -274,7 +290,8 @@ export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } |
     out: d.out,
     lateMin: d.lateMinutes,
     leave: kind === 'leave' ? { type: statusOf(d), span: 'Cả ngày' } : null,
-    claim: null
+    claim: claimOf(d.date, d.explanation),
+    due: d.due ?? null
   };
 }
 
@@ -310,11 +327,15 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
     worked: workedText(workedMin),
     // Máy chủ chưa gửi kết quả vị trí (vùng chấm công): không có dòng vị trí.
     location: null,
+    zone: t.zone ?? null,
+    workday: t.workday !== false,
     week: { range: `${ddmm(days[0].date)} – ${ddmm(days[6].date)}`, cells: days.map(d => cellOf(d, t.date, true)) },
     alert: t.alert ? { date: t.alert.date, text: `${ddmm(t.alert.date)} thiếu giờ vào/ra · cần giải trình` } : null,
+    reminders: (t.reminders ?? []).map(r => ({ date: r.date, text: `Admin nhắc giải trình ${ddmm(r.date)}` })),
     income: {
       label: `Thu nhập tháng ${Number(t.date.slice(5, 7))} · ${income?.state === 'official' ? 'chính thức' : 'tạm tính'}`,
-      net: income?.payslip ? vnd(income.payslip.netIncome) : NONE
+      net: income?.payslip ? vnd(income.payslip.netIncome) : NONE,
+      payDate: income?.payDate ?? null
     },
     requests: [...requests]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -334,7 +355,7 @@ const KPI_PARTS: [string, string][] = [
 
 export function incomeViewOf(inc: MeIncome): IncomeView {
   const p = inc.payslip;
-  const base = { title: 'Thu nhập', note: 'Phiếu chính thức có khi Admin duyệt', label: monthLabelOf(inc.month), ...monthNavOf(inc.month, inc.range) };
+  const base = { title: 'Thu nhập', note: 'Phiếu chính thức có khi Admin duyệt', label: monthLabelOf(inc.month), payDate: inc.payDate ?? null, ...monthNavOf(inc.month, inc.range) };
   if (!p) {
     return {
       ...base,
@@ -366,8 +387,8 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
     net: vnd(p.netIncome),
     review: official ? 'Admin đã duyệt phiếu' : 'Số tạm tính, có thể đổi tới khi Admin duyệt',
     gross: vnd(p.grossIncome),
-    // Tạm tính chỉ trừ tạm ứng; bảo hiểm và thuế chỉ có ở phiếu chính thức (luật 05/11/2026).
-    deduction: vnd((official ? (p.insuranceDeduction || 0) + (p.personalIncomeTax || 0) : 0) + (p.advanceDeduction || 0)),
+    // BE cộng sẵn khấu trừ (bảo hiểm + thuế + tạm ứng); bản tạm tính chưa trừ bảo hiểm và thuế nên chỉ có tạm ứng.
+    deduction: vnd(p.deductionTotal || 0),
     kpi: {
       title: `KPI tháng ${Number(inc.month.slice(5, 7))}`,
       parts: '5 phần',
@@ -385,7 +406,7 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
       line('gift', 'Phụ cấp', p.totalAllowanceActual),
       line('target', 'Lương KPI', p.kpiActualPay),
       ...ifAny('out', 'Trừ đi muộn, về sớm', p.lateEarlyDeductionAmount || 0, true),
-      ...(official
+      ...(official || p.insuranceDeduction || p.personalIncomeTax
         ? [line('shield', 'Bảo hiểm bắt buộc', p.insuranceDeduction, true), line('coin', 'Thuế TNCN', p.personalIncomeTax, true)]
         : []),
       ...ifAny('wallet', 'Tạm ứng', p.advanceDeduction || 0, true)

@@ -97,6 +97,12 @@ test('Duyệt đơn trên PostgreSQL', async t => {
       assert.deepEqual(row.rows, [{ status: 'REJECTED', reviewed_by: 'pg-admin-uuid' }]);
     });
 
+    await t.test('request detail lists the days the request holds (dates)', async () => {
+      const created = await service.createLeaveRequest({ ...leaveInput('pg-user', '2026-11-24'), endDate: '2026-11-25' });
+      const detail = await service.getById(created.id);
+      assert.deepEqual(detail?.dates, ['2026-11-24', '2026-11-25']);
+    });
+
     await t.test('leave with makeup saves its slots inside the lock transaction, on submit and on approval', async () => {
       const created = await service.createLeaveWithMakeupRequest({
         employeeId: 'pg-user',

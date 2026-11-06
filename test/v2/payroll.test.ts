@@ -8,7 +8,18 @@ import {
 } from '../../src/modules/payroll/payroll.repository';
 import { EmployeePayslip } from '../../src/modules/payroll/domain';
 import type { Kysely } from 'kysely';
-import { SEED_RATES, nvMonthData, seedRatesFor } from './payroll-fixtures';
+import type { AttendanceDayRecord } from '../../src/modules/attendance/attendance-days.repository';
+import type { ShiftFacts } from '../../src/modules/attendance/domain/attendance-day';
+import {
+  FakeDays,
+  type MonthFixture,
+  SEED_RATES,
+  dayRow,
+  nvMonthData,
+  payslipLine,
+  punched,
+  seedRatesFor
+} from './payroll-fixtures';
 import type { AllowanceRates } from '../../src/modules/payroll/domain/allowance-rates';
 
 // Staff fields the V2 rules added; the older fixtures below do not depend on them.
@@ -20,7 +31,7 @@ const rulesStaff = {
 };
 
 class FakePayrollRepository extends PayrollRepository {
-  data: Map<string, EmployeeMonthlyRawData> = new Map();
+  data: Map<string, any> = new Map();
   runs: any[] = [];
   slips: any[] = [];
 
@@ -66,9 +77,34 @@ class FakePayrollRepository extends PayrollRepository {
   }
 }
 
+/** The service on a fake repository; the day rows of a person are the `days` of the fixture with that uuid and month. */
+const serviceOf = (repo: FakePayrollRepository) =>
+  new PayrollService(
+    repo,
+    undefined,
+    new FakeDays(
+      (uuid, month) =>
+        [...repo.data.entries()].find(([key, fixture]) => key.endsWith(`:${month}`) && fixture.staff.uuid === uuid)?.[1]
+          .days
+    )
+  );
+
+/** A PRESENT row on a shift of that type, punched over its hours. */
+const shiftRow = (
+  date: string,
+  type: ShiftFacts['type'],
+  [start, end]: [string, string],
+  over: Partial<AttendanceDayRecord> = {}
+): AttendanceDayRecord =>
+  dayRow('PRESENT', date, {
+    shift: { type, start, end, allowancePct: 0 },
+    ...punched(date, start, end),
+    ...over
+  });
+
 describe('Payroll V2 - Tính lương & Xuất phiếu lương chu kỳ', () => {
   const repo = new FakePayrollRepository();
-  const service = new PayrollService(repo);
+  const service = serviceOf(repo);
 
   const empId = 'uuid_user_payroll_1';
   const month = '2026-10';
@@ -86,47 +122,11 @@ describe('Payroll V2 - Tính lương & Xuất phiếu lương chu kỳ', () => {
       ...rulesStaff,
       kpiCap: { applicable: true, kpiMax: 15_600_000 }
     },
-    timesheets: [
-      {
-        workDate: '2026-10-01',
-        shiftType: 'NORMAL',
-        shiftStartTime: '08:00',
-        shiftEndTime: '17:00',
-        shiftAllowancePct: 0,
-        workHours: 8,
-        otHours: 0,
-        lateMinutes: 0,
-        earlyMinutes: 0,
-        status: 'PRESENT',
-        dayStatus: 'VALID'
-      },
-      {
-        workDate: '2026-10-02',
-        shiftType: 'FLEX',
-        shiftStartTime: '09:00',
-        shiftEndTime: '18:00',
-        shiftAllowancePct: 20,
-        workHours: 8,
-        otHours: 0,
-        lateMinutes: 0,
-        earlyMinutes: 0,
-        status: 'PRESENT',
-        dayStatus: 'VALID'
-      },
-      {
-        workDate: '2026-10-03',
-        shiftType: 'LEAVE',
-        shiftStartTime: '08:00',
-        shiftEndTime: '17:00',
-        shiftAllowancePct: 0,
-        workHours: 8,
-        otHours: 0,
-        lateMinutes: 0,
-        earlyMinutes: 0,
-        status: 'LEAVE',
-        dayStatus: 'VALID'
-      }
-    ],
+    days: [
+      dayRow('PRESENT', '2026-10-01'),
+      shiftRow('2026-10-02', 'FLEX', ['09:00', '18:00'], { shift: { type: 'FLEX', start: '09:00', end: '18:00', allowancePct: 20 } }),
+      dayRow('LEAVE_PAID', '2026-10-03')
+    ].map(row => ({ ...row, employeeId: empId })),
     requests: [
       {
         id: 'req_ot_1',
@@ -191,69 +191,46 @@ describe('Payroll allowance behavior from the reference app', () => {
       ...overrides
     });
 
-  const line = (shiftCode: string, workHours = 8) => ({
-    date: '2026-10-01',
-    dayOfWeekText: 'Thứ 2',
-    shiftCode,
-    shiftLabel: shiftCode,
-    inOutText: '',
-    workHours,
-    daySalary: 0,
-    flexAllowancePay: 0,
-    nightAllowancePay: 0,
-    offPaidPay: 0,
-    otHours: 0,
-    otPay: 0,
-    deductionHours: 0,
-    deductionAmount: 0,
-    dailyTotal: 0
+  const worked = (n: number) => Array.from({ length: n }, () => payslipLine('PRESENT'));
+  const staffOf = (uuid: string, employeeType: string | undefined, nightAllowancePct: number, allowanceRates: AllowanceRates | null) => ({
+    uuid,
+    username: uuid,
+    name: uuid,
+    positionLevelText: 'L1',
+    contractStatusText: 'Active',
+    baseSalary: 6_000_000,
+    standardWorkdays: 26,
+    employeeType,
+    nightAllowancePct,
+    isDormResident: false,
+    allowanceRates,
+    ...rulesStaff
   });
 
+  // One PRESENT row of that shift type on 01/10; `row` changes the row (e.g. a day that does not count as a work day).
   const calculateLine = async (
     employeeType: string | undefined,
-    shiftType: string,
+    shiftType: ShiftFacts['type'],
     workHours: number,
     nightAllowancePct = 40,
-    scheduleType = 'REGULAR',
-    allowanceRates: AllowanceRates | null = seedRatesFor(employeeType)
+    allowanceRates: AllowanceRates | null = seedRatesFor(employeeType),
+    row: Partial<AttendanceDayRecord> = {}
   ) => {
     const repo = new FakePayrollRepository();
-    const payroll = new PayrollService(repo);
     repo.data.set('allowance:2026-10', {
-      staff: {
-        uuid: 'allowance',
-        username: 'allowance',
-        name: 'Allowance',
-        positionLevelText: 'L1',
-        contractStatusText: 'Active',
-        baseSalary: 6_000_000,
-        standardWorkdays: 26,
-        employeeType,
-        nightAllowancePct,
-        isDormResident: false,
-        allowanceRates,
-        ...rulesStaff
-      },
-      timesheets: [
-        {
-          workDate: '2026-10-01',
-          shiftType,
-          shiftStartTime: '08:00',
-          shiftEndTime: '17:00',
-          shiftAllowancePct: nightAllowancePct,
+      staff: staffOf('allowance', employeeType, nightAllowancePct, allowanceRates),
+      days: [
+        dayRow('PRESENT', '2026-10-01', {
+          employeeId: 'allowance',
+          shift: { type: shiftType, start: '08:00', end: '17:00', allowancePct: nightAllowancePct },
           workHours,
-          otHours: 0,
-          lateMinutes: 0,
-          earlyMinutes: 0,
-          status: 'PRESENT',
-          dayStatus: 'VALID',
-          scheduleType
-        }
+          ...row
+        })
       ],
       requests: [],
       kpi: null
     });
-    return payroll.generateMonthlyPayslip('allowance', '2026-10');
+    return serviceOf(repo).generateMonthlyPayslip('allowance', '2026-10');
   };
 
   it('uses 10% Flex for TTS/CTV and 20% for NV on paid hours, capped at eight', async () => {
@@ -281,20 +258,13 @@ describe('Payroll allowance behavior from the reference app', () => {
   });
 
   it('calculates NV travel and attendance by actual workdays, excluding iDorm and excess absences', () => {
-    const eligible = makePayslip({ employeeType: 'nv', dailyLines: Array.from({ length: 20 }, () => line('NORMAL')) });
-    const idorm = makePayslip({
-      employeeType: 'nv',
-      isDormResident: true,
-      dailyLines: Array.from({ length: 20 }, () => line('NORMAL'))
-    });
+    const eligible = makePayslip({ employeeType: 'nv', dailyLines: worked(20) });
+    const idorm = makePayslip({ employeeType: 'nv', isDormResident: true, dailyLines: worked(20) });
     const ineligible = makePayslip({
       employeeType: 'nv',
-      dailyLines: [
-        ...Array.from({ length: 20 }, () => line('NORMAL')),
-        ...Array.from({ length: 5 }, () => line('LEAVE'))
-      ]
+      dailyLines: [...worked(20), ...Array.from({ length: 5 }, () => payslipLine('LEAVE_PAID'))]
     });
-    const tts = makePayslip({ employeeType: 'tts', dailyLines: Array.from({ length: 20 }, () => line('NORMAL')) });
+    const tts = makePayslip({ employeeType: 'tts', dailyLines: worked(20) });
 
     assert.equal(eligible.travelAllowanceActual, 692_308);
     assert.equal(eligible.attendanceAllowanceActual, 1_153_846);
@@ -304,19 +274,28 @@ describe('Payroll allowance behavior from the reference app', () => {
     assert.equal(tts.travelAllowanceActual, 0);
     assert.equal(tts.attendanceAllowanceActual, 0);
 
+    // A leave with makeup that was fully made up is not an absence (L16): 4 day-off rows keep the allowance at the
+    // default threshold of 5. Made-up minutes sit on the row of the day they were worked.
+    const leaves = Array.from({ length: 4 }, () => payslipLine('LEAVE_PAID'));
     const makeupOffsetsAbsence = makePayslip({
       employeeType: 'nv',
-      makeupWorkDates: ['2026-10-20'],
       dailyLines: [
-        ...Array.from({ length: 20 }, () => line('NORMAL')),
-        ...Array.from({ length: 5 }, () => line('LEAVE'))
+        ...worked(19),
+        payslipLine('PRESENT', { makeupMinutes: 480 }),
+        ...leaves,
+        payslipLine('LEAVE_MAKEUP')
       ]
     });
-    assert.equal(makeupOffsetsAbsence.attendanceAllowanceActual, 1_096_154);
+    assert.equal(makeupOffsetsAbsence.attendanceAllowanceActual, 1_153_846);
+    const notMadeUp = makePayslip({
+      employeeType: 'nv',
+      dailyLines: [...worked(20), ...leaves, payslipLine('LEAVE_MAKEUP')]
+    });
+    assert.equal(notMadeUp.attendanceAllowanceActual, 0);
   });
 
   it('does not grant NV-only allowances when employee type is missing or unknown', async () => {
-    const unknown = makePayslip({ dailyLines: Array.from({ length: 20 }, () => line('NORMAL')) });
+    const unknown = makePayslip({ dailyLines: worked(20) });
     assert.equal(unknown.travelAllowanceActual, 0);
     assert.equal(unknown.attendanceAllowanceActual, 0);
     assert.equal(unknown.flexAllowanceActual, 0);
@@ -327,29 +306,29 @@ describe('Payroll allowance behavior from the reference app', () => {
   });
 
   it('reads Flex from the position version', async () => {
-    const slip = await calculateLine('nv', 'FLEX', 8, 40, 'REGULAR', { ...SEED_RATES.nv, flexPct: 25 });
+    const slip = await calculateLine('nv', 'FLEX', 8, 40, { ...SEED_RATES.nv, flexPct: 25 });
     assert.equal(slip.dailyLines[0].flexAllowancePay, 57_692);
     assert.equal(slip.dailyLines[0].shiftLabel, 'Flex +25%');
   });
 
   it('TTS night uses the level rate when it is set', async () => {
-    const level = await calculateLine('tts', 'NIGHT', 8, 40, 'REGULAR', { ...SEED_RATES.tts, levelNightPct: 50 });
-    const type = await calculateLine('tts', 'NIGHT', 8, 40, 'REGULAR', { ...SEED_RATES.tts, levelNightPct: null });
+    const level = await calculateLine('tts', 'NIGHT', 8, 40, { ...SEED_RATES.tts, levelNightPct: 50 });
+    const type = await calculateLine('tts', 'NIGHT', 8, 40, { ...SEED_RATES.tts, levelNightPct: null });
     assert.equal(level.dailyLines[0].nightAllowancePay, 115_385);
     assert.equal(level.dailyLines[0].shiftLabel, 'Night +50%');
     assert.equal(type.dailyLines[0].nightAllowancePay, 69_231);
   });
 
   it('a decimal % shows on the shift label as set, not rounded', async () => {
-    const flex = await calculateLine('nv', 'FLEX', 8, 40, 'REGULAR', { ...SEED_RATES.nv, flexPct: 12.5 });
+    const flex = await calculateLine('nv', 'FLEX', 8, 40, { ...SEED_RATES.nv, flexPct: 12.5 });
     assert.equal(flex.dailyLines[0].shiftLabel, 'Flex +12,5%');
     // 0.145 * 100 = 14.499999… trong số thực: làm tròn kiểu cũ ra 14.
-    const night = await calculateLine('tts', 'NIGHT', 8, 40, 'REGULAR', { ...SEED_RATES.tts, levelNightPct: 14.5 });
+    const night = await calculateLine('tts', 'NIGHT', 8, 40, { ...SEED_RATES.tts, levelNightPct: 14.5 });
     assert.equal(night.dailyLines[0].shiftLabel, 'Night +14,5%');
   });
 
   it('travel applies to any type with a rate and never to a dorm resident', () => {
-    const dailyLines = Array.from({ length: 20 }, () => line('NORMAL'));
+    const dailyLines = worked(20);
     const allowanceRates = { ...SEED_RATES.tts, travelPct: 15 };
     const tts = makePayslip({ employeeType: 'tts', allowanceRates, dailyLines });
     const dorm = makePayslip({ employeeType: 'tts', allowanceRates, isDormResident: true, dailyLines });
@@ -358,17 +337,16 @@ describe('Payroll allowance behavior from the reference app', () => {
   });
 
   it('attendance applies to any type with a rate', () => {
-    const dailyLines = Array.from({ length: 20 }, () => line('NORMAL'));
-    const ctv = makePayslip({ employeeType: 'ctv', allowanceRates: { ...SEED_RATES.ctv, attendancePct: 25 }, dailyLines });
+    const ctv = makePayslip({
+      employeeType: 'ctv',
+      allowanceRates: { ...SEED_RATES.ctv, attendancePct: 25 },
+      dailyLines: worked(20)
+    });
     assert.equal(ctv.attendanceAllowanceActual, 1_153_846);
   });
 
   it('no position version pays no allowance', () => {
-    const slip = makePayslip({
-      employeeType: 'nv',
-      allowanceRates: null,
-      dailyLines: Array.from({ length: 20 }, () => line('NORMAL'))
-    });
+    const slip = makePayslip({ employeeType: 'nv', allowanceRates: null, dailyLines: worked(20) });
     assert.equal(slip.flexAllowancePolicy, 0);
     assert.equal(slip.nightAllowancePolicy, 0);
     assert.equal(slip.travelAllowancePolicy, 0);
@@ -378,70 +356,50 @@ describe('Payroll allowance behavior from the reference app', () => {
 
   it('applies the selected night rate and fills at most one short hour without a second credit', async () => {
     const repo = new FakePayrollRepository();
-    const payroll = new PayrollService(repo);
+    const night = (date: string, over: Partial<AttendanceDayRecord>) =>
+      dayRow('PRESENT', date, {
+        employeeId: 'night',
+        shift: { type: 'NIGHT', start: '22:00', end: '06:00', allowancePct: 60 },
+        ...over
+      });
     repo.data.set('night:2026-10', {
-      staff: {
-        uuid: 'night',
-        username: 'night',
-        name: 'Night',
-        positionLevelText: 'NV L1',
-        contractStatusText: 'Active',
-        baseSalary: 6_000_000,
-        standardWorkdays: 26,
-        employeeType: 'nv',
-        nightAllowancePct: 60,
-        isDormResident: false,
-        allowanceRates: SEED_RATES.nv,
-        ...rulesStaff
-      },
-      timesheets: [
-        {
-          workDate: '2026-10-01',
-          shiftType: 'NIGHT',
-          shiftStartTime: '22:00',
-          shiftEndTime: '06:00',
-          shiftAllowancePct: 60,
-          workHours: 8,
-          otHours: 0,
-          lateMinutes: 0,
-          earlyMinutes: 0,
-          status: 'PRESENT',
-          dayStatus: 'VALID'
-        },
-        {
-          workDate: '2026-10-02',
-          shiftType: 'NIGHT',
-          shiftStartTime: '22:00',
-          shiftEndTime: '06:00',
-          shiftAllowancePct: 60,
+      staff: { ...staffOf('night', 'nv', 60, SEED_RATES.nv), positionLevelText: 'NV L1' },
+      days: [
+        night('2026-10-01', { workHours: 8 }),
+        // Left 60 minutes early with an approved explanation: paid, 60 minutes deducted (one hour, 28,846).
+        night('2026-10-02', {
           workHours: 7,
-          otHours: 0,
-          lateMinutes: 0,
           earlyMinutes: 60,
-          status: 'PRESENT',
-          dayStatus: 'NEEDS_EXPLANATION'
-        }
+          cases: [{ code: 'EARLY_CHECK_OUT', minutes: 60, affectsPay: true }],
+          explanationStatus: 'APPROVED',
+          deductionMinutes: 60
+        })
       ],
       requests: [],
       kpi: null
     });
-    const slip = await payroll.generateMonthlyPayslip('night', '2026-10');
+    const slip = await serviceOf(repo).generateMonthlyPayslip('night', '2026-10');
     assert.equal(slip.dailyLines[0].nightAllowancePay, 138_462);
     assert.equal(slip.dailyLines[0].offPaidPay, 46_154);
     assert.equal(slip.dailyLines[1].offPaidPay, 28_846);
     assert.equal(slip.offPaidNightActual, 75_000);
 
-    const makeupNight = await calculateLine('nv', 'NIGHT', 8, 60, 'MAKE_UP');
-    assert.equal(makeupNight.dailyLines[0].nightAllowancePay, 0);
-    assert.equal(makeupNight.dailyLines[0].offPaidPay, 0);
+    // A night day that does not count as a work day (late without an explanation: 0 pay units) pays no premium.
+    const unpaidNight = await calculateLine('nv', 'NIGHT', 8, 60, SEED_RATES.nv, {
+      payUnits: 0,
+      countsAsWorkday: false
+    });
+    assert.equal(unpaidNight.dailyLines[0].nightAllowancePay, 0);
+    assert.equal(unpaidNight.dailyLines[0].offPaidPay, 0);
   });
 
-  it('loads persisted schedule type by employee and work date for makeup detection', async () => {
-    const joins: string[] = [];
+  it('reads neither the old timesheet rows nor the iSAT registrations for the month data', async () => {
+    const tables: string[] = [];
     let table = '';
     const qb = {
       selectFrom(nextTable: string) {
         table = nextTable;
+        tables.push(nextTable.split(' ')[0]);
         return this;
       },
       selectAll() {
@@ -459,14 +417,7 @@ describe('Payroll allowance behavior from the reference app', () => {
       limit() {
         return this;
       },
-      leftJoin(_table: string, callback: (join: { onRef: (...args: string[]) => any }) => void) {
-        const join = {
-          onRef: (...args: string[]) => {
-            joins.push(args.join('='));
-            return join;
-          }
-        };
-        callback(join);
+      leftJoin() {
         return this;
       },
       innerJoin() {
@@ -480,173 +431,62 @@ describe('Payroll allowance behavior from the reference app', () => {
         return undefined;
       },
       async execute() {
-        if (table === 'timesheet_entries') {
-          return [
-            {
-              work_date: '2026-10-10',
-              shift_type: 'FLEX',
-              shift_start_time: '09:00',
-              shift_end_time: '18:00',
-              shift_allowance_pct: 20,
-              work_hours: 8,
-              ot_hours: 0,
-              late_minutes: 0,
-              early_minutes: 0,
-              status: 'PRESENT',
-              day_status: 'VALID',
-              schedule_type: 'MAKE_UP'
-            }
-          ];
-        }
         return [];
       }
     };
     const repo = new PayrollRepository(qb as unknown as Kysely<any>);
     const data = await repo.getMonthlyData('repo-emp', '2026-10');
 
-    assert.deepEqual(joins, [
-      'work_schedules.employee_id===timesheet_entries.employee_id',
-      'work_schedules.work_date===timesheet_entries.work_date'
-    ]);
-    assert.equal(data?.timesheets[0].scheduleType, 'MAKE_UP');
+    assert.ok(data);
+    assert.equal(tables.includes('timesheet_entries'), false);
+    assert.equal(tables.includes('isat_registrations'), false);
+    assert.equal('timesheets' in data, false);
+    assert.equal('isatDates' in data, false);
   });
 
-  it('excludes distinct completed makeup dates from NV allowance ratio and daily premiums, but not base days', async () => {
+  it('keeps the flex premium of a day with made-up hours and counts it as a work day (R10)', async () => {
     const repo = new FakePayrollRepository();
-    const payroll = new PayrollService(repo);
-    const ordinaryDays = Array.from({ length: 19 }, (_, i) => ({
-      ...line('NORMAL'),
-      date: `2026-10-${String(i + 1).padStart(2, '0')}`
-    }));
-    const makeupFlex = { ...line('FLEX'), date: '2026-10-20' };
-    const leaves = Array.from({ length: 5 }, (_, i) => ({ ...line('LEAVE'), date: `2026-10-${21 + i}` }));
+    const dates = Array.from({ length: 25 }, (_, i) => `2026-10-${String(i + 1).padStart(2, '0')}`);
     repo.data.set('makeup:2026-10', {
-      staff: {
-        uuid: 'makeup',
-        username: 'makeup',
-        name: 'Makeup',
-        positionLevelText: 'NV L1',
-        contractStatusText: 'Active',
-        baseSalary: 6_000_000,
-        standardWorkdays: 26,
-        employeeType: 'nv',
-        nightAllowancePct: 40,
-        isDormResident: false,
-        allowanceRates: SEED_RATES.nv,
-        ...rulesStaff
-      },
-      timesheets: [
-        ...ordinaryDays.map(row => ({
-          workDate: row.date,
-          shiftType: 'NORMAL',
-          shiftStartTime: '08:00',
-          shiftEndTime: '17:00',
-          shiftAllowancePct: 0,
-          workHours: 8,
-          otHours: 0,
-          lateMinutes: 0,
-          earlyMinutes: 0,
-          status: 'PRESENT',
-          dayStatus: 'VALID',
-          scheduleType: 'REGULAR'
-        })),
-        {
-          workDate: makeupFlex.date,
-          shiftType: 'FLEX',
-          shiftStartTime: '09:00',
-          shiftEndTime: '18:00',
-          shiftAllowancePct: 20,
-          workHours: 8,
-          otHours: 0,
-          lateMinutes: 0,
-          earlyMinutes: 0,
-          status: 'PRESENT',
-          dayStatus: 'VALID',
-          scheduleType: 'MAKE_UP'
-        },
-        ...leaves.map((row, i) => ({
-          workDate: row.date,
-          shiftType: 'LEAVE',
-          shiftStartTime: '08:00',
-          shiftEndTime: '17:00',
-          shiftAllowancePct: 0,
-          workHours: 0,
-          otHours: 0,
-          lateMinutes: 0,
-          earlyMinutes: 0,
-          status: 'ON_LEAVE',
-          dayStatus: 'VALID',
-          scheduleType: 'REGULAR'
-        }))
-      ],
-      requests: [
-        { id: 'request-1', type: 'LEAVE_WITH_MAKEUP', status: 'APPROVED', leaveEndDate: '2026-10-20' },
-        { id: 'request-duplicate', type: 'LEAVE_WITH_MAKEUP', status: 'APPROVED', leaveEndDate: '2026-10-20' }
-      ],
-      kpi: null
-    });
-
-    const slip = await payroll.generateMonthlyPayslip('makeup', '2026-10');
-
-    assert.equal(slip.actualWorkDays, 20);
-    assert.equal(slip.baseSalaryActual, 4_615_385);
-    assert.equal(slip.travelAllowanceActual, 657_692);
-    assert.equal(slip.attendanceAllowanceActual, 1_096_154);
-    assert.equal(slip.dailyLines.find(row => row.date === '2026-10-20')?.flexAllowancePay, 0);
-  });
-
-  it('does not count a planned makeup schedule without a completed attendance row', async () => {
-    const repo = new FakePayrollRepository();
-    const payroll = new PayrollService(repo);
-    repo.data.set('planned-makeup:2026-10', {
-      staff: {
-        uuid: 'planned-makeup',
-        username: 'planned-makeup',
-        name: 'Planned',
-        positionLevelText: 'NV L1',
-        contractStatusText: 'Active',
-        baseSalary: 6_000_000,
-        standardWorkdays: 26,
-        employeeType: 'nv',
-        nightAllowancePct: 40,
-        isDormResident: false,
-        allowanceRates: SEED_RATES.nv,
-        ...rulesStaff
-      },
-      timesheets: [
-        ...Array.from({ length: 20 }, (_, i) => ({
-          workDate: `2026-10-${String(i + 1).padStart(2, '0')}`,
-          shiftType: 'NORMAL',
-          shiftStartTime: '08:00',
-          shiftEndTime: '17:00',
-          shiftAllowancePct: 0,
-          workHours: 8,
-          otHours: 0,
-          lateMinutes: 0,
-          earlyMinutes: 0,
-          status: 'PRESENT',
-          dayStatus: 'VALID',
-          scheduleType: 'REGULAR'
-        })),
-        ...Array.from({ length: 5 }, (_, i) => ({
-          workDate: `2026-10-${21 + i}`,
-          shiftType: 'LEAVE',
-          shiftStartTime: '08:00',
-          shiftEndTime: '17:00',
-          shiftAllowancePct: 0,
-          workHours: 0,
-          otHours: 0,
-          lateMinutes: 0,
-          earlyMinutes: 0,
-          status: 'ON_LEAVE',
-          dayStatus: 'VALID',
-          scheduleType: i === 0 ? 'MAKE_UP' : 'REGULAR'
-        }))
-      ],
+      staff: { ...staffOf('makeup', 'nv', 40, SEED_RATES.nv), positionLevelText: 'NV L1' },
+      days: [
+        ...dates.slice(0, 18).map(date => dayRow('PRESENT', date)),
+        // 19/10 and 20/10 (a FLEX day): the 18:00-22:00 makeup window worked after the shift, 240 minutes x1 each, so
+        // the leave with makeup of 25/10 is fully made up.
+        dayRow('PRESENT', '2026-10-19', { makeupMinutes: 240 }),
+        shiftRow('2026-10-20', 'FLEX', ['09:00', '18:00'], { makeupMinutes: 240 }),
+        ...dates.slice(20, 24).map(date => dayRow('LEAVE_PAID', date)),
+        dayRow('LEAVE_MAKEUP', '2026-10-25')
+      ].map(row => ({ ...row, employeeId: 'makeup' })),
       requests: [],
       kpi: null
     });
-    const slip = await payroll.generateMonthlyPayslip('planned-makeup', '2026-10');
+
+    const slip = await serviceOf(repo).generateMonthlyPayslip('makeup', '2026-10');
+
+    assert.equal(slip.actualWorkDays, 20);
+    assert.equal(slip.baseSalaryActual, 4_615_385);
+    // 20 / 26 of the 15% travel and 25% attendance: the made-up days count, and 4 days off stay below 5.
+    assert.equal(slip.travelAllowanceActual, 692_308);
+    assert.equal(slip.attendanceAllowanceActual, 1_153_846);
+    const makeupDay = slip.dailyLines.find(row => row.date === '2026-10-20');
+    assert.equal(makeupDay?.flexAllowancePay, 46_154);
+    assert.equal(makeupDay?.makeupPay, 115_385);
+  });
+
+  it('counts a leave with makeup that was not made up as an absence', async () => {
+    const repo = new FakePayrollRepository();
+    repo.data.set('planned-makeup:2026-10', {
+      staff: { ...staffOf('planned-makeup', 'nv', 40, SEED_RATES.nv), positionLevelText: 'NV L1' },
+      days: [
+        ...Array.from({ length: 20 }, (_, i) => dayRow('PRESENT', `2026-10-${String(i + 1).padStart(2, '0')}`)),
+        dayRow('LEAVE_MAKEUP', '2026-10-21'),
+        ...Array.from({ length: 4 }, (_, i) => dayRow('LEAVE_PAID', `2026-10-${22 + i}`))
+      ].map(row => ({ ...row, employeeId: 'planned-makeup' })),
+      requests: [],
+      kpi: null
+    });
+    const slip = await serviceOf(repo).generateMonthlyPayslip('planned-makeup', '2026-10');
 
     assert.equal(slip.attendanceAllowanceActual, 0);
     assert.equal(slip.travelAllowanceActual, 692_308);
@@ -659,7 +499,7 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
   const setup = (overrides?: Overrides) => {
     const repo = new FakePayrollRepository();
     repo.data.set('u1:2026-10', nvMonthData(overrides));
-    return { repo, service: new PayrollService(repo) };
+    return { repo, service: serviceOf(repo) };
   };
   const generate = (overrides?: Overrides) => setup(overrides).service.generateMonthlyPayslip('u1', '2026-10');
   const codes = (slip: EmployeePayslip) => slip.warnings.map(w => w.code);
@@ -735,7 +575,7 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
   });
 
   describe('tax-exempt income', () => {
-    const nightLine = {
+    const nightLine = payslipLine('PRESENT', {
       date: '2026-10-01',
       dayOfWeekText: 'Thứ 5',
       shiftCode: 'NIGHT',
@@ -743,15 +583,9 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
       inOutText: '22:00–06:00',
       workHours: 8,
       daySalary: 230_769,
-      flexAllowancePay: 0,
       nightAllowancePay: 92_308,
-      offPaidPay: 0,
-      otHours: 0,
-      otPay: 0,
-      deductionHours: 0,
-      deductionAmount: 0,
       dailyTotal: 323_077
-    };
+    });
     const exemptSlip = (
       dailyLines: Array<typeof nightLine>,
       otHoursByRate?: { x15?: number; x20?: number; x30?: number },
@@ -797,7 +631,7 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     });
 
     it('exempts nothing for a night shift that paid no allowance', () => {
-      // A makeup night day pays no night allowance, so nothing is exempt.
+      // A night day that is not a work day pays no night allowance, so nothing is exempt.
       const slip = exemptSlip([{ ...nightLine, nightAllowancePay: 0 }]);
       assert.equal(slip.taxExemptIncome, 0);
     });
@@ -843,33 +677,20 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
   it('takes a trainee with no contract label to flat 10% tax and no insurance', async () => {
     const repo = new FakePayrollRepository();
     const level = { name: 'Thực tập sinh · Bậc 6', base_salary: '5000000', kpi_max: null };
-    const workDays = Array.from({ length: 22 }, (_, i) => ({
-      work_date: `2026-10-${String(i + 1).padStart(2, '0')}`,
-      shift_type: 'NORMAL',
-      shift_start_time: '08:00',
-      shift_end_time: '17:00',
-      shift_allowance_pct: 0,
-      work_hours: 8,
-      ot_hours: 0,
-      late_minutes: 0,
-      early_minutes: 0,
-      status: 'PRESENT',
-      day_status: 'VALID'
-    }));
-    repo.data.set(
-      't1:2026-10',
-      mapMonthRows('2026-10', {
+    repo.data.set('t1:2026-10', {
+      ...mapMonthRows('2026-10', {
         staff: { uuid: 't1', username: 't', name: 'Thực tập', type: 'tts', level: 6, contract: null, insured: null },
         type: { id: '1', workdays: '22', flex_pct: 10, night_pct: 30, travel_pct: 0, attendance_pct: 0 },
         level,
         benefits: [],
-        timesheets: workDays,
         requests: [],
-        kpi: null,
-        settings: []
-      })
-    );
-    const slip = await new PayrollService(repo).generateMonthlyPayslip('t1', '2026-10');
+        kpi: null
+      }),
+      days: Array.from({ length: 22 }, (_, i) =>
+        dayRow('PRESENT', `2026-10-${String(i + 1).padStart(2, '0')}`, { employeeId: 't1' })
+      )
+    });
+    const slip = await serviceOf(repo).generateMonthlyPayslip('t1', '2026-10');
 
     assert.equal(slip.contractStatusText, 'Dưới 3 tháng');
     assert.equal(slip.grossIncome, 5_000_000);
@@ -967,22 +788,14 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
 });
 
 describe('Payroll V2 - approved iSAT Saturdays', () => {
-  const normalDay = (workDate: string) => ({ ...nvMonthData().timesheets[0], workDate });
-
-  const generate = async (overrides: Partial<EmployeeMonthlyRawData> = {}) => {
+  const generate = async (days: AttendanceDayRecord[]) => {
     const repo = new FakePayrollRepository();
-    repo.data.set('u1:2026-10', {
-      ...nvMonthData(),
-      timesheets: [normalDay('2026-10-09'), normalDay('2026-10-10')],
-      requests: [],
-      isatDates: ['2026-10-10'],
-      ...overrides
-    });
-    return new PayrollService(repo).generateMonthlyPayslip('u1', '2026-10');
+    repo.data.set('u1:2026-10', { ...nvMonthData(), days, requests: [] });
+    return serviceOf(repo).generateMonthlyPayslip('u1', '2026-10');
   };
 
-  it("pays an approved iSAT Saturday as one base day and replaces that date's attendance line", async () => {
-    const slip = await generate();
+  it('pays an ISAT row as one base day on its own line', async () => {
+    const slip = await generate([dayRow('PRESENT', '2026-10-09'), dayRow('ISAT', '2026-10-10')]);
     assert.deepEqual(
       slip.dailyLines.map(l => [l.date, l.shiftCode]),
       [
@@ -1012,8 +825,8 @@ describe('Payroll V2 - approved iSAT Saturdays', () => {
     assert.equal(slip.actualWorkDays, 1);
   });
 
-  it('adds the iSAT line when the Saturday has no attendance row', async () => {
-    const slip = await generate({ timesheets: [] });
+  it('pays an ISAT row alone in the month', async () => {
+    const slip = await generate([dayRow('ISAT', '2026-10-10')]);
     assert.deepEqual(
       slip.dailyLines.map(l => [l.date, l.shiftCode, l.dailyTotal]),
       [['2026-10-10', 'ISAT', 230769]]
@@ -1023,15 +836,24 @@ describe('Payroll V2 - approved iSAT Saturdays', () => {
     assert.equal(slip.actualWorkDays, 0);
   });
 
-  it('pays a Saturday listed twice only once', async () => {
-    const slip = await generate({ isatDates: ['2026-10-10', '2026-10-10'] });
-    assert.equal(slip.dailyLines.filter(l => l.shiftCode === 'ISAT').length, 1);
-    assert.equal(slip.isatDays, 1);
-    assert.equal(slip.isatPay, 230769);
+  // One row per person and day is the table's own rule (uq_timesheet_emp_date), so a Saturday cannot be listed twice;
+  // what the payslip still decides is whether the row pays: a type without the iSAT benefit gets 0 pay units.
+  it('pays an ISAT row with 0 pay units nothing', async () => {
+    const slip = await generate([dayRow('ISAT', '2026-10-10', { payUnits: 0 })]);
+    assert.deepEqual(
+      slip.dailyLines.map(l => [l.date, l.shiftCode, l.daySalary, l.inOutText]),
+      [['2026-10-10', 'ISAT', 0, 'Không tính lương']]
+    );
+    assert.equal(slip.isatDays, 0);
+    assert.equal(slip.isatPay, 0);
   });
 
   it('sorts the iSAT line between the attendance lines by date', async () => {
-    const slip = await generate({ timesheets: [normalDay('2026-10-09'), normalDay('2026-10-12')] });
+    const slip = await generate([
+      dayRow('PRESENT', '2026-10-12'),
+      dayRow('ISAT', '2026-10-10'),
+      dayRow('PRESENT', '2026-10-09')
+    ]);
     assert.deepEqual(
       slip.dailyLines.map(l => [l.date, l.shiftCode]),
       [
@@ -1042,8 +864,8 @@ describe('Payroll V2 - approved iSAT Saturdays', () => {
     );
   });
 
-  it('ignores the lateness of the attendance line that the iSAT Saturday replaces', async () => {
-    const slip = await generate({ timesheets: [{ ...normalDay('2026-10-10'), lateMinutes: 30 }] });
+  it('ignores the lateness on an ISAT row', async () => {
+    const slip = await generate([dayRow('ISAT', '2026-10-10', { lateMinutes: 30 })]);
     assert.deepEqual(
       slip.dailyLines.map(l => [l.date, l.shiftCode, l.dailyTotal]),
       [['2026-10-10', 'ISAT', 230769]]
@@ -1051,10 +873,8 @@ describe('Payroll V2 - approved iSAT Saturdays', () => {
     assert.equal(slip.lateEarlyHours, 0);
   });
 
-  it('does not count an iSAT Saturday as a makeup day when a makeup was approved on it later', async () => {
-    const slip = await generate({
-      timesheets: [normalDay('2026-10-09'), { ...normalDay('2026-10-10'), scheduleType: 'MAKE_UP' }]
-    });
+  it('counts an iSAT Saturday neither as a work day nor as a day off for the allowances', async () => {
+    const slip = await generate([dayRow('PRESENT', '2026-10-09'), dayRow('ISAT', '2026-10-10')]);
     assert.deepEqual(
       slip.dailyLines.map(l => [l.date, l.shiftCode]),
       [
@@ -1068,10 +888,10 @@ describe('Payroll V2 - approved iSAT Saturdays', () => {
     assert.equal(slip.travelAllowanceActual, 34_615);
   });
 
-  it('keeps payslips unchanged when isatDates is absent', async () => {
+  it('pays no iSAT when the month has no ISAT row', async () => {
     const repo = new FakePayrollRepository();
     repo.data.set('u1:2026-10', nvMonthData());
-    const slip = await new PayrollService(repo).generateMonthlyPayslip('u1', '2026-10');
+    const slip = await serviceOf(repo).generateMonthlyPayslip('u1', '2026-10');
     assert.equal(slip.isatDays, 0);
     assert.equal(slip.isatPay, 0);
     assert.equal(
@@ -1082,12 +902,6 @@ describe('Payroll V2 - approved iSAT Saturdays', () => {
 });
 
 describe('Payroll V2 - day lines show real check-in and check-out times', () => {
-  const day = (workDate: string, shiftType: string, extra: object = {}) => ({
-    ...nvMonthData().timesheets[0],
-    workDate,
-    shiftType,
-    ...extra
-  });
   const explanation = (date: string, extra: object = {}) => ({
     id: `exp-${date}`,
     type: 'EXPLANATION',
@@ -1095,23 +909,18 @@ describe('Payroll V2 - day lines show real check-in and check-out times', () => 
     explanationDate: date,
     ...extra
   });
-  const generate = async (overrides: Partial<EmployeeMonthlyRawData>) => {
+  const generate = async (days: AttendanceDayRecord[], requests: EmployeeMonthlyRawData['requests'] = []) => {
     const repo = new FakePayrollRepository();
-    repo.data.set('u1:2026-10', { ...nvMonthData(), requests: [], ...overrides });
-    return new PayrollService(repo).generateMonthlyPayslip('u1', '2026-10');
+    repo.data.set('u1:2026-10', { ...nvMonthData(), days, requests });
+    return serviceOf(repo).generateMonthlyPayslip('u1', '2026-10');
   };
   const lineOf = (slip: EmployeePayslip, date: string) => slip.dailyLines.find(l => l.date === date)!;
 
-  it('prints the punched times of a NORMAL day and null times on a LEAVE day', async () => {
-    const slip = await generate({
-      timesheets: [
-        day('2026-10-07', 'NORMAL', {
-          actualCheckIn: '2026-10-07T01:12:00.000Z',
-          actualCheckOut: '2026-10-07T10:05:00.000Z'
-        }),
-        day('2026-10-08', 'LEAVE', { actualCheckIn: '2026-10-08T01:00:00.000Z' })
-      ]
-    });
+  it('prints the punched times of a PRESENT day and null times on a LEAVE_PAID day', async () => {
+    const slip = await generate([
+      dayRow('PRESENT', '2026-10-07', punched('2026-10-07', '08:12', '17:05')),
+      dayRow('LEAVE_PAID', '2026-10-08', punched('2026-10-08', '08:00', null))
+    ]);
     const normal = lineOf(slip, '2026-10-07');
     assert.deepEqual([normal.checkIn, normal.checkOut, normal.inOutText], ['08:12', '17:05', '08:12–17:05']);
     const leave = lineOf(slip, '2026-10-08');
@@ -1119,41 +928,40 @@ describe('Payroll V2 - day lines show real check-in and check-out times', () => 
   });
 
   it('prints the real times of a NIGHT day crossing midnight', async () => {
-    const slip = await generate({
-      timesheets: [
-        day('2026-10-05', 'NIGHT', {
-          shiftStartTime: '22:00',
-          shiftEndTime: '06:00',
-          actualCheckIn: '2026-10-05T15:03:00.000Z',
-          actualCheckOut: '2026-10-05T23:58:00.000Z'
-        })
-      ]
-    });
+    const slip = await generate([
+      dayRow('PRESENT', '2026-10-05', {
+        shift: { type: 'NIGHT', start: '22:00', end: '06:00', allowancePct: 40 },
+        checkIn: new Date('2026-10-05T15:03:00.000Z'),
+        checkOut: new Date('2026-10-05T23:58:00.000Z')
+      })
+    ]);
     assert.equal(lineOf(slip, '2026-10-05').inOutText, '22:03–06:58');
   });
 
   it('fills a missing check-out from the approved explanation of that day', async () => {
-    const slip = await generate({
-      timesheets: [day('2026-10-07', 'FLEX', { actualCheckIn: '2026-10-07T01:12:00.000Z', actualCheckOut: null })],
-      requests: [explanation('2026-10-07', { actualCheckOut: '19:20' })]
-    });
+    const slip = await generate(
+      [shiftRow('2026-10-07', 'FLEX', ['09:00', '18:00'], punched('2026-10-07', '08:12', null))],
+      [explanation('2026-10-07', { actualCheckOut: '19:20' })]
+    );
     const line = lineOf(slip, '2026-10-07');
     assert.deepEqual([line.checkIn, line.checkOut, line.inOutText], ['08:12', '19:20', '08:12–19:20']);
   });
 
   it('ignores an explanation that is not approved', async () => {
-    const slip = await generate({
-      timesheets: [day('2026-10-07', 'NORMAL', { actualCheckIn: '2026-10-07T01:12:00.000Z' })],
-      requests: [explanation('2026-10-07', { status: 'PENDING', actualCheckOut: '19:20' })]
-    });
+    const slip = await generate(
+      [dayRow('PRESENT', '2026-10-07', punched('2026-10-07', '08:12', null))],
+      [explanation('2026-10-07', { status: 'PENDING', actualCheckOut: '19:20' })]
+    );
     assert.equal(lineOf(slip, '2026-10-07').inOutText, '08:12–—');
   });
 
-  it('prints dashes for a day without punches and keeps the iSAT, LEAVE and UNPAID texts', async () => {
-    const slip = await generate({
-      timesheets: [day('2026-10-06', 'NORMAL'), day('2026-10-08', 'UNPAID'), day('2026-10-09', 'LEAVE')],
-      isatDates: ['2026-10-10']
-    });
+  it('prints dashes for an ABSENT day and keeps the iSAT, LEAVE and UNPAID texts', async () => {
+    const slip = await generate([
+      dayRow('ABSENT', '2026-10-06'),
+      dayRow('LEAVE_UNPAID', '2026-10-08'),
+      dayRow('LEAVE_PAID', '2026-10-09'),
+      dayRow('ISAT', '2026-10-10')
+    ]);
     assert.deepEqual(
       slip.dailyLines.map(l => [l.date, l.inOutText, l.checkIn ?? null, l.checkOut ?? null]),
       [
@@ -1167,13 +975,17 @@ describe('Payroll V2 - day lines show real check-in and check-out times', () => 
 });
 
 describe('Payroll V2 - overtime paid per day from the approved window and the real presence', () => {
-  const punch = (workDate: string, inHhmm: string, outHhmm: string | null, shiftType = 'NORMAL') => ({
-    ...nvMonthData().timesheets[0],
-    workDate,
-    shiftType,
-    actualCheckIn: `${workDate}T${inHhmm}:00+07:00`,
-    actualCheckOut: outHhmm ? `${workDate}T${outHhmm}:00+07:00` : null
-  });
+  const punch = (workDate: string, inHhmm: string, outHhmm: string | null, shiftType: ShiftFacts['type'] = 'NORMAL') =>
+    dayRow('PRESENT', workDate, {
+      shift: { type: shiftType, start: '08:00', end: '17:00', allowancePct: 0 },
+      ...punched(workDate, inHhmm, outHhmm)
+    });
+  const nightRow = (workDate: string, checkOut: string) =>
+    dayRow('PRESENT', workDate, {
+      shift: { type: 'NIGHT', start: '22:00', end: '06:00', allowancePct: 40 },
+      ...punched(workDate, '22:00', null),
+      checkOut: new Date(checkOut)
+    });
   const overtime = (id: string, otDate: string | null, extra: object = {}) => ({
     id,
     type: 'OVERTIME',
@@ -1191,16 +1003,16 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
     explanationDate: date,
     ...extra
   });
-  const generate = async (overrides: Partial<EmployeeMonthlyRawData>) => {
+  const generate = async (overrides: Partial<MonthFixture>) => {
     const repo = new FakePayrollRepository();
     repo.data.set('u1:2026-10', { ...nvMonthData(), requests: [], ...overrides });
-    return new PayrollService(repo).generateMonthlyPayslip('u1', '2026-10');
+    return serviceOf(repo).generateMonthlyPayslip('u1', '2026-10');
   };
   const lineOf = (slip: EmployeePayslip, date: string) => slip.dailyLines.find(l => l.date === date)!;
 
   it('pays the minutes worked inside the window and puts them on the day line', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-07', '08:12', '19:20')],
+      days: [punch('2026-10-07', '08:12', '19:20')],
       requests: [overtime('ot-1', '2026-10-07')]
     });
     const line = lineOf(slip, '2026-10-07');
@@ -1216,7 +1028,7 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
 
   it('takes the missing check-out from the approved explanation', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-07', '08:12', null)],
+      days: [punch('2026-10-07', '08:12', null)],
       requests: [overtime('ot-1', '2026-10-07'), explanation('2026-10-07', { actualCheckOut: '19:20' })]
     });
     assert.equal(lineOf(slip, '2026-10-07').otPay, 57_692);
@@ -1225,7 +1037,7 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
 
   it('pays nothing for a missing check-out without an explanation', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-07', '08:12', null)],
+      days: [punch('2026-10-07', '08:12', null)],
       requests: [overtime('ot-1', '2026-10-07')]
     });
     assert.equal(lineOf(slip, '2026-10-07').otPay, 0);
@@ -1235,7 +1047,7 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
 
   it('pays nothing and does not throw when the request has no start time', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-07', '08:12', '20:30')],
+      days: [punch('2026-10-07', '08:12', '20:30')],
       requests: [overtime('ot-1', '2026-10-07', { otStartTime: undefined })]
     });
     assert.equal(lineOf(slip, '2026-10-07').otPay, 0);
@@ -1244,7 +1056,7 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
 
   it('ignores a window whose end is not after its start', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-07', '08:12', '21:00')],
+      days: [punch('2026-10-07', '08:12', '21:00')],
       requests: [overtime('ot-1', '2026-10-07', { otStartTime: '20:00', otEndTime: '18:00' })]
     });
     assert.equal(slip.otPayTotal, 0);
@@ -1252,7 +1064,7 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
 
   it('ignores an OT request that is not approved', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-07', '08:12', '20:30')],
+      days: [punch('2026-10-07', '08:12', '20:30')],
       requests: [overtime('ot-1', '2026-10-07', { status: 'PENDING' })]
     });
     assert.equal(slip.otPayTotal, 0);
@@ -1260,7 +1072,7 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
 
   it('adds the weekday and the Saturday OT: the total is the sum of the line pay', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-07', '08:12', '19:20'), punch('2026-10-10', '08:00', '20:30')],
+      days: [punch('2026-10-07', '08:12', '19:20'), punch('2026-10-10', '08:00', '20:30')],
       requests: [overtime('ot-1', '2026-10-07'), overtime('ot-2', '2026-10-10')]
     });
     assert.equal(lineOf(slip, '2026-10-07').otPay, 57_692);
@@ -1286,7 +1098,7 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
 
   it('pays x3 on a company holiday, which wins over Saturday', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-10', '08:00', '20:30')],
+      days: [dayRow('HOLIDAY', '2026-10-10', punched('2026-10-10', '08:00', '20:30'))],
       requests: [overtime('ot-1', '2026-10-10')],
       holidayDates: ['2026-10-10']
     });
@@ -1297,15 +1109,17 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
   });
 
   it('keeps the day lines and pays nothing for an OT date without an attendance line', async () => {
-    const timesheets = [punch('2026-10-07', '08:12', '20:30')];
-    const slip = await generate({ timesheets, requests: [overtime('ot-1', '2026-10-09')] });
+    const slip = await generate({
+      days: [punch('2026-10-07', '08:12', '20:30')],
+      requests: [overtime('ot-1', '2026-10-09')]
+    });
     assert.equal(slip.dailyLines.length, 1);
     assert.equal(slip.otPayTotal, 0);
   });
 
   it('gives a line with a malformed explained time no presence, so no OT and no NaN', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-07', '08:12', null)],
+      days: [punch('2026-10-07', '08:12', null)],
       requests: [overtime('ot-1', '2026-10-07'), explanation('2026-10-07', { actualCheckOut: 'xx:yy' })]
     });
     assert.equal(lineOf(slip, '2026-10-07').otPay, 0);
@@ -1315,14 +1129,8 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
   });
 
   it('takes the hours of a night shift that run into the window of the next date', async () => {
-    const night = {
-      ...punch('2026-10-05', '22:00', null, 'NIGHT'),
-      shiftStartTime: '22:00',
-      shiftEndTime: '06:00',
-      actualCheckOut: '2026-10-06T06:30:00+07:00'
-    };
     const slip = await generate({
-      timesheets: [night],
+      days: [nightRow('2026-10-05', '2026-10-06T06:30:00+07:00')],
       requests: [overtime('ot-1', '2026-10-06', { otStartTime: '05:00', otEndTime: '07:00' })]
     });
     const line = lineOf(slip, '2026-10-05');
@@ -1333,7 +1141,7 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
 
   it('rounds the pay of two windows on one line once: 50 + 70 minutes at x1.5 is 86,538, not 86,539', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-07', '06:10', '19:10')],
+      days: [punch('2026-10-07', '06:10', '19:10')],
       requests: [
         overtime('ot-1', '2026-10-07', { otStartTime: '06:00', otEndTime: '07:00' }),
         overtime('ot-2', '2026-10-07', { otStartTime: '18:00', otEndTime: '20:00' })
@@ -1349,14 +1157,8 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
   it('rounds each multiplier of one line separately', async () => {
     // Night shift Fri 09/10 22:00 to Sat 10/10 06:00. Two weekday windows (50 and 69 minutes, x1.5) and a Saturday
     // window (60 minutes, x2) all belong to the 09/10 line: round(119/60 h x1.5) + round(1 h x2) = 85,817 + 57,692.
-    const night = {
-      ...punch('2026-10-09', '22:00', null, 'NIGHT'),
-      shiftStartTime: '22:00',
-      shiftEndTime: '06:00',
-      actualCheckOut: '2026-10-10T06:00:00+07:00'
-    };
     const slip = await generate({
-      timesheets: [night],
+      days: [nightRow('2026-10-09', '2026-10-10T06:00:00+07:00')],
       requests: [
         overtime('ot-1', '2026-10-09', { otStartTime: '22:00', otEndTime: '22:50' }),
         overtime('ot-2', '2026-10-09', { otStartTime: '22:50', otEndTime: '23:59' }),
@@ -1377,7 +1179,7 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
 
   it('puts a holiday OT on the x3 pay', async () => {
     const slip = await generate({
-      timesheets: [punch('2026-10-10', '08:00', '20:30')],
+      days: [dayRow('HOLIDAY', '2026-10-10', punched('2026-10-10', '08:00', '20:30'))],
       requests: [overtime('ot-1', '2026-10-10')],
       holidayDates: ['2026-10-10']
     });
@@ -1391,29 +1193,27 @@ describe('Payroll V2 - day rate and the real weekday of every day line', () => {
   it('carries the day rate rounded from the base salary and the standard workdays', async () => {
     const repo = new FakePayrollRepository();
     repo.data.set('u1:2026-10', nvMonthData());
-    const slip = await new PayrollService(repo).generateMonthlyPayslip('u1', '2026-10');
+    const slip = await serviceOf(repo).generateMonthlyPayslip('u1', '2026-10');
     assert.equal(slip.dayRate, 230_769);
     assert.equal(slip.toJSON().dayRate, 230_769);
     assert.equal(slip.toJSON().ot15Pay, 0);
   });
 
-  it('writes the weekday of the date on attendance, leave and iSAT lines', async () => {
-    const base = nvMonthData().timesheets[0];
-    const line = (workDate: string, shiftType = 'NORMAL') => ({ ...base, workDate, shiftType });
+  it('writes the weekday of the date on attendance, leave, extra and iSAT lines', async () => {
     const repo = new FakePayrollRepository();
     repo.data.set('u1:2026-10', {
       ...nvMonthData(),
-      timesheets: [
-        line('2026-10-01'),
-        line('2026-10-02', 'LEAVE'),
-        line('2026-10-03'),
-        line('2026-10-04'),
-        line('2026-10-05')
+      days: [
+        dayRow('PRESENT', '2026-10-01'),
+        dayRow('LEAVE_PAID', '2026-10-02'),
+        dayRow('PRESENT', '2026-10-03'),
+        dayRow('EXTRA', '2026-10-04', punched('2026-10-04', '08:00', '12:00')),
+        dayRow('PRESENT', '2026-10-05'),
+        dayRow('ISAT', '2026-10-10')
       ],
-      requests: [],
-      isatDates: ['2026-10-10']
+      requests: []
     });
-    const slip = await new PayrollService(repo).generateMonthlyPayslip('u1', '2026-10');
+    const slip = await serviceOf(repo).generateMonthlyPayslip('u1', '2026-10');
     assert.deepEqual(
       slip.dailyLines.map(l => [l.date, l.dayOfWeekText]),
       [

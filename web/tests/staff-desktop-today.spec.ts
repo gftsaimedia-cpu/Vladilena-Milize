@@ -81,14 +81,6 @@ test('a request row opens the request drawer and Esc returns focus', async ({ pa
   await expect(row).toBeFocused();
 });
 
-test('Tạo yêu cầu shows the mockup notice', async ({ page }) => {
-  await openDesktop(page, '/nv/hom-nay');
-  await page.getByRole('button', { name: 'Tạo yêu cầu' }).click();
-  const toast = page.getByRole('status').filter({ hasText: 'Chưa có luồng tạo yêu cầu trong bản mockup.' });
-  await expect(toast).toBeVisible();
-  await expect(toast).toHaveCSS('box-shadow', 'none'); // F3: hệ thiết kế GFT không đổ bóng
-});
-
 test('a day click closes the menu and opens only the drawer', async ({ page }) => {
   await openDesktop(page, '/nv/toi');
   await page.getByRole('link', { name: 'Thứ Ba 27/10: cần xử lý' }).click();

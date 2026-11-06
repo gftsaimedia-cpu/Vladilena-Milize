@@ -34,7 +34,6 @@ function rows(overrides: Partial<MonthRows> = {}): MonthRows {
     type: baseType,
     level: baseLevel,
     benefits: [kpiBenefit],
-    timesheets: [],
     requests: [],
     kpi: null,
     ...overrides
@@ -263,7 +262,7 @@ describe('mapMonthRows KPI scores', () => {
   });
 });
 
-describe('mapMonthRows timesheets and requests', () => {
+describe('mapMonthRows requests', () => {
   it('converts advance amounts and numeric columns to numbers', () => {
     const { requests } = mapMonthRows(
       '2026-10',
@@ -284,7 +283,6 @@ describe('mapMonthRows timesheets and requests', () => {
     const data = mapMonthRows(
       '2026-10',
       rows({
-        timesheets: [{ work_date: new Date(2026, 9, 5), shift_allowance_pct: '20', work_hours: '8' }],
         requests: [
           {
             ot_date: new Date(2026, 9, 7),
@@ -295,9 +293,6 @@ describe('mapMonthRows timesheets and requests', () => {
         ]
       })
     );
-    assert.equal(data.timesheets[0].workDate, '2026-10-05');
-    assert.equal(data.timesheets[0].shiftAllowancePct, 20);
-    assert.equal(data.timesheets[0].workHours, 8);
     assert.equal(data.requests[0].otDate, '2026-10-07');
     assert.equal(data.requests[0].leaveStartDate, '2026-10-12');
     assert.equal(data.requests[0].leaveEndDate, '2026-10-13');
@@ -305,37 +300,16 @@ describe('mapMonthRows timesheets and requests', () => {
   });
 
   it('passes date strings through and keeps null dates', () => {
-    const { timesheets, requests } = mapMonthRows(
+    const { requests } = mapMonthRows(
       '2026-10',
       rows({
-        timesheets: [{ work_date: '2026-10-05' }],
         requests: [{ ot_date: '2026-10-07', leave_start_date: null, leave_end_date: null, explanation_date: null }]
       })
     );
-    assert.equal(timesheets[0].workDate, '2026-10-05');
     assert.equal(requests[0].otDate, '2026-10-07');
     assert.equal(requests[0].leaveStartDate, null);
     assert.equal(requests[0].leaveEndDate, null);
     assert.equal(requests[0].explanationDate, null);
-  });
-
-  it('turns punch timestamps into ISO strings and keeps null punches', () => {
-    const { timesheets } = mapMonthRows(
-      '2026-10',
-      rows({
-        timesheets: [
-          {
-            work_date: '2026-10-05',
-            actual_check_in: new Date('2026-10-05T01:00:00.000Z'),
-            actual_check_out: null,
-            schedule_type: null
-          }
-        ]
-      })
-    );
-    assert.equal(timesheets[0].actualCheckIn, '2026-10-05T01:00:00.000Z');
-    assert.equal(timesheets[0].actualCheckOut, null);
-    assert.equal(timesheets[0].scheduleType, undefined);
   });
 
   it('cuts the explained times of a request to HH:MM and keeps empty ones as null', () => {
@@ -378,12 +352,11 @@ describe('mapMonthRows timesheets and requests', () => {
     assert.deepEqual(mapMonthRows('2026-09', rows()).holidayDates, []);
   });
 
-  it('maps approved iSAT Saturdays to YYYY-MM-DD text', () => {
-    assert.deepEqual(
-      mapMonthRows('2026-11', rows({ isatDates: [new Date(2026, 10, 7), '2026-11-14'] })).isatDates,
-      ['2026-11-07', '2026-11-14']
-    );
-    assert.deepEqual(mapMonthRows('2026-11', rows()).isatDates, []);
+  // The days of the month (iSAT Saturdays included) are the day rows of AttendanceDaysService, not month data.
+  it('carries no timesheet lines and no iSAT dates', () => {
+    const data = mapMonthRows('2026-11', rows());
+    assert.equal('timesheets' in data, false);
+    assert.equal('isatDates' in data, false);
   });
 });
 
@@ -517,23 +490,18 @@ describe('PayrollRepository.getMonthlyData queries', () => {
     assert.equal(JSON.stringify(where).includes('like'), false);
   });
 
-  it('reads approved iSAT Saturdays of the month for the employee uuid', async () => {
+  it('reads neither timesheet_entries nor isat_registrations (the day rows come from AttendanceDaysService)', async () => {
     const { qb, calls } = recordingQb({
       ...tables,
+      timesheet_entries: { all: [{ work_date: '2026-10-05' }] },
       isat_registrations: { all: [{ saturday: new Date(2026, 9, 10) }] }
     });
     const data = await new PayrollRepository(qb).getMonthlyData('u1', '2026-10');
-    const isat = calls.find(c => c.table === 'isat_registrations');
-    assert.deepEqual(isat?.innerJoins, [['system_requests', 'system_requests.id', 'isat_registrations.request_id']]);
-    assert.deepEqual(isat?.where, [
-      ['system_requests.employee_id', '=', 'u1'],
-      ['system_requests.type', '=', 'ISAT'],
-      ['system_requests.status', '=', 'APPROVED'],
-      ['isat_registrations.saturday', '>=', '2026-10-01'],
-      ['isat_registrations.saturday', '<=', '2026-10-31']
-    ]);
-    assert.deepEqual(isat?.order, [['isat_registrations.saturday', 'asc']]);
-    assert.deepEqual(data?.isatDates, ['2026-10-10']);
+    const tables_ = calls.map(c => c.table.split(' ')[0]);
+    assert.equal(tables_.includes('timesheet_entries'), false);
+    assert.equal(tables_.includes('isat_registrations'), false);
+    assert.ok(data);
+    assert.equal('isatDates' in data, false);
   });
 
   it('reads the company holidays between the first and the last day of the month', async () => {

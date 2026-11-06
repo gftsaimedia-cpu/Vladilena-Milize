@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Bảng lương tháng 10</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face { font-family: Geist; src: url("/_blob/408154e04f313c54998bea9c3f98f182") format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/cd12623746d6bbfc6da195a4946a6080") format("woff2"); font-weight: 600; unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/fd9de8133057c7ea3e38abcb3bc6c389") format("woff2"); font-weight: 600; }
+body { margin: 0; }
+a { color: #212121; } a:hover { color: #000000; }
+input::placeholder { color: #616161; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+[hidden] { display: none !important; }
+.b { display: inline-block; flex: none; box-sizing: border-box; width: 18px; height: 18px; border-radius: 5px; }
+.b.work { background: #1c1c1c; }
+.b.late { background: #e8c372; }
+.b.leave { background: #2f5aa8; }
+.b.absent { background: #b43f3f; }
+.b.todo { background: #ffffff; border: 2.5px solid #eb973d; }
+.b.off { background: var(--page); }
+.b.fu { background: #ffffff; border: 1px solid var(--border); }
+.gc { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px 0 10px; border-radius: 50px; background: #ffffff; border: 1px solid var(--border); font: inherit; font-size: 13px; color: #212121; cursor: pointer; }
+.gc .b { width: 12px; height: 12px; border-radius: 4px; }
+.gc .b.todo { border-width: 2px; }
+.gc .ct { color: #616161; }
+.scr { overflow-x: auto; overscroll-behavior-x: contain; cursor: grab; user-select: none; -webkit-user-select: none; scrollbar-width: thin; scrollbar-color: var(--draft) transparent; }
+.tp { width: max-content; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+.tp th, .tp td { padding: 0 14px; height: 52px; border-bottom: 1px solid var(--border); background: #ffffff; white-space: nowrap; }
+.tp thead th { height: 36px; font-size: 12px; line-height: 16px; font-weight: 500; color: #616161; text-align: left; }
+.tp thead .grp { height: 28px; text-align: left; font-weight: 600; color: #212121; border-bottom: 1px solid var(--border); }
+.tp thead .grp > span { position: sticky; left: 310px; }
+.tp .ded-h { background: var(--page); }
+.tp td.ded { background: #fbfbfb; }
+.tp .m { text-align: right; }
+.tp td.strong { font-weight: 600; }
+.tp .fl { position: sticky; left: 0; z-index: 2; width: 296px; box-sizing: border-box; text-align: left; border-right: 1px solid var(--border); font-weight: 400; }
+.tp .fr1 { position: sticky; right: 128px; z-index: 2; width: 136px; box-sizing: border-box; border-left: 1px solid var(--border); }
+.tp .fr2 { position: sticky; right: 0; z-index: 2; width: 128px; box-sizing: border-box; }
+.tp tbody .fl > * { vertical-align: middle; }
+.tp .ck { display: inline-block; width: 16px; height: 16px; box-sizing: border-box; margin-right: 12px; border-radius: 4px; border: 1.5px solid var(--control); cursor: pointer; }
+.tp .av { display: inline-grid; width: 32px; height: 32px; margin-right: 10px; border-radius: 50px; place-items: center; background: var(--draft); font-size: 11px; font-weight: 600; }
+.tp .who { display: inline-flex; flex-direction: column; text-decoration: none; cursor: pointer; }
+.tp .nn { font-weight: 600; }
+.tp .dp { font-size: 12px; line-height: 16px; color: #616161; }
+.tp .who:hover .nn, .tp tr.on .nn { text-decoration: underline; }
+.tp tr.on th, .tp tr.on td { background: #fff9ec; }
+.tp td.net { font-weight: 600; font-size: 15px; }
+.tp tfoot th, .tp tfoot td { height: 48px; border-bottom: 0; background: var(--page); font-weight: 600; }
+.tp .kt i, .ktl i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #eb973d; vertical-align: 1px; }
+.mut { color: #616161; font-weight: 400; font-size: 12px; }
+.pill { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 50px; font-size: 12px; line-height: 16px; font-weight: 500; }
+.st-draft { background: var(--draft); color: #212121; }
+.st-pend { background: #eb973d; color: #212121; }
+.st-done { background: #2f5aa8; color: #ffffff; }
+.st-rej { background: #b43f3f; color: #ffffff; }
+.sc { height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 50px; background: #ffffff; border: 1px solid var(--border); font: inherit; font-size: 13px; color: #212121; cursor: pointer; }
+.sc.on { background: #1c1c1c; border-color: #1c1c1c; color: #ffffff; }
+.sc .ct { color: #616161; }
+.sc.on .ct { color: #e8c372; }
+.stp { display: flex; align-items: center; gap: 8px; }
+.stp .s { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #616161; white-space: nowrap; }
+.stp .s i { width: 22px; height: 22px; flex: none; border-radius: 50px; display: grid; place-items: center; box-sizing: border-box; border: 1.5px solid var(--draft); font-style: normal; font-size: 11px; color: #616161; }
+.stp .s.ok i { background: #1c1c1c; border-color: #1c1c1c; color: #e8c372; }
+.stp .s.ok { color: #212121; }
+.stp .s.cur i { background: #ffffff; border: 2px solid #eb973d; color: #212121; font-weight: 600; }
+.stp .s.cur { color: #212121; font-weight: 600; }
+.stp .ln { flex: 1 1 24px; min-width: 16px; height: 2px; border-radius: 2px; background: var(--draft); }
+.stp .ln.ok { background: #1c1c1c; }
+</style>
+</helmet>
+<div style="--page: {{c.page}}; --border: {{c.border}}; --draft: {{c.draft}}; --control: {{c.control}}; min-height: 1240px; box-sizing: border-box; padding: 16px; display: flex; flex-wrap: wrap; align-items: stretch; gap: 24px; background: {{c.page}}; color: #212121; font-family: Geist, system-ui, sans-serif; font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums;">
+<aside style="flex: 1 1 248px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; padding: 24px 12px 16px; border-radius: 24px; background: {{s.bg}}; border: 1px solid {{s.edge}}; color: {{s.ink}};">
+<div style="display: flex; align-items: center; gap: 12px; padding: 0 12px;">
+<img src="{{s.logo}}" alt="GFT" style="width: 52px; height: auto;">
+<span style="padding-top: 4px; font-family: 'League Spartan', Geist, sans-serif; font-size: 22px; line-height: 24px; font-weight: 600; color: {{s.strong}};">AiCB</span>
+</div>
+<nav aria-label="Điều hướng" style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>Tổng quan</a>
+<div style="padding: 20px 12px 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: {{s.muted}};">Kỳ lương</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Chấm công</a>
+<a href="#" aria-current="page" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-weight: 500; background: {{s.activeBg}}; color: {{s.activeInk}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 12h.01M18 12h.01"></path></svg>Bảng lương</a>
+<div style="padding: 20px 12px 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: {{s.muted}};">Đội ngũ</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Nhân sự</a>
+</nav>
+<div style="display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid {{s.foot}};">
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg>Cài đặt</a>
+<button type="button" aria-haspopup="menu" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 4px 12px; border: 0; border-radius: 8px; background: transparent; font: inherit; text-align: left; cursor: pointer; color: {{s.ink}};">
+<span aria-hidden="true" style="width: 36px; height: 36px; flex: none; border-radius: 50px; display: grid; place-items: center; background: #fce8b2; color: #212121; font-size: 12px; font-weight: 600;">QT</span>
+<span style="display: flex; flex-direction: column;"><span style="font-weight: 500; color: {{s.strong}};">Quản trị viên</span><span style="font-size: 12px; line-height: 16px; color: {{s.muted}};">HR · GFT</span></span>
+</button>
+</div>
+</aside>
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px; padding: 4px 16px 16px 0;">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+<label style="flex: 1 1 280px; max-width: 440px; height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; color: #616161;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input type="search" aria-label="Tìm nhân viên" placeholder="Tìm nhân viên…" style="flex-grow: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; color: #212121;"></label>
+<div style="flex-grow: 1;"></div>
+<button type="button" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px 0 14px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; font: inherit; color: #212121; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>Kỳ lương tháng 10/2026<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+<button type="button" aria-label="Thông báo, 13 việc cần xử lý" style="position: relative; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50px; background: #ffffff; border: 1px solid {{c.border}}; color: #212121; cursor: pointer;"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 6px; border-radius: 50px; background: #1c1c1c; color: #ffffff; font-size: 12px; line-height: 20px; font-weight: 600;">13</span></button>
+</header>
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+<div>
+<h1 style="margin: 0; font-family: 'League Spartan', Geist, sans-serif; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.28px;">Bảng lương</h1>
+<p style="margin: 8px 0 0; color: #616161;">Kỳ lương tháng 10/2026 · công 01–31/10 · công chuẩn 26 ngày · trả lương <b style="font-weight: 600; color: #212121;">05/11/2026</b></p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;"><a href="PayslipA4Page1.dc.html" hidden="{{noApproved}}" title="In 86 phiếu đã duyệt" style="height: 40px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; font-weight: 500; color: #212121; text-decoration: none;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="7" rx="1"></rect></svg>In tất cả</a><button type="button" disabled hidden="{{hasApproved}}" title="Chưa có phiếu đã duyệt" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 8px; background: {{c.page}}; border: 1px solid {{c.border}}; font: inherit; font-weight: 500; color: #757575; cursor: not-allowed;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="7" rx="1"></rect></svg>In tất cả</button><button type="button" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; font: inherit; font-weight: 500; color: #212121; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Tính lại</button><button type="button" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 8px; background: #000000; border: 1px solid #000000; font: inherit; font-weight: 500; color: #ffffff; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>Phê duyệt kỳ lương</button></div>
+</div>
+<section aria-label="Tiến độ kỳ lương" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; padding: 16px 24px; border-radius: 16px; background: #ffffff; border: 1px solid {{c.border}};">
+<span style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">Tháng 10/2026<span class="pill st-pend">Chờ phê duyệt</span></span>
+<div style="flex: 1 1 560px;"><div class="stp" aria-label="Các bước kỳ lương tháng 10"><span class="s ok"><i><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></i>Chấm công</span><span class="ln ok"></span><span class="s ok"><i><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></i>Chốt công</span><span class="ln ok"></span><span class="s ok"><i><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></i>Chấm KPI</span><span class="ln ok"></span><span class="s ok"><i><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></i>Tính lương</span><span class="ln"></span><span class="s cur"><i>5</i>Phê duyệt</span><span class="ln"></span><span class="s "><i>6</i>Trả lương</span></div></div>
+</section>
+<section aria-label="Chỉ số kỳ lương" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 16px;">
+<div style="box-sizing: border-box; min-height: 120px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 16px 20px; border-radius: 16px; background: #e8c372; border: 1px solid #e8c372;"><span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #212121;">Tổng thu nhập tháng 10</span><span style="font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.56px;">2,48 <span style="font-size: 18px;">tỷ ₫</span></span><span style="font-size: 12px; line-height: 16px; color: #212121;">▲ 3,2% so với tháng 9</span></div>
+<div style="box-sizing: border-box; min-height: 120px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 16px 20px; border-radius: 16px; background: #ffffff; border: 1px solid {{c.border}};"><span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #616161;">Thực nhận</span><span style="font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.56px;">2,11 <span style="font-size: 18px; color: #616161;">tỷ ₫</span></span><span style="font-size: 12px; line-height: 16px; color: #616161;">85% tổng thu nhập</span></div>
+<div style="box-sizing: border-box; min-height: 120px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 16px 20px; border-radius: 16px; background: #ffffff; border: 1px solid {{c.border}};"><span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #616161;">Khấu trừ</span><span style="font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.56px;">0,37 <span style="font-size: 18px; color: #616161;">tỷ ₫</span></span><span style="font-size: 12px; line-height: 16px; color: #616161;">Bảo hiểm 0,26 · Thuế 0,09 · Tạm ứng 0,02</span></div>
+<div style="box-sizing: border-box; min-height: 120px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 16px 20px; border-radius: 16px; background: #ffffff; border: 1px solid {{c.border}};"><span style="font-size: 12px; line-height: 16px; font-weight: 500; color: #616161;">Phiếu đã duyệt</span><span style="font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.56px;">86<span style="font-size: 18px; color: #616161;"> / 128</span></span><span aria-hidden="true" style="display: flex; gap: 2px; height: 6px;"><i style="flex: 86; border-radius: 3px; background: #2f5aa8;"></i><i style="flex: 29; border-radius: 3px; background: #eb973d;"></i><i style="flex: 12; border-radius: 3px; background: var(--draft);"></i><i style="flex: 1; min-width: 4px; border-radius: 3px; background: #b43f3f;"></i></span></div>
+</section>
+<section aria-label="Phiếu lương tháng 10" style="box-sizing: border-box; display: flex; flex-direction: column; border-radius: 24px; background: #ffffff; border: 1px solid {{c.border}}; overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 20px 20px 16px;">
+<div role="group" aria-label="Lọc theo trạng thái" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<button type="button" class="sc on" aria-pressed="true">Tất cả<span class="ct">128</span></button>
+<button type="button" class="sc" aria-pressed="false"><span class="pill st-draft" style="height: 10px; width: 10px; padding: 0;"></span>Nháp<span class="ct">12</span></button>
+<button type="button" class="sc" aria-pressed="false"><span class="pill st-pend" style="height: 10px; width: 10px; padding: 0;"></span>Chờ duyệt<span class="ct">29</span></button>
+<button type="button" class="sc" aria-pressed="false"><span class="pill st-done" style="height: 10px; width: 10px; padding: 0;"></span>Đã duyệt<span class="ct">86</span></button>
+<button type="button" class="sc" aria-pressed="false"><span class="pill st-rej" style="height: 10px; width: 10px; padding: 0;"></span>Từ chối<span class="ct">1</span></button>
+</div>
+<div style="flex-grow: 1;"></div>
+<label style="width: 220px; max-width: 100%; height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; color: #616161;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input type="search" aria-label="Tìm theo tên" placeholder="Tìm theo tên…" style="flex-grow: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; color: #212121;"></label>
+<button type="button" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px 0 14px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; font: inherit; color: #212121; cursor: pointer;">Phòng ban: Tất cả<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+<button type="button" aria-label="Xuất bảng lương ra Excel" style="width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; color: #212121; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg></button>
+</div>
+<div class="scr" data-scroller ref="{{setEl}}" onPointerDown="{{down}}" onPointerMove="{{move}}" onPointerUp="{{up}}" onPointerCancel="{{up}}" onClickCapture="{{clickCap}}" onDragStart="{{noDrag}}" style="border-top: 1px solid {{c.border}};">
+<table class="tp">
+<colgroup><col style="width: 296px;"><col style="width: 96px;"><col style="width: 132px;"><col style="width: 124px;"><col style="width: 116px;"><col style="width: 108px;"><col style="width: 100px;"><col style="width: 140px;"><col style="width: 116px;"><col style="width: 112px;"><col style="width: 108px;"><col style="width: 136px;"><col style="width: 128px;"></colgroup>
+<thead><tr><th rowspan="2" scope="col" class="fl">Nhân viên</th><th rowspan="2" scope="col" class="m">Ngày công</th><th colspan="6" scope="colgroup" class="grp"><span>Thu nhập</span></th><th colspan="3" scope="colgroup" class="grp ded-h"><span>Khấu trừ</span></th><th rowspan="2" scope="col" class="fr1 m">Thực nhận</th><th rowspan="2" scope="col" class="fr2">Trạng thái</th></tr><tr><th scope="col" class="m">Tiền ngày công</th><th scope="col" class="m">Lương KPI</th><th scope="col" class="m">Phụ cấp</th><th scope="col" class="m">Làm thêm</th><th scope="col" class="m">Trừ giờ</th><th scope="col" class="m">Tổng thu nhập</th><th scope="col" class="m ded-h">Bảo hiểm</th><th scope="col" class="m ded-h">Thuế TNCN</th><th scope="col" class="m ded-h">Tạm ứng</th></tr></thead>
+<tbody>
+<tr><th scope="row" class="fl"><span class="ck" role="checkbox" aria-checked="false" aria-label="Chọn phiếu của Nguyễn Thu Hà"></span><span class="av">TH</span><a href="Payslip.dc.html" draggable="false" class="who"><span class="nn">Nguyễn Thu Hà</span><span class="dp">Tài chính · Kế toán tổng hợp</span></a></th><td class="m">26<span class="mut"> / 26</span></td><td class="m">16.615.385</td><td class="m">2.602.800</td><td class="m">2.800.000</td><td class="m">461.538</td><td class="m">—</td><td class="m strong">22.479.723</td><td class="m ded">1.680.000</td><td class="m ded">—</td><td class="m ded">—</td><td class="fr1 m net">20.799.723</td><td class="fr2"><span class="pill st-done">Đã duyệt</span></td></tr>
+<tr><th scope="row" class="fl"><span class="ck" role="checkbox" aria-checked="false" aria-label="Chọn phiếu của Trần Minh Quân"></span><span class="av">MQ</span><a href="Payslip.dc.html" draggable="false" class="who"><span class="nn">Trần Minh Quân</span><span class="dp">Kỹ thuật · Kỹ sư phần mềm</span></a></th><td class="m">25<span class="mut"> / 26</span></td><td class="m">24.923.077</td><td class="m">4.454.000</td><td class="m">3.365.384</td><td class="m">1.961.538</td><td class="m">−57.692</td><td class="m strong">34.646.307</td><td class="m ded">2.520.000</td><td class="m ded">170.931</td><td class="m ded">—</td><td class="fr1 m net">31.955.376</td><td class="fr2"><span class="pill st-done">Đã duyệt</span></td></tr>
+<tr class="on"><th scope="row" class="fl"><span class="ck" role="checkbox" aria-checked="false" aria-label="Chọn phiếu của Lê Hoàng Nam"></span><span class="av">HN</span><a href="Payslip.dc.html" draggable="false" class="who"><span class="nn">Lê Hoàng Nam</span><span class="dp">Kinh doanh · Nhân viên kinh doanh</span></a></th><td class="m">24<span class="mut"> / 26</span></td><td class="m">11.999.999</td><td class="m">1.322.800</td><td class="m">2.215.384</td><td class="m">—</td><td class="m">—</td><td class="m strong">15.538.183</td><td class="m ded">1.260.000</td><td class="m ded">—</td><td class="m ded">—</td><td class="fr1 m net">14.278.183</td><td class="fr2"><span class="pill st-pend">Chờ duyệt</span></td></tr>
+<tr><th scope="row" class="fl"><span class="ck" role="checkbox" aria-checked="false" aria-label="Chọn phiếu của Phạm Ngọc Anh"></span><span class="av">NA</span><a href="Payslip.dc.html" draggable="false" class="who"><span class="nn">Phạm Ngọc Anh</span><span class="dp">Nhân sự · Chuyên viên nhân sự</span></a></th><td class="m">26<span class="mut"> / 26</span></td><td class="m">14.538.462</td><td class="m">2.018.000</td><td class="m">2.200.000</td><td class="m">—</td><td class="m">—</td><td class="m strong">18.756.462</td><td class="m ded">1.470.000</td><td class="m ded">—</td><td class="m ded">—</td><td class="fr1 m net">17.286.462</td><td class="fr2"><span class="pill st-pend">Chờ duyệt</span></td></tr>
+<tr><th scope="row" class="fl"><span class="ck" role="checkbox" aria-checked="false" aria-label="Chọn phiếu của Võ Đức Thịnh"></span><span class="av">ĐT</span><a href="Payslip.dc.html" draggable="false" class="who"><span class="nn">Võ Đức Thịnh</span><span class="dp">Kỹ thuật · Trưởng nhóm QA</span></a></th><td class="m">23<span class="mut"> / 26</span></td><td class="m">20.000.001</td><td class="m">3.344.800</td><td class="m">3.115.384</td><td class="m">—</td><td class="m">—</td><td class="m strong">26.460.185</td><td class="m ded">2.100.000</td><td class="m ded">133.009</td><td class="m ded">—</td><td class="fr1 m net">24.227.176</td><td class="fr2"><span class="pill st-draft">Nháp</span></td></tr>
+<tr><th scope="row" class="fl"><span class="ck" role="checkbox" aria-checked="false" aria-label="Chọn phiếu của Đỗ Mai Linh"></span><span class="av">ML</span><a href="Payslip.dc.html" draggable="false" class="who"><span class="nn">Đỗ Mai Linh</span><span class="dp">Marketing · Thiết kế đồ hoạ</span></a></th><td class="m">22<span class="mut"> / 26</span></td><td class="m">12.000.000</td><td class="m">1.443.200</td><td class="m">1.692.308</td><td class="m">—</td><td class="m">−125.000</td><td class="m strong">15.010.508</td><td class="m ded">1.365.000</td><td class="m ded">—</td><td class="m ded">—</td><td class="fr1 m net">13.645.508</td><td class="fr2"><span class="pill st-rej">Từ chối</span></td></tr>
+<tr><th scope="row" class="fl"><span class="ck" role="checkbox" aria-checked="false" aria-label="Chọn phiếu của Bùi Quốc Huy"></span><span class="av">QH</span><a href="Payslip.dc.html" draggable="false" class="who"><span class="nn">Bùi Quốc Huy</span><span class="dp">Sản xuất · Tổ trưởng</span></a></th><td class="m">24<span class="mut"> / 26</span></td><td class="m">10.576.923</td><td class="m"><span class="kt" title="Thiếu điểm Tự đánh giá, tính 0"><i aria-hidden="true"></i>1.481.200</span></td><td class="m">2.717.308</td><td class="m">634.615</td><td class="m">—</td><td class="m strong">15.410.046</td><td class="m ded">1.155.000</td><td class="m ded">—</td><td class="m ded">2.000.000</td><td class="fr1 m net">12.255.046</td><td class="fr2"><span class="pill st-draft">Nháp</span></td></tr>
+<tr><th scope="row" class="fl"><span class="ck" role="checkbox" aria-checked="false" aria-label="Chọn phiếu của Trịnh Văn Long"></span><span class="av">VL</span><a href="Payslip.dc.html" draggable="false" class="who"><span class="nn">Trịnh Văn Long</span><span class="dp">Sản xuất · Công nhân vận hành</span></a></th><td class="m">25<span class="mut"> / 26</span></td><td class="m">9.500.000</td><td class="m">1.167.300</td><td class="m">2.815.385</td><td class="m">411.058</td><td class="m">—</td><td class="m strong">13.893.743</td><td class="m ded">997.500</td><td class="m ded">—</td><td class="m ded">—</td><td class="fr1 m net">12.896.243</td><td class="fr2"><span class="pill st-pend">Chờ duyệt</span></td></tr>
+<tr><th scope="row" class="fl"><span class="ck" role="checkbox" aria-checked="false" aria-label="Chọn phiếu của Lý Thanh Tâm"></span><span class="av">TT</span><a href="Payslip.dc.html" draggable="false" class="who"><span class="nn">Lý Thanh Tâm</span><span class="dp">Sản xuất · Công nhân vận hành</span></a></th><td class="m">26<span class="mut"> / 26</span></td><td class="m">9.865.385</td><td class="m">1.211.100</td><td class="m">1.692.308</td><td class="m">365.385</td><td class="m">—</td><td class="m strong">13.134.178</td><td class="m ded">997.500</td><td class="m ded">—</td><td class="m ded">—</td><td class="fr1 m net">12.136.678</td><td class="fr2"><span class="pill st-draft">Nháp</span></td></tr>
+<tr><th scope="row" class="fl"><span class="ck" role="checkbox" aria-checked="false" aria-label="Chọn phiếu của Ngô Gia Bảo"></span><span class="av">GB</span><a href="Payslip.dc.html" draggable="false" class="who"><span class="nn">Ngô Gia Bảo</span><span class="dp">Sản xuất · Công nhân vận hành</span></a></th><td class="m">25<span class="mut"> / 26</span></td><td class="m">9.865.385</td><td class="m">1.141.200</td><td class="m">2.264.423</td><td class="m">205.529</td><td class="m">—</td><td class="m strong">13.476.537</td><td class="m ded">997.500</td><td class="m ded">—</td><td class="m ded">—</td><td class="fr1 m net">12.479.037</td><td class="fr2"><span class="pill st-pend">Chờ duyệt</span></td></tr>
+</tbody>
+<tfoot><tr><th scope="row" class="fl">Tổng 10 phiếu đang hiện</th><td class="m"></td><td class="m">139.884.617</td><td class="m">20.186.400</td><td class="m">24.877.884</td><td class="m">4.039.663</td><td class="m">−182.692</td><td class="m strong">188.805.872</td><td class="m ded">14.542.500</td><td class="m ded">303.940</td><td class="m ded">2.000.000</td><td class="fr1 m net">171.959.432</td><td class="fr2"></td></tr></tfoot>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 14px 20px 18px; border-top: 1px solid {{c.border}}; font-size: 12px; line-height: 16px; color: #616161;">
+<span style="display: inline-flex; align-items: center; gap: 6px;"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 9 5 12 1.8-5.2L21 14Z"></path><path d="M7.2 2.2 8 5.1"></path><path d="m5.1 8-2.9-.8"></path><path d="M14 4.1 12 6"></path><path d="m6 12-1.9 2"></path></svg>Kéo ngang để xem các khoản · bấm tên để mở phiếu lương</span>
+<span class="ktl"><i aria-hidden="true"></i>Thiếu điểm KPI, cột thiếu tính 0 điểm</span>
+<span style="flex-grow: 1;"></span>
+<span>Hiển thị 1–10 trong 128 phiếu</span>
+<span style="display: inline-flex; gap: 4px;"><button type="button" aria-label="Trang trước" style="width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; color: #9e9e9e; cursor: pointer;"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></button><button type="button" aria-label="Trang sau" style="width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; color: #212121; cursor: pointer;"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button></span>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Nền xám","Nền kem"],"default":"Nền xám","section":"Màu"},"sidebar":{"editor":"enum","options":["Tối","Sáng"],"default":"Tối","section":"Khung"},"approved":{"editor":"enum","options":["Có phiếu đã duyệt","Chưa có phiếu đã duyệt"],"default":"Có phiếu đã duyệt","section":"Trạng thái"},"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  drag = null;
+  dragged = false;
+  setEl = (el) => { this.el = el; };
+  down = (e) => { if (e.button !== 0 || !this.el) return; this.drag = { x: e.clientX, left: this.el.scrollLeft, moved: false, id: e.pointerId }; };
+  move = (e) => {
+    const d = this.drag;
+    if (!d) return;
+    const dx = e.clientX - d.x;
+    if (!d.moved && Math.abs(dx) > 4) { d.moved = true; this.el.setPointerCapture && this.el.setPointerCapture(d.id); this.el.style.cursor = 'grabbing'; }
+    if (d.moved) this.el.scrollLeft = d.left - dx;
+  };
+  up = () => {
+    const d = this.drag;
+    this.drag = null;
+    if (!d || !d.moved || !this.el) return;
+    this.el.style.cursor = '';
+    this.dragged = true;
+    setTimeout(() => { this.dragged = false; }, 0);
+  };
+  clickCap = (e) => { if (this.dragged) { e.preventDefault(); e.stopPropagation(); } };
+  noDrag = (e) => { e.preventDefault(); };
+  renderVals() {
+    const kem = (this.props.theme ?? 'Nền xám') === 'Nền kem';
+    const light = (this.props.sidebar ?? 'Tối') === 'Sáng';
+    const c = kem
+      ? { page: '#f2ead8', border: '#e6dcc6', control: '#857f74', draft: '#e6dcc6' }
+      : { page: '#f5f5f5', border: '#e0e0e0', control: '#8a8a8a', draft: '#e0e0e0' };
+    const s = light
+      ? { bg: '#ffffff', edge: c.border, ink: '#212121', strong: '#212121', muted: '#616161', activeBg: '#fce8b2', activeInk: '#212121', foot: c.border, logo: '/_blob/1f9a9f3eba1fb9a94c201cf9d621b234' }
+      : { bg: '#1c1c1c', edge: '#1c1c1c', ink: '#ffffff', strong: '#ffffff', muted: '#9e9e9e', activeBg: '#2a2a2a', activeInk: '#e8c372', foot: '#2a2a2a', logo: '/_blob/3568bf81a6ac57ac1877fa1835f3c03e' };
+    const extra = { setEl: this.setEl, down: this.down, move: this.move, up: this.up, clickCap: this.clickCap, noDrag: this.noDrag };
+    // In tất cả chỉ in phiếu đã duyệt; chưa có phiếu nào được duyệt thì khoá nút (tweak Trạng thái để xem).
+    const approved = (this.props.approved ?? 'Có phiếu đã duyệt') === 'Có phiếu đã duyệt';
+    return { c, s, ...extra, noApproved: !approved, hasApproved: approved };
+  }
+}
+</script>
+</body>
+</html>

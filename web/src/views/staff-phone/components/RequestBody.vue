@@ -3,8 +3,15 @@
 // bước có ghi chú của người duyệt (vd. "Lý do từ chối") hiện hộp ghi chú ngay dưới thời điểm. Không có đầu hộp, không có nút Đóng.
 //   <RequestBody :request="detail" />
 import type { RequestDetail } from '@/mock/staff-phone';
+import { datesText } from '@/utils/format';
 
-defineProps<{ request: RequestDetail }>();
+const props = defineProps<{ request: RequestDetail }>();
+
+// Bước "Đã huỷ" nói rõ các ngày đơn giữ đã được trả lại (board J19): "28/10 09:41 · ngày 02 và 03/11 đã được trả lại".
+const stepAt = (state: string, at: string | null) => {
+  const days = datesText(props.request.dates);
+  return state === 'cancel' && at && days ? `${at} · ngày ${days} đã được trả lại` : at;
+};
 </script>
 
 <template>
@@ -21,7 +28,8 @@ defineProps<{ request: RequestDetail }>();
       </span>
       <span class="rq-tx">
         <span class="rq-lb">{{ s.label }}</span>
-        <span v-if="s.at" class="mut">{{ s.at }}</span>
+        <span v-if="s.at" class="mut">{{ stepAt(s.state, s.at) }}</span>
+        <span v-else-if="s.state === 'pend'" class="mut sm">Chưa ai xử lý</span>
         <div v-if="s.note" class="rq-note">
           <span class="mut sm">{{ s.note.label }}</span>
           <span>{{ s.note.text }}</span>
@@ -63,6 +71,9 @@ defineProps<{ request: RequestDetail }>();
 }
 .rq-rail i.rej {
   background: var(--status-rejected);
+}
+.rq-rail i.cancel {
+  background: var(--muted);
 }
 .rq-rail b {
   flex: 1 1 auto;

@@ -13,11 +13,8 @@ test('net pay card follows J6', async ({ page }) => {
   await expect(page.getByText('Tạm tính', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tháng trước' })).toBeDisabled();
   const net = page.getByRole('region', { name: 'Thực nhận tháng 10' });
-  for (const t of ['Thực nhận dự kiến', 'Admin đang duyệt phiếu', 'Tổng thu nhập', '15.538.183', 'Khấu trừ'])
+  for (const t of ['Thực nhận dự kiến', 'Admin đang duyệt phiếu', 'Tổng thu nhập', '15.538.183', 'Khấu trừ', '1.260.000'])
     await expect(net).toContainText(t);
-  // Tạm tính không trừ bảo hiểm và thuế, cũng không ghi "chưa trừ".
-  await expect(net).not.toContainText('1.260.000');
-  await expect(page.getByText(/chưa trừ/i)).toHaveCount(0);
 });
 
 test('KPI card shows the total, KPI pay and the five scores', async ({ page }) => {
@@ -35,9 +32,9 @@ test('line items add up to the net pay and there is no full-payslip link', async
   await openPhone(page, '/nv/thu-nhap');
   await expect(page.getByRole('heading', { name: 'Các khoản' })).toBeVisible();
   const lines = page.locator('.ls .ro');
-  await expect(lines.locator('.t')).toHaveText(['Lương ngày công', 'Nghỉ phép, iSAT', 'Phụ cấp', 'Lương KPI']);
-  await expect(lines.locator('.v')).toHaveText(['11.076.923', '923.076', '2.215.384', '1.322.800']);
-  await expect(page.locator('.tot')).toHaveText(/Thực nhận\s*15\.538\.183 ₫/);
+  await expect(lines.locator('.t')).toHaveText(['Lương ngày công', 'Nghỉ phép, iSAT', 'Phụ cấp', 'Lương KPI', 'Bảo hiểm bắt buộc', 'Thuế TNCN']);
+  await expect(lines.locator('.v')).toHaveText(['11.076.923', '923.076', '2.215.384', '1.322.800', '−1.260.000', '0']);
+  await expect(page.locator('.tot')).toHaveText(/Thực nhận\s*14\.278\.183 ₫/);
   await expect(page.getByRole('link', { name: 'Xem phiếu lương đầy đủ' })).toHaveCount(0);
 });
 

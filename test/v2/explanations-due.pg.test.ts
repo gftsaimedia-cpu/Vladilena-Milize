@@ -60,17 +60,32 @@ test('Ngày cần giải trình trên PostgreSQL (spec 5.2)', async t => {
       [NV, ADMIN]
     );
     // Giờ chấm lưu TIMESTAMPTZ (UTC); ca 08:00–17:00 giờ Việt Nam.
-    const punch = (date: string, inUtc: string | null, outUtc: string | null) =>
-      client.query(
+    // Nộp và huỷ đơn giải trình ghi lại dòng ngày từ `punch_events`, nên mỗi lần chấm có cả lần chấm gốc lẫn dòng ngày.
+    const punch = async (date: string, inUtc: string | null, outUtc: string | null) => {
+      await client.query(
         `INSERT INTO timesheet_entries (id, employee_id, work_date, shift_type, shift_start_time, shift_end_time, shift_allowance_pct, actual_check_in, actual_check_out, status, created_at, updated_at)
          VALUES (gen_random_uuid(), $1, $2, 'NORMAL', '08:00', '17:00', 0, $3, $4, 'PRESENT', now(), now())`,
         [NV, date, inUtc, outUtc]
       );
-    await punch('2026-10-27', '2026-10-27T01:00:00Z', null); // tháng 10 đã chốt: thiếu giờ ra nhưng không được tính
+      for (const [at, type] of [
+        [inUtc, 'IN'],
+        [outUtc, 'OUT']
+      ]) {
+        if (!at) continue;
+        await client.query(
+          `INSERT INTO punch_events (id, employee_id, punched_at, work_date, type, latitude, longitude,
+             accuracy_meters, distance_meters, is_within_office, created_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, 0, 0, 1, 1, true, now())`,
+          [NV, at, date, type]
+        );
+      }
+    };
+    await punch('2026-10-27', '2026-10-27T01:00:00Z', null); // kỳ tháng 10 đã phê duyệt: thiếu giờ ra nhưng không được tính
     await punch('2026-11-02', '2026-11-02T01:00:00Z', null); // 08:00 vào, thiếu giờ ra
     await punch('2026-11-03', '2026-11-03T01:40:00Z', '2026-11-03T10:05:00Z'); // 08:40 vào: muộn
     await punch('2026-11-04', '2026-11-04T01:00:00Z', '2026-11-04T10:00:00Z'); // đủ giờ, đúng giờ
-    await client.query(`INSERT INTO payroll_periods (month, status) VALUES ('2026-10', 'attendance_locked')`);
+    // Giải trình nộp được tới khi kỳ được phê duyệt (người dùng chốt 05/11): chỉ kỳ 'approved' / 'paid' bỏ ngày của tháng.
+    await client.query(`INSERT INTO payroll_periods (month, status) VALUES ('2026-10', 'approved')`);
 
     process.env.DATABASE_URL = tempUrl.toString();
     app = await NestFactory.createApplicationContext(AppModule, { logger: false });
@@ -79,8 +94,8 @@ test('Ngày cần giải trình trên PostgreSQL (spec 5.2)', async t => {
     requests.now = () => NOW;
     explanations.now = () => NOW;
 
-    const LATE_DAY = { date: '2026-11-03', cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false } };
-    const MISSING_OUT_DAY = { date: '2026-11-02', cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true } };
+    const LATE_DAY = { date: '2026-11-03', cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false }, checkIn: '08:40', checkOut: '17:05' };
+    const MISSING_OUT_DAY = { date: '2026-11-02', cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, checkIn: '08:00', checkOut: null };
 
     await t.test('dueDays finds LATE_CHECK_IN and MISSING_CHECK_OUT from TIMESTAMPTZ punches, newest first', async () => {
       assert.deepEqual(await explanations.dueDays('nv1'), [
@@ -91,16 +106,19 @@ test('Ngày cần giải trình trên PostgreSQL (spec 5.2)', async t => {
       assert.deepEqual((await explanations.dueDays(NV)).map(d => d.date), ['2026-11-03', '2026-11-02']);
     });
 
-    await t.test('a day in a closed month is excluded, and returns once the month is open', async () => {
+    await t.test('a day of an approved or paid month is excluded; locked or calculated months still have due days', async () => {
       const dates = async () => (await explanations.dueDays('nv1')).map(d => d.date);
       assert.equal((await dates()).includes('2026-10-27'), false);
-      await client.query(`UPDATE payroll_periods SET status = 'open' WHERE month = '2026-10'`);
       try {
-        const open = await explanations.dueDays('nv1');
-        const oct27 = open.find(d => d.date === '2026-10-27');
-        assert.deepEqual(oct27?.cases, ['MISSING_CHECK_OUT']);
+        for (const status of ['open', 'attendance_locked', 'calculated']) {
+          await client.query(`UPDATE payroll_periods SET status = $1 WHERE month = '2026-10'`, [status]);
+          const oct27 = (await explanations.dueDays('nv1')).find(d => d.date === '2026-10-27');
+          assert.deepEqual(oct27?.cases, ['MISSING_CHECK_OUT'], status);
+        }
+        await client.query(`UPDATE payroll_periods SET status = 'paid' WHERE month = '2026-10'`);
+        assert.equal((await dates()).includes('2026-10-27'), false);
       } finally {
-        await client.query(`UPDATE payroll_periods SET status = 'attendance_locked' WHERE month = '2026-10'`);
+        await client.query(`UPDATE payroll_periods SET status = 'approved' WHERE month = '2026-10'`);
       }
       assert.equal((await dates()).includes('2026-10-27'), false);
     });
@@ -129,7 +147,7 @@ test('Ngày cần giải trình trên PostgreSQL (spec 5.2)', async t => {
       assert.match(String(skipped[1]), /Thiếu cấu hình loại nhân sự ql/);
     });
 
-    await t.test('remind upserts one row per day; a closed-month day is refused', async () => {
+    await t.test('remind upserts one row per day; a day of an approved month is refused with PERIOD_LOCKED', async () => {
       assert.deepEqual(await explanations.remind('nv1', '2026-11-02', 'admin'), { remindedAt: NOW.toISOString() });
       explanations.now = () => LATER;
       try {
@@ -141,7 +159,12 @@ test('Ngày cần giải trình trên PostgreSQL (spec 5.2)', async t => {
       const rows = await client.query(`SELECT employee_id, reminded_by FROM explanation_reminders WHERE work_date = '2026-11-02'`);
       assert.deepEqual(rows.rows, [{ employee_id: NV, reminded_by: ADMIN }]);
 
-      await assert.rejects(explanations.remind('nv1', '2026-10-27', 'admin'), { message: 'Tháng 10 đã chốt công' });
+      await assert.rejects(explanations.remind('nv1', '2026-10-27', 'admin'), (e: any) => {
+        assert.equal(e.status, 409);
+        assert.equal(e.message, 'Kỳ lương tháng 10/2026 đã phê duyệt');
+        assert.deepEqual(e.details, { code: 'PERIOD_LOCKED', month: '2026-10', status: 'approved' });
+        return true;
+      });
       const closed = await client.query(`SELECT 1 FROM explanation_reminders WHERE work_date = '2026-10-27'`);
       assert.equal(closed.rowCount, 0);
       // Ngày đủ giờ thì không có gì để nhắc.

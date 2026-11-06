@@ -26,3 +26,19 @@ export function calculateInsurance(
   const bhtn = part(rates.bhtn);
   return { base, bhxh, bhyt, bhtn, total: bhxh + bhyt + bhtn };
 }
+
+/** The rates as the percentages printed on the payslip (0.015 -> 1.5); total is the sum of the three. */
+export interface InsurancePct {
+  bhxh: number;
+  bhyt: number;
+  bhtn: number;
+  total: number;
+}
+
+export function insurancePctOf(rates: InsuranceRates): InsurancePct {
+  const pct = (rate: number) => Math.round(rate * 10000) / 100;
+  const bhxh = pct(rates.bhxh);
+  const bhyt = pct(rates.bhyt);
+  const bhtn = pct(rates.bhtn);
+  return { bhxh, bhyt, bhtn, total: Math.round((bhxh + bhyt + bhtn) * 100) / 100 };
+}

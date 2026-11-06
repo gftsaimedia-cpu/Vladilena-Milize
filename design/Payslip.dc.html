@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Phiếu lương</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body { margin: 0; }
+.b { display: inline-block; box-sizing: border-box; }
+.b.work { background: #1c1c1c; } .b.leave { background: #2f5aa8; } .b.todo { background: #ffffff; border: 2px solid #eb973d; } .b.off { background: var(--page); } .b.fu { background: #ffffff; border: 1px solid var(--border); }
+.mut { color: #616161; font-weight: 400; font-size: 12px; }
+.pill { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 50px; font-size: 12px; line-height: 16px; font-weight: 500; }
+.sh { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.sh h3 { margin: 0; font-size: 15px; line-height: 20px; font-weight: 600; }
+.sh a { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.inf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 12px; }
+.inf > div, .sts > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; min-width: 0; }
+.inf > div + div, .sts > div + div { border-left: 1px solid var(--border); }
+.inf span, .sts span { font-size: 12px; line-height: 16px; color: #616161; }
+.inf b { font-weight: 600; }
+.sts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 10px; border: 1px solid var(--border); border-radius: 12px; }
+.sts > div { padding: 8px 10px; }
+.sts b { font-size: 15px; font-weight: 600; }
+.ts { display: flex; flex-direction: column; font-variant-numeric: tabular-nums; }
+.ts .hd, .ts .r { display: grid; grid-template-columns: minmax(0, 1fr) 92px 104px; column-gap: 12px; align-items: baseline; }
+.ts .hd { padding: 0 8px 8px; font-size: 12px; line-height: 16px; color: #616161; border-bottom: 1px solid var(--border); }
+.ts .hd > :nth-child(n+2), .ts .r > :nth-child(n+2) { text-align: right; }
+.ts .g { margin-top: 12px; padding: 6px 8px; background: var(--page); font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: #616161; }
+.ts .r { padding: 7px 8px; border-bottom: 1px solid var(--border); }
+.ts .r.bb { font-weight: 600; }
+.ts .sub { display: block; font-size: 12px; line-height: 16px; color: #616161; font-weight: 400; }
+.ts .z { color: #757575; }
+.ts .dt { display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: #eb973d; vertical-align: 1px; }
+.ts .sum { margin-top: 16px; border-top: 2px solid #212121; }
+.ts .net { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 8px; background: #fff9ec; border-top: 2px solid #212121; border-bottom: 2px solid #212121; font-size: 18px; line-height: 24px; font-weight: 600; }
+.kg { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; padding: 10px 8px 12px; border-bottom: 1px solid var(--border); }
+.kg label { display: flex; flex-direction: column; justify-content: space-between; gap: 6px; font-size: 12px; line-height: 16px; color: #616161; cursor: text; }
+.kg .in { display: inline-flex; align-items: center; gap: 4px; color: #212121; }
+.kg input { width: 56px; height: 32px; box-sizing: border-box; padding: 0 8px; border-radius: 8px; border: 1px solid var(--control); background: #ffffff; font: inherit; font-size: 14px; font-weight: 600; text-align: right; color: #212121; }
+.kg input.miss { border: 2px solid #eb973d; }
+.kg input:focus-visible { outline: 2px solid #212121; outline-offset: 1px; }
+.lk { padding: 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 500; color: #212121; text-decoration: underline; cursor: pointer; }
+.hist { margin: 4px 0 0; padding: 0 8px; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.hist li { display: flex; justify-content: space-between; gap: 12px; }
+.b1, .b2 { height: 40px; padding: 0 16px; border-radius: 8px; font: inherit; font-weight: 500; cursor: pointer; }
+.b1 { background: #000000; border: 1px solid #000000; color: #ffffff; flex: 1 1 0; }
+.b2 { background: #ffffff; border: 1px solid var(--control); color: #212121; }
+.ib { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #212121; cursor: pointer; }
+.rs { display: flex; flex-direction: column; gap: 6px; }
+.rs label { font-weight: 500; }
+.rs textarea { height: 72px; box-sizing: border-box; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--control); background: #ffffff; font: inherit; color: #212121; resize: vertical; }
+.rs textarea::placeholder { color: #616161; }
+.rs textarea:focus-visible { outline: 2px solid #212121; outline-offset: 1px; }
+a { color: #212121; }
+[hidden] { display: none !important; }
+button:focus-visible, a:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+</style>
+</helmet>
+<div style="--page: {{c.page}}; --border: {{c.border}}; --control: {{c.control}}; position: relative; min-height: 1400px; background: {{c.page}}; font-family: Geist, system-ui, sans-serif; font-size: 14px; line-height: 20px; color: #212121; font-variant-numeric: tabular-nums;">
+<dc-import name="Payroll" sidebar="{{sidebar}}" theme="{{theme}}" hint-size="100%,1240px"></dc-import>
+<div aria-hidden="true" style="position: absolute; inset: 0; z-index: 5; background: rgba(28, 28, 28, 0.32);"></div>
+<aside role="dialog" aria-label="Phiếu lương của Lê Hoàng Nam" style="position: absolute; z-index: 6; top: 16px; right: 16px; bottom: 16px; width: 540px; max-width: calc(100% - 32px); box-sizing: border-box; display: flex; flex-direction: column; border-radius: 24px; background: #ffffff; overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 4px; padding: 20px 16px 0 24px;">
+<h2 style="margin: 0; flex-grow: 1; font-size: 18px; line-height: 24px; font-weight: 600;">Phiếu lương tháng 10/2026</h2>
+<a href="PayslipA4Page1.dc.html" class="ib" aria-label="In phiếu" title="In phiếu A4"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="7" rx="1"></rect></svg></a>
+<button type="button" class="ib" aria-label="Phiếu trước"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></button>
+<button type="button" class="ib" aria-label="Phiếu sau"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button>
+<a href="Payroll.dc.html" class="ib" aria-label="Đóng" style="color: #616161;"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></a>
+</div>
+<div data-slipscroll style="flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 16px 24px 24px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span aria-hidden="true" style="width: 48px; height: 48px; flex: none; border-radius: 50px; display: grid; place-items: center; background: #fce8b2; font-weight: 600;">HN</span>
+<div style="flex-grow: 1; min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Lê Hoàng Nam</div><div class="mut">Kinh doanh · Nhân viên kinh doanh · GFT-0142</div></div>
+<span class="pill" style="{{pillStyle}}">{{pillText}}</span>
+</div>
+<div>
+<div class="inf"><div><span>Loại · bậc</span><b>NV · Bậc 2</b></div><div><span>Tình trạng</span><b>HĐLĐ từ 3 tháng</b></div><div><span>Trả lương</span><b>05/11/2026</b></div></div>
+<p class="mut" style="margin: 8px 0 0;">Từ 01/10 đến 31/10/2026 · tạm tính cả tháng, số liệu tới 28/10 · công chuẩn theo quy chế: 26 ngày</p>
+</div>
+<section aria-label="Chấm công tháng 10">
+<div class="sh"><h3>Chấm công tháng 10</h3><a href="AttendanceEmployee.dc.html">Xem từng ngày<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a></div>
+<div style="display: flex; gap: 3px;"><span class="b work" title="1/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="2/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="3/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b off" title="4/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="5/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="6/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="7/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="8/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="9/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b leave" title="10/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b off" title="11/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b leave" title="12/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="13/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="14/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="15/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="16/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="17/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b off" title="18/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="19/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="20/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="21/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="22/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="23/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="24/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b off" title="25/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="26/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b todo" title="27/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b work" title="28/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b fu" title="29/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b fu" title="30/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span><span class="b fu" title="31/10" style="flex: 1 1 0; min-width: 0; height: 14px; border-radius: 4px;"></span></div>
+<div class="sts"><div><span>Ngày công</span><b>24</b></div><div><span>Phép · iSAT</span><b>1 · 1</b></div><div><span>Chờ giải trình</span><b>1</b></div><div><span>Làm thêm</span><b>0 giờ</b></div><div><span>Đi muộn</span><b>12 phút</b></div></div>
+</section>
+<section class="ts" aria-label="Tổng hợp lương">
+<div class="sh"><h3>Tổng hợp lương</h3><span class="mut">Số tiền tính bằng đồng</span></div>
+<div class="hd"><span>Khoản</span><span>Theo quy chế</span><span>Thực tế</span></div>
+<div class="g">Ngày công và lương cơ bản</div>
+<div class="r"><span>Ngày công tháng 10</span><span>26</span><span>24</span></div>
+<div class="r bb"><span>Lương cơ bản</span><span>12.000.000</span><span>11.076.923</span></div>
+<div class="r"><span><i class="dt" aria-hidden="true"></i>Chờ giải trình (ngày)<span class="sub">27/10 · tạm tính 0 đ tới khi duyệt</span></span><span></span><span>1</span></div>
+<div class="r"><span>Nghỉ không lương (ngày)</span><span></span><span><span class="z">0</span></span></div>
+<div class="g">Nghỉ phép và ngày lễ</div>
+<div class="r"><span>Nghỉ phép có lương (ngày)</span><span>1</span><span>461.538</span></div>
+<div class="r"><span>Quyết toán phép dư (ngày)</span><span><span class="z">0</span></span><span><span class="z">0</span></span></div>
+<div class="r"><span>Nghỉ thứ 7 hưởng lương · iSAT (ngày)</span><span>1</span><span>461.538</span></div>
+<div class="r"><span>Nghỉ lễ hưởng lương (ngày)</span><span><span class="z">0</span></span><span><span class="z">0</span></span></div>
+<div class="g">Làm thêm giờ</div>
+<div class="r"><span>OT ×1,5 · ×2 · ×3 (giờ)</span><span>0 · 0 · 0</span><span></span></div>
+<div class="r"><span>Tiền OT</span><span></span><span><span class="z">0</span></span></div>
+<div class="g">Phụ cấp</div>
+<div class="r"><span>Chuyên cần</span><span>1.500.000</span><span>1.384.615</span></div>
+<div class="r"><span>Đi lại</span><span>900.000</span><span>830.769</span></div>
+<div class="r"><span>Linh hoạt (ca Flex)</span><span>2.400.000</span><span><span class="z">0</span></span></div>
+<div class="r"><span>Off Paid (ca đêm)</span><span>975.000</span><span><span class="z">0</span></span></div>
+<div class="r"><span>Thưởng ca đêm</span><span>4.800.000</span><span><span class="z">0</span></span></div>
+<div class="r bb"><span>Tổng phụ cấp</span><span></span><span>2.215.384</span></div>
+<div class="g">Lương KPI</div>
+<div class="kg">
+<label><span>Base Wework (40%)</span><span class="in"><input type="text" inputmode="numeric" maxlength="3" autocomplete="off" class="{{miss.wework}}" aria-label="Điểm Base Wework của Lê Hoàng Nam, phần trăm" data-k="wework" value="{{sc.wework}}" onInput="{{setScore}}">%</span></label>
+<label><span>Người dùng (24%)</span><span class="in"><input type="text" inputmode="numeric" maxlength="3" autocomplete="off" class="{{miss.user}}" aria-label="Điểm Người dùng của Lê Hoàng Nam, phần trăm" data-k="user" value="{{sc.user}}" onInput="{{setScore}}">%</span></label>
+<label><span>Đồng nghiệp (18%)</span><span class="in"><input type="text" inputmode="numeric" maxlength="3" autocomplete="off" class="{{miss.peer}}" aria-label="Điểm Đồng nghiệp của Lê Hoàng Nam, phần trăm" data-k="peer" value="{{sc.peer}}" onInput="{{setScore}}">%</span></label>
+<label><span>Quản lý (12%)</span><span class="in"><input type="text" inputmode="numeric" maxlength="3" autocomplete="off" class="{{miss.manager}}" aria-label="Điểm Quản lý trực tiếp của Lê Hoàng Nam, phần trăm" data-k="manager" value="{{sc.manager}}" onInput="{{setScore}}">%</span></label>
+<label><span>Tự đánh giá (6%)</span><span class="in"><input type="text" inputmode="numeric" maxlength="3" autocomplete="off" class="{{miss.self}}" aria-label="Điểm Tự đánh giá của Lê Hoàng Nam, phần trăm" data-k="self" value="{{sc.self}}" onInput="{{setScore}}">%</span></label>
+</div>
+<div class="r"><span>Tổng điểm KPI</span><span></span><span>{{pctText}}</span></div>
+<div class="r" hidden="{{noMiss}}"><span><i class="dt" aria-hidden="true"></i>Thiếu điểm {{missText}}<span class="sub">Cột thiếu tính 0 điểm</span></span><span></span><span></span></div>
+<div class="r bb"><span>Lương KPI (đề xuất → thực tế)</span><span>2.000.000</span><span>{{kpiText}}</span></div>
+<div style="padding: 8px 8px 0;"><button type="button" class="lk" aria-expanded="{{histOpen}}" onClick="{{toggleHist}}">Lịch sử sửa điểm (3)</button></div>
+<ol class="hist" hidden="{{noHist}}">
+<li><span>27/10 · Quản lý trực tiếp 60 → 65</span><span class="mut">Trưởng phòng Kinh doanh</span></li>
+<li><span>25/10 · Đồng nghiệp 72 → 68</span><span class="mut">Quản trị viên</span></li>
+<li><span>20/10 · Base Wework nhập 62</span><span class="mut">Quản trị viên</span></li>
+</ol>
+<div class="g">Đi muộn, về sớm, ra ngoài</div>
+<div class="r"><span>Giờ và tiền bị trừ<span class="sub">Đi muộn 12 phút, không quá 15 phút nên không trừ</span></span><span><span class="z">0</span></span><span><span class="z">0</span></span></div>
+<div class="sum">
+<div class="r bb"><span>Tổng thu nhập</span><span></span><span>{{grossText}}</span></div>
+<div class="r"><span>Các khoản miễn thuế</span><span></span><span><span class="z">0</span></span></div>
+<div class="r"><span>Thu nhập chịu thuế</span><span></span><span>{{taxableText}}</span></div>
+<div class="r"><span>Bảo hiểm bắt buộc 10,5%<span class="sub">BHXH 8% · BHTN 1% · BHYT 1,5%</span></span><span></span><span>1.260.000</span></div>
+<div class="r bb"><span>Thu nhập sau bảo hiểm</span><span></span><span>{{afterInsText}}</span></div>
+<div class="r"><span>Thuế TNCN<span class="sub">Lũy tiến · 0 người phụ thuộc</span></span><span></span><span>{{taxText}}</span></div>
+<div class="r"><span>Tạm ứng</span><span></span><span><span class="z">0</span></span></div>
+</div>
+<div class="net"><span>Thực nhận</span><span>{{netText}} ₫</span></div>
+<div class="r"><span>Ngày phép năm còn lại</span><span></span><span>5 ngày</span></div>
+</section>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 24px 16px; border-top: 1px solid {{c.border}};">
+<div class="rs" hidden="{{noAsk}}">
+<label for="pd-reason">Lý do từ chối (không bắt buộc)</label>
+<textarea id="pd-reason" placeholder="Ví dụ: điểm KPI của quản lý chưa đúng, cần chấm lại" value="{{reason}}" onInput="{{setReason}}"></textarea>
+</div>
+<div style="display: flex; align-items: center; gap: 8px;">
+<div hidden="{{undecided}}" aria-live="polite" style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;"><span class="mut" style="color: #212121;">{{toast}}</span><span class="mut" hidden="{{noReasonShown}}">Lý do: {{reasonText}}</span></div>
+<button type="button" class="b2" hidden="{{hideMain}}" onClick="{{askReject}}">Từ chối</button>
+<button type="button" class="b1" hidden="{{hideMain}}" onClick="{{approve}}">Duyệt phiếu</button>
+<button type="button" class="b2" hidden="{{noAsk}}" onClick="{{cancelReject}}">Huỷ</button>
+<button type="button" class="b1" hidden="{{noAsk}}" onClick="{{confirmReject}}">Xác nhận từ chối</button>
+</div>
+</div>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Nền xám","Nền kem"],"default":"Nền xám","section":"Màu"},"sidebar":{"editor":"enum","options":["Tối","Sáng"],"default":"Tối","section":"Khung"},"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  approve = () => this.setState({ st: 'done' });
+  // Từ chối hai bước: Từ chối mở ô lý do (không bắt buộc), Xác nhận từ chối mới quyết; Huỷ quay lại và bỏ lý do đang gõ.
+  askReject = () => this.setState({ st: 'asking' });
+  cancelReject = () => this.setState({ st: 'pending', reason: '' });
+  confirmReject = () => this.setState({ st: 'rejected' });
+  setReason = (e) => this.setState({ reason: e.target.value });
+  // Điểm KPI nhập thẳng trong phiếu. Tính lại theo luật đã chốt: tổng điểm theo trọng số × lương KPI đề xuất,
+  // thiếu điểm tính 0; thuế TNCN lũy tiến. Các khoản khác của phiếu giữ nguyên.
+  sc() { return { wework: '62', user: '70', peer: '68', manager: '65', self: '75', ...((this.state && this.state.sc) || {}) }; }
+  setScore = (e) => {
+    const k = e.target.dataset.k;
+    const v = String(e.target.value || '').replace(/\D/g, '').slice(0, 3);
+    this.setState({ sc: { ...this.sc(), [k]: v === '' ? '' : String(Math.min(100, Number(v))) } });
+  };
+  toggleHist = () => this.setState({ hist: !(this.state && this.state.hist) });
+  renderVals() {
+    const kem = (this.props.theme ?? 'Nền xám') === 'Nền kem';
+    const c = kem
+      ? { page: '#f2ead8', border: '#e6dcc6', control: '#857f74', draft: '#e6dcc6' }
+      : { page: '#f5f5f5', border: '#e0e0e0', control: '#8a8a8a', draft: '#e0e0e0' };
+    const st = (this.state && this.state.st) || 'pending';
+    const P = { pending: ['Chờ duyệt', 'background: #eb973d; color: #212121;'], done: ['Đã duyệt', 'background: #2f5aa8; color: #ffffff;'], rejected: ['Từ chối', 'background: #b43f3f; color: #ffffff;'] };
+    const asking = st === 'asking';
+    const decided = st === 'done' || st === 'rejected';
+    const reason = String((this.state && this.state.reason) || '');
+    const W = {"wework":40,"user":24,"peer":18,"manager":12,"self":6};
+    const L = {"wework":"Base Wework","user":"Người dùng","peer":"Đồng nghiệp","manager":"Quản lý trực tiếp","self":"Tự đánh giá"};
+    const sc = this.sc();
+    const keys = Object.keys(W);
+    const units = keys.reduce((a, k) => a + (sc[k] === '' ? 0 : Number(sc[k])) * 100 * W[k], 0);
+    const missing = keys.filter((k) => sc[k] === '');
+    const kpi = Math.round((2000000 * units) / 1e6);
+    const gross = 14215383 + kpi;
+    const taxable = gross - 0;
+    const assess = taxable - 1260000 - 15500000 - 6200000 * 0;
+    let tax = 0, lo = 0;
+    for (const [hi, r] of [[10e6, 0.05], [30e6, 0.1], [60e6, 0.2], [100e6, 0.3], [Infinity, 0.35]]) { if (assess > lo) tax += (Math.min(assess, hi) - lo) * r; lo = hi; }
+    tax = Math.round(tax);
+    const f = (n) => n.toLocaleString('de-DE');
+    const miss = {};
+    keys.forEach((k) => { miss[k] = sc[k] === '' ? 'miss' : ''; });
+    const hist = !!(this.state && this.state.hist);
+    return {
+      c, theme: this.props.theme ?? 'Nền xám', sidebar: this.props.sidebar ?? 'Tối',
+      pillText: P[asking ? 'pending' : st][0], pillStyle: P[asking ? 'pending' : st][1], undecided: !decided,
+      hideMain: decided || asking, noAsk: !asking, reason, reasonText: reason.trim(), noReasonShown: st !== 'rejected' || !reason.trim(),
+      toast: st === 'done' ? 'Đã duyệt phiếu lương của Lê Hoàng Nam.' : 'Đã từ chối phiếu lương của Lê Hoàng Nam.',
+      approve: this.approve, askReject: this.askReject, cancelReject: this.cancelReject, confirmReject: this.confirmReject, setReason: this.setReason,
+      sc, miss, setScore: this.setScore, toggleHist: this.toggleHist, histOpen: String(hist), noHist: !hist,
+      pctText: (units / 10000).toLocaleString('de-DE', { maximumFractionDigits: 2 }) + '%',
+      noMiss: missing.length === 0, missText: missing.map((k) => L[k]).join(', '),
+      kpiText: f(kpi), grossText: f(gross), taxableText: f(taxable), afterInsText: f(gross - 1260000), taxText: f(tax), netText: f(gross - 1260000 - tax - 0)
+    };
+  }
+}
+</script>
+</body>
+</html>

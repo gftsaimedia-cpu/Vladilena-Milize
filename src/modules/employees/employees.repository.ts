@@ -17,6 +17,13 @@ import {
 
 export type StaffRow = Selectable<DB['staff']>;
 
+/** Ngày vào làm / nghỉ việc ('YYYY-MM-DD' hoặc null) của một người, kèm mã `uuid` dòng ngày công dùng làm khoá. */
+export interface EmploymentDates {
+  uuid: string;
+  startDate: string | null;
+  resignedOn: string | null;
+}
+
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -313,6 +320,25 @@ export class EmployeesRepository {
   }
 
   /**
+   * Ngày vào làm / nghỉ việc của người `idOrUsername` (username hoặc uuid), đọc thẳng từ cột `staff`.
+   * null khi không có người đó hoặc hồ sơ chưa có `uuid` (chưa có khoá để ghi dòng ngày công).
+   */
+  async employmentDates(idOrUsername: string): Promise<EmploymentDates | null> {
+    const row = await this.qb
+      .selectFrom('staff')
+      .select(['uuid', 'start_date', 'resigned_on'])
+      .where(eb => eb.or([eb('username', '=', idOrUsername), eb('uuid', '=', idOrUsername)]))
+      .executeTakeFirst();
+    const uuid = row?.uuid?.trim();
+    if (!row || !uuid) return null;
+    const text = (value: string | null): string | null => {
+      const t = value?.trim();
+      return t && DATE_REGEX.test(t) ? t : null;
+    };
+    return { uuid, startDate: text(row.start_date), resignedOn: text(row.resigned_on) };
+  }
+
+  /**
    * Lưu hoặc ghi đè toàn bộ thông tin nhân viên vào bảng `staff`, đồng bộ vai trò phụ vào `staff_roles`.
    * `createOnly`: chỉ thêm mới; username đã có (kể cả do một lần thêm khác vừa commit) thì báo lỗi, không ghi đè.
    */
@@ -340,9 +366,15 @@ export class EmployeesRepository {
             dependants: eb.ref('excluded.dependants'),
             pass_hash: eb.ref('excluded.pass_hash'),
             // Đổi mật khẩu (kể cả Admin đặt lại) làm mọi phiên cũ hết hiệu lực.
+            // Khoá tài khoản (từ chưa khoá sang khoá) cũng vậy: mở khoá sau đó không hồi sinh phiên cũ.
             session_version: eb
               .case()
-              .when('staff.pass_hash', '<>', eb.ref('excluded.pass_hash'))
+              .when(
+                eb.or([
+                  eb('staff.pass_hash', '<>', eb.ref('excluded.pass_hash')),
+                  eb.and([eb('staff.locked_at', 'is', null), eb('excluded.locked_at', 'is not', null)])
+                ])
+              )
               .then(eb('staff.session_version', '+', 1))
               .else(eb.ref('staff.session_version'))
               .end(),

@@ -50,6 +50,12 @@ const details = (over: Record<string, unknown> = {}) => ({
   totalAllowanceActual: 34615,
   kpiApplicable: true,
   kpiScores: { wework: 80, user: 90, peer: null, manager: 70, self: 60 },
+  rates: {
+    kpiWeights: { wework: 40, user: 24, peer: 18, manager: 12, self: 6 },
+    insurancePct: { bhxh: 8, bhyt: 1.5, bhtn: 1, total: 10.5 },
+    otMultipliers: { weekday: 1.5, weekend: 2, holiday: 3 },
+    lateGraceMinutes: 15
+  },
   kpiTotalScorePct: 64.6,
   kpiProposedAmount: 6000000,
   kpiAppliedAmount: 6000000,
@@ -210,4 +216,19 @@ test('In tất cả keeps only approved records, sorted by name like Bảng lư�
   ] as any);
   expect(list.map(s => [s.name, s.slipStatus])).toEqual([['Lương Văn An', 'done'], ['Lương Văn Dũng', 'done']]);
   expect(approvedSheetsFromRecords([])).toEqual([]);
+});
+
+test('OT labels and KPI weights follow the rates of the payslip; a payslip without rates prints none', () => {
+  const custom = sheetFromRecord(
+    record({}, { rates: { kpiWeights: { wework: 50, user: 20, peer: 15, manager: 10, self: 5 }, otMultipliers: { weekday: 1.8, weekend: 2.5, holiday: 3 } } }) as any
+  );
+  const ot = custom.groups.find(g => g.title === 'Làm thêm giờ')!.lines.map(l => l.label);
+  expect(ot).toEqual(['OT ngày thường (×1,8)', 'OT ngày cuối tuần (×2,5)', 'OT ngày lễ (×3)']);
+  expect(custom.groups.find(g => g.kpi)!.kpi!.map(k => k.weight)).toEqual([50, 20, 15, 10, 5]);
+  expect(custom.otRates).toEqual({ weekday: 1.8, weekend: 2.5, holiday: 3 });
+
+  const old = sheetFromRecord(record({}, { rates: undefined }) as any);
+  expect(old.groups.find(g => g.title === 'Làm thêm giờ')!.lines.map(l => l.label)).toEqual(['OT ngày thường', 'OT ngày cuối tuần', 'OT ngày lễ']);
+  expect(old.groups.find(g => g.kpi)!.kpi!.map(k => k.weight)).toEqual([null, null, null, null, null]);
+  expect(old.otRates).toBeNull();
 });

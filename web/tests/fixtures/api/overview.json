@@ -1,0 +1,316 @@
+{
+  "today": "2026-10-20",
+  "month": "2026-10",
+  "kpis": {
+    "headcount": 3,
+    "presentToday": 1,
+    "notCheckedIn": 2,
+    "pendingRequests": 1,
+    "payrollNet": 16000000,
+    "payrollGross": 16000000
+  },
+  "headline": {
+    "blocking": 93,
+    "closeOn": "2026-10-31",
+    "daysLeft": 11
+  },
+  "attendance": {
+    "today": {
+      "work": 1,
+      "late": 0,
+      "leave": 0,
+      "absent": 0,
+      "todo": 0,
+      "off": 0,
+      "future": 0,
+      "outside": 0,
+      "extra": 0
+    },
+    "notCheckedIn": 2,
+    "present": 1,
+    "total": 3,
+    "todayRate": 33,
+    "days": [
+      {
+        "date": "2026-10-14",
+        "dow": "T4",
+        "dm": "14/10",
+        "today": false,
+        "present": 3,
+        "total": 3,
+        "rate": 100
+      },
+      {
+        "date": "2026-10-15",
+        "dow": "T5",
+        "dm": "15/10",
+        "today": false,
+        "present": 1,
+        "total": 3,
+        "rate": 33
+      },
+      {
+        "date": "2026-10-16",
+        "dow": "T6",
+        "dm": "16/10",
+        "today": false,
+        "present": 2,
+        "total": 3,
+        "rate": 67
+      },
+      {
+        "date": "2026-10-17",
+        "dow": "T7",
+        "dm": "17/10",
+        "today": false,
+        "present": 3,
+        "total": 3,
+        "rate": 100
+      },
+      {
+        "date": "2026-10-19",
+        "dow": "T2",
+        "dm": "19/10",
+        "today": false,
+        "present": 3,
+        "total": 3,
+        "rate": 100
+      },
+      {
+        "date": "2026-10-20",
+        "dow": "Hôm nay",
+        "dm": "20/10",
+        "today": true,
+        "present": 1,
+        "total": 3,
+        "rate": 33
+      }
+    ]
+  },
+  "payroll": {
+    "status": "calculated",
+    "lines": [
+      {
+        "username": "nv2",
+        "name": "Trần Thị Hai",
+        "net": 9000000,
+        "status": "draft"
+      },
+      {
+        "username": "nv1",
+        "name": "Nguyễn Văn Một",
+        "net": 7000000,
+        "status": "draft"
+      }
+    ],
+    "rows": [
+      {
+        "username": "nv1",
+        "name": "Nguyễn Văn Một",
+        "initials": "VM",
+        "title": null,
+        "actualDays": 0,
+        "standardDays": 0,
+        "base": 0,
+        "allowance": 0,
+        "net": 7000000,
+        "status": "draft"
+      },
+      {
+        "username": "nv2",
+        "name": "Trần Thị Hai",
+        "initials": "TH",
+        "title": null,
+        "actualDays": 0,
+        "standardDays": 0,
+        "base": 0,
+        "allowance": 0,
+        "net": 9000000,
+        "status": "draft"
+      }
+    ],
+    "total": 2,
+    "updatedAt": "12:00",
+    "gross": 16000000,
+    "insurance": 0,
+    "tax": 0,
+    "advance": 0,
+    "deductions": 0,
+    "net": 16000000,
+    "netShare": 100,
+    "counts": {
+      "all": 2,
+      "done": 0,
+      "pending": 0,
+      "draft": 2,
+      "rejected": 0
+    },
+    "previous": null
+  },
+  "period": {
+    "month": "2026-10",
+    "state": "calculated",
+    "label": "Chờ duyệt",
+    "from": "2026-10-01",
+    "to": "2026-10-31",
+    "closeOn": "2026-10-31",
+    "payday": "2026-11-10",
+    "daysLeft": 11
+  },
+  "approvals": {
+    "total": 93,
+    "decide": 1,
+    "remind": 92,
+    "groups": [
+      {
+        "key": "leave",
+        "label": "Đơn nghỉ",
+        "count": 1
+      },
+      {
+        "key": "att",
+        "label": "Chấm công",
+        "count": 92
+      }
+    ],
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000aa",
+        "kind": "leave",
+        "group": "leave",
+        "groupLabel": "Đơn nghỉ",
+        "action": "decide",
+        "username": "nv2",
+        "name": "Trần Thị Hai",
+        "initials": "TH",
+        "title": null,
+        "what": "Nghỉ phép",
+        "when": "15/10–16/10",
+        "days": [
+          "2026-10-15",
+          "2026-10-16"
+        ],
+        "age": "7 ngày"
+      },
+      {
+        "id": "due:00000000-0000-4000-8000-0000000000aa:2026-10-16",
+        "kind": "explanation-due",
+        "group": "att",
+        "groupLabel": "Chấm công",
+        "action": "remind",
+        "username": "nv2",
+        "name": "Trần Thị Hai",
+        "initials": "TH",
+        "title": null,
+        "what": "Quên chấm công",
+        "when": "16/10",
+        "days": [
+          "2026-10-16"
+        ],
+        "age": "4 ngày"
+      },
+      {
+        "id": "due:00000000-0000-4000-8000-0000000000aa:2026-10-15",
+        "kind": "explanation-due",
+        "group": "att",
+        "groupLabel": "Chấm công",
+        "action": "remind",
+        "username": "nv1",
+        "name": "Nguyễn Văn Một",
+        "initials": "VM",
+        "title": null,
+        "what": "Quên chấm công",
+        "when": "15/10",
+        "days": [
+          "2026-10-15"
+        ],
+        "age": "5 ngày"
+      },
+      {
+        "id": "due:00000000-0000-4000-8000-0000000000aa:2026-10-15",
+        "kind": "explanation-due",
+        "group": "att",
+        "groupLabel": "Chấm công",
+        "action": "remind",
+        "username": "nv2",
+        "name": "Trần Thị Hai",
+        "initials": "TH",
+        "title": null,
+        "what": "Quên chấm công",
+        "when": "15/10",
+        "days": [
+          "2026-10-15"
+        ],
+        "age": "5 ngày"
+      },
+      {
+        "id": "due:00000000-0000-4000-8000-0000000000aa:2026-10-13",
+        "kind": "explanation-due",
+        "group": "att",
+        "groupLabel": "Chấm công",
+        "action": "remind",
+        "username": "nv1",
+        "name": "Nguyễn Văn Một",
+        "initials": "VM",
+        "title": null,
+        "what": "Quên chấm công",
+        "when": "13/10",
+        "days": [
+          "2026-10-13"
+        ],
+        "age": "7 ngày"
+      },
+      {
+        "id": "due:00000000-0000-4000-8000-0000000000aa:2026-10-13",
+        "kind": "explanation-due",
+        "group": "att",
+        "groupLabel": "Chấm công",
+        "action": "remind",
+        "username": "nv2",
+        "name": "Trần Thị Hai",
+        "initials": "TH",
+        "title": null,
+        "what": "Vào muộn",
+        "when": "13/10",
+        "days": [
+          "2026-10-13"
+        ],
+        "age": "7 ngày"
+      },
+      {
+        "id": "due:00000000-0000-4000-8000-0000000000aa:2026-10-03",
+        "kind": "explanation-due",
+        "group": "att",
+        "groupLabel": "Chấm công",
+        "action": "remind",
+        "username": "nv1",
+        "name": "Nguyễn Văn Một",
+        "initials": "VM",
+        "title": null,
+        "what": "Quên chấm công",
+        "when": "03/10",
+        "days": [
+          "2026-10-03"
+        ],
+        "age": "17 ngày"
+      },
+      {
+        "id": "due:00000000-0000-4000-8000-0000000000aa:2026-10-03",
+        "kind": "explanation-due",
+        "group": "att",
+        "groupLabel": "Chấm công",
+        "action": "remind",
+        "username": "admin",
+        "name": "Quản Trị",
+        "initials": "QT",
+        "title": null,
+        "what": "Quên chấm công",
+        "when": "03/10",
+        "days": [
+          "2026-10-03"
+        ],
+        "age": "17 ngày"
+      }
+    ]
+  }
+}

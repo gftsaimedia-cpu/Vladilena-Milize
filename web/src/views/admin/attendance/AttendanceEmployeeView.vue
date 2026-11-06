@@ -4,10 +4,12 @@
 // Trước/sau theo thứ tự danh sách nhân viên, giữ ?thang. Tab lịch sử và nút "Chỉ ngày có ngoại lệ" là trạng thái cục bộ.
 import { computed, nextTick, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
+import Icon from '@/components/ui/Icon.vue';
 import { ATTENDANCE_GROUPS as GROUPS } from '@/constants/labels';
-import type { HistoryEntry } from '@/mock/attendance-employee';
+import type { HistoryRow } from '@/builders/api/attendance';
 import { useLoad } from '@/composables/useLoad';
 import { getEmployeeAttendance } from '@/services/admin-attendance';
+import { useRealtimeReload } from '@/composables/useRealtimeReload';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
 import DayDetailDialog from './DayDetailDialog.vue';
@@ -28,10 +30,11 @@ const router = useRouter();
 const period = usePeriodStore();
 const shell = useShellStore();
 const personId = computed(() => String(route.params.id));
-const { data: view, loading } = useLoad(
+const { data: view, loading, reload } = useLoad(
   () => getEmployeeAttendance(personId.value, period.month),
   () => `${personId.value}|${period.month}|${shell.version}`
 );
+useRealtimeReload(reload, { filter: e => e.username === personId.value });
 const tab = ref<(typeof TABS)[number]['key']>('timeline');
 
 // Trả focus sau hộp chi tiết ngày. Nút mở còn (ngày vẫn trong dải, lời nhắc còn ngày chờ khác) thì focus về nút đó.
@@ -52,12 +55,13 @@ const monthNo = computed(() => Number(period.month.slice(5, 7)));
 const monthText = computed(() => `${monthNo.value}/${period.month.slice(0, 4)}`);
 const thang = computed(() => (route.query.thang ? { thang: route.query.thang } : {}));
 const listTo = computed(() => ({ path: '/admin/cham-cong', query: thang.value }));
-const month = computed(() => view.value?.data ?? null);
+// Tháng không có ngày nào (ngoài dữ liệu giả) thì không dựng chỉ số và lịch sử.
+const month = computed(() => (view.value?.data.strip.length ? view.value.data : null));
 
 const only = ref(false);
-const entries = computed<HistoryEntry[]>(() => {
+const entries = computed<HistoryRow[]>(() => {
   const all = month.value?.history ?? [];
-  return only.value ? all.filter(e => e.type === 'row' && EXCEPTIONS.has(e.row.kind)) : all;
+  return only.value ? all.filter(row => EXCEPTIONS.has(row.kind)) : all;
 });
 
 const prevBtn = ref<HTMLButtonElement | null>(null);
@@ -95,21 +99,35 @@ function onTabKey(event: KeyboardEvent) {
     <div class="title">
       <div>
         <nav class="crumb" aria-label="Đường dẫn">
-          <RouterLink :to="listTo">Chấm công</RouterLink>
+          <RouterLink :to="listTo"><Icon name="chevl" :size="14" />Chấm công</RouterLink>
           <template v-if="view">
-            <span aria-hidden="true">›</span>
+            <span aria-hidden="true">/</span>
             <span aria-current="page">{{ view.person.name }}</span>
           </template>
         </nav>
         <h1>Hồ sơ chấm công</h1>
       </div>
       <div v-if="view" class="acts">
-        <button ref="prevBtn" type="button" class="btn sm" :disabled="!view.prevId" @click="go(view.prevId)">
-          Nhân viên trước
+        <button
+          ref="prevBtn"
+          type="button"
+          class="btn nav"
+          aria-label="Nhân viên trước"
+          :disabled="!view.prevId"
+          @click="go(view.prevId)"
+        >
+          <Icon name="chevl" />
         </button>
         <span class="pos">{{ view.index }} / {{ view.total }}</span>
-        <button ref="nextBtn" type="button" class="btn sm" :disabled="!view.nextId" @click="go(view.nextId)">
-          Nhân viên sau
+        <button
+          ref="nextBtn"
+          type="button"
+          class="btn nav"
+          aria-label="Nhân viên sau"
+          :disabled="!view.nextId"
+          @click="go(view.nextId)"
+        >
+          <Icon name="chevr" />
         </button>
       </div>
     </div>
@@ -120,14 +138,22 @@ function onTabKey(event: KeyboardEvent) {
           <div class="id">
             <span class="avt" aria-hidden="true">{{ view.person.initials }}</span>
             <div class="who2">
-              <h2>{{ view.person.name }}</h2>
-              <p>{{ view.person.contract }}</p>
+              <div class="nm">
+                <h2>{{ view.person.name }}</h2>
+                <span class="tier">{{ view.person.contract }}</span>
+              </div>
               <p>Mã {{ view.person.code }} · vào làm {{ view.person.joined }}</p>
             </div>
           </div>
           <div v-if="month?.pending" class="call">
-            <p>{{ month.pending.text }}</p>
-            <button type="button" class="btn sm" @click="openDay(view.person.id, month.pending.date)">Xem ngày</button>
+            <span class="b todo" aria-hidden="true" />
+            <p>
+              <b>{{ month.pending.count }} ngày cần xử lý</b
+              ><span class="mut"> · {{ month.pending.text }}</span>
+            </p>
+            <button type="button" class="see" @click="openDay(view.person.id, month.pending.date)">
+              Xem ngày<Icon name="chevr" :size="14" />
+            </button>
           </div>
           <dl class="facts">
             <div>
@@ -135,8 +161,8 @@ function onTabKey(event: KeyboardEvent) {
               <dd>{{ view.person.title }}</dd>
             </div>
             <div>
-              <dt>Phòng ban</dt>
-              <dd>{{ view.person.dept }}</dd>
+              <dt>Nhóm</dt>
+              <dd>{{ view.person.group }}</dd>
             </div>
             <div>
               <dt>Ca làm việc</dt>
@@ -152,7 +178,9 @@ function onTabKey(event: KeyboardEvent) {
         <section v-if="month" class="stats" :aria-label="`Chỉ số tháng ${monthNo}`">
           <article v-for="s in month.stats" :key="s.label" class="stat" :aria-label="s.label">
             <span class="sl">{{ s.label }}</span>
-            <span class="sv">{{ s.value }}</span>
+            <span class="sv"
+              >{{ s.value.split(' ')[0] }}{{ ' ' }}<small v-if="s.value.includes(' ')">{{ s.value.split(' ').slice(1).join(' ') }}</small></span
+            >
             <span class="sn">{{ s.note }}</span>
           </article>
         </section>
@@ -169,7 +197,7 @@ function onTabKey(event: KeyboardEvent) {
               </span>
             </div>
           </div>
-          <MonthStrip :days="month.strip" :month-no="monthNo" @open-day="date => openDay(view!.person.id, date)" />
+          <MonthStrip :person-id="view!.person.id" :days="month.strip" :month-no="monthNo" @open-day="date => openDay(view!.person.id, date)" />
         </section>
 
         <section class="card blk" aria-label="Lịch sử chấm công">
@@ -231,27 +259,38 @@ function onTabKey(event: KeyboardEvent) {
 .crumb {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 13px;
   color: var(--muted);
 }
 .crumb a {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-color: var(--status-draft);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+.crumb [aria-current] {
+  color: var(--text);
 }
 .crumb a:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 2px;
   border-radius: 8px;
 }
-.acts {
+.title .acts {
   align-items: center;
 }
+.title .acts .btn.nav {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+}
 .pos {
-  min-width: 48px;
+  min-width: 64px;
   text-align: center;
-  font-weight: 500;
+  font-size: 13px;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .acts .btn:disabled {
@@ -284,45 +323,85 @@ function onTabKey(event: KeyboardEvent) {
   place-items: center;
   border-radius: 50%;
   background: var(--gold-light);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 600;
+}
+.who2 {
+  flex-grow: 1;
+}
+.nm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 .who2 h2 {
   margin: 0;
-  font-size: 18px;
-  line-height: 24px;
+  font-size: 22px;
+  line-height: 28px;
   font-weight: 600;
 }
+.tier {
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  background: var(--status-draft);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
 .who2 p {
-  margin: 0;
-  font-size: 14px;
+  margin: 2px 0 0;
+  font-size: 13px;
   line-height: 20px;
   color: var(--muted);
 }
 .call {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px 16px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 12px 16px;
   border: 2px solid var(--status-pending);
   border-radius: var(--r-md);
 }
+.call .b.todo {
+  width: 14px;
+  height: 14px;
+}
 .call p {
   margin: 0;
+  flex-grow: 1;
   min-width: 0;
   font-size: 14px;
   line-height: 20px;
-  font-weight: 500;
 }
-.call .btn {
+.call p b {
+  font-weight: 600;
+}
+.call .mut {
+  color: var(--muted);
+}
+.call .see {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.call .see:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 .facts {
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 16px;
 }
 .facts dt {
   font-size: 12px;
@@ -344,12 +423,11 @@ function onTabKey(event: KeyboardEvent) {
 }
 .stat {
   min-width: 0;
-  min-height: 112px;
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--surface);
@@ -364,11 +442,17 @@ function onTabKey(event: KeyboardEvent) {
   font-weight: 500;
 }
 .sv {
-  font-size: 28px;
+  font-size: 26px;
   line-height: 32px;
   font-weight: 500;
-  letter-spacing: -0.56px;
+  letter-spacing: -0.5px;
   font-variant-numeric: tabular-nums;
+}
+.sv small {
+  font-size: 14px;
+  letter-spacing: 0;
+  color: var(--muted);
+  font-weight: 400;
 }
 
 .blk {
@@ -379,11 +463,24 @@ function onTabKey(event: KeyboardEvent) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 24px;
+  gap: 12px;
   padding: 20px 24px 12px;
+}
+/* Chú giải tháng theo bảng: mỗi nhóm là một viên thuốc viền xám cao 32px. */
+.bh .legend {
+  gap: 8px;
+}
+.bh .gc {
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  font-size: 13px;
 }
 .bh h2 {
   margin: 0;
+  flex-grow: 1;
   font-size: 18px;
   line-height: 24px;
   font-weight: 600;
@@ -438,6 +535,11 @@ function onTabKey(event: KeyboardEvent) {
 @media (max-width: 1023px) {
   .top {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 1279px) {
+  .facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 767px) {

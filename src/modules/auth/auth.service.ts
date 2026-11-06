@@ -60,8 +60,9 @@ export class AuthService {
 
   // Thứ tự kiểm: tài khoản → mật khẩu → khoá. Chỉ người có mật khẩu đúng mới biết tài khoản bị khoá.
   async login(usernameInput: string, passwordInput: string): Promise<{ user: AuthenticatedUser; token: string }> {
-    const u = String(usernameInput || '').trim().toLowerCase();
-    const pass = String(passwordInput ?? '');
+    // Chỉ nhận chuỗi: mảng ['nv1'] ép thành 'nv1' qua String() sẽ đăng nhập được.
+    const u = typeof usernameInput === 'string' ? usernameInput.trim().toLowerCase() : '';
+    const pass = typeof passwordInput === 'string' ? passwordInput : '';
     const staff = u && pass ? await this.findStaff(u) : undefined;
     const ok = verifyPassword(pass, staff?.pass_hash || dummy());
     if (!staff || !ok) {

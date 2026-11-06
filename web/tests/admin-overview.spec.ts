@@ -17,8 +17,9 @@ test.beforeEach(async ({ page }) => {
 test('overview shows the mock figures', async ({ page }) => {
   await page.goto('/admin/tong-quan');
   await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
+  // BE: headline.blocking = approvals.total (đơn chờ duyệt + ngày cần nhắc giải trình), không còn số giả 4.
   await expect(
-    page.getByText('Còn 4 việc phải xong trước khi chốt lương tháng 10 · hạn 31/10, còn 3 ngày')
+    page.getByText('Còn 13 việc phải xong trước khi chốt lương tháng 10 · hạn 31/10, còn 3 ngày')
   ).toBeVisible();
 
   const kpis = page.getByRole('region', { name: 'Chỉ số chính' });
@@ -191,12 +192,17 @@ test('a missing-punch row has no tick or cross, only a chevron, and its dialog o
   await row.click();
   const dialog = approvalDialog(page);
   await expect(dialog.getByRole('button', { name: 'Nhắc giải trình' })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Khai thay giờ ra' })).toBeVisible();
+  // Đã bỏ "Khai thay giờ" (người dùng chốt 05/11); nhắc xong việc ở lại tới khi nhân viên gửi giải trình.
+  await expect(dialog.getByRole('button', { name: /Khai thay/ })).toHaveCount(0);
   await expect(dialog.getByLabel('Ghi chú cho nhân viên')).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Nhắc giải trình' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByText('Đã nhắc Trịnh Văn Long giải trình.')).toBeVisible();
-  await expect(openRows(page)).toHaveCount(12);
+  await expect(openRows(page)).toHaveCount(13);
+
+  await row.click();
+  await expect(dialog.getByText('Đã nhắc: 09:40 28/10', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Nhắc lại', exact: true })).toBeVisible();
 });
 
 test('Mở hồ sơ chấm công in the dialog closes it and navigates', async ({ page }) => {
@@ -207,7 +213,9 @@ test('Mở hồ sơ chấm công in the dialog closes it and navigates', async (
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
-test('approving every request shows the empty state and focuses Xem tất cả', async ({ page }) => {
+// Nhắc giải trình không xử lý xong việc (người dùng chốt 05/11), nên Admin một mình không làm trống được hàng chờ:
+// trạng thái trống ("Không còn yêu cầu nào chờ duyệt.") không còn đường tới trong dữ liệu giả.
+test('approving every request leaves only the missing-punch rows, which stay after Nhắc giải trình', async ({ page }) => {
   await page.goto('/admin/tong-quan');
   const approve = page.getByRole('button', { name: /^Duyệt yêu cầu của / });
   await expect(approve.first()).toBeVisible();
@@ -216,17 +224,15 @@ test('approving every request shows the empty state and focuses Xem tất cả',
     await approve.first().click();
     await expect(page.getByRole('button', { name: label, exact: true })).toHaveCount(0);
   }
-  // Còn 2 dòng Quên chấm công: chỉ xử lý được trong cửa sổ (Nhắc giải trình).
+  // Còn 2 dòng Quên chấm công: chỉ xử lý được trong cửa sổ (Nhắc giải trình), nhắc xong vẫn ở lại.
   await expect(openRows(page)).toHaveCount(2);
-  while (await openRows(page).count()) {
-    await openRows(page).first().click();
+  for (let i = 0; i < 2; i++) {
+    await openRows(page).nth(i).click();
     await approvalDialog(page).getByRole('button', { name: 'Nhắc giải trình' }).click();
     await expect(approvalDialog(page)).toHaveCount(0);
+    await expect(openRows(page)).toHaveCount(2);
   }
-  await expect(page.getByText('Không còn yêu cầu nào chờ duyệt.')).toBeVisible();
-  await expect(requestsKpi(page).locator('.kpi-v')).toHaveText('0');
-  await expect(bellOf(page)).toHaveAccessibleName('Thông báo, 0 việc cần xử lý');
-  await expect(page.getByRole('link', { name: 'Xem tất cả', exact: true })).toBeFocused();
+  await expect(page.getByText('Không còn yêu cầu nào chờ duyệt.')).toHaveCount(0);
 });
 
 test('payroll table filters by status and searches without accents', async ({ page }) => {
@@ -234,7 +240,7 @@ test('payroll table filters by status and searches without accents', async ({ pa
   const table = page.getByRole('region', { name: 'Bảng lương tháng 10' });
   const rows = table.locator('tbody tr');
   const filters = page.getByRole('group', { name: 'Lọc theo trạng thái' });
-  const search = page.getByLabel('Tìm theo tên hoặc phòng ban');
+  const search = page.getByLabel('Tìm theo tên');
 
   await filters.getByRole('button', { name: /^Chờ duyệt/ }).click();
   await expect(filters.getByRole('button', { name: /^Chờ duyệt/ })).toHaveAttribute('aria-pressed', 'true');

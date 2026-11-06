@@ -96,9 +96,36 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
     assert.deepEqual([dto.actualCheckIn, dto.actualCheckOut], ['22:00', '06:00']);
   });
 
-  it('admin is refused on closed months', async () => {
+  // Người dùng chốt 05/11: giải trình nộp được tới khi kỳ được phê duyệt ("Nộp tới Phê duyệt kỳ").
+  it('an explanation is accepted while the month is locked or calculated, by staff and by Admin', async () => {
     ctx.periods.statuses.set('2026-11', 'attendance_locked');
-    await assert.rejects(expl(), { message: 'Tháng 11 đã chốt công' });
+    const byAdmin = await expl();
+    assert.equal(byAdmin.explanationDate, '2026-11-03');
+    ctx.periods.statuses.set('2026-11', 'calculated');
+    const bySelf = await expl({ workDate: '2026-11-02', actualCheckOut: '17:30' });
+    assert.equal(bySelf.explanationDate, '2026-11-02');
+    assert.equal(ctx.repo.requests.size, 2);
+    // Cổng kỳ giữ khoá chia sẻ của tháng trên giao dịch của khoá nhân viên.
+    assert.deepEqual(ctx.periods.sharedLocks.slice(-1), [[LOCK_TRX, '2026-11']]);
+  });
+
+  it('an explanation is refused with 409 PERIOD_LOCKED once the period is approved or paid', async () => {
+    for (const [status, message] of [
+      ['approved', 'Kỳ lương tháng 11/2026 đã phê duyệt'],
+      ['paid', 'Kỳ lương tháng 11/2026 đã trả lương']
+    ]) {
+      ctx.periods.statuses.set('2026-11', status);
+      await assert.rejects(expl(), (e: any) => {
+        assert.equal(e.status, 409, status);
+        assert.equal(e.message, message);
+        assert.deepEqual(e.details, { code: 'PERIOD_LOCKED', month: '2026-11', status });
+        return true;
+      });
+      assert.deepEqual(
+        await ctx.service.previewRequest('explanation', { employeeId: 'nv01', reason: 'Kẹt xe', workDate: '2026-11-03' }),
+        { ok: false, message, code: 'PERIOD_LOCKED', month: '2026-11', status }
+      );
+    }
     assert.equal(ctx.repo.requests.size, 0);
   });
 
@@ -181,7 +208,7 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
   });
 
   it('without the explanations service, filing is refused', async () => {
-    const bare = new RequestsService(ctx.repo, ctx.att, undefined, ctx.holidays, ctx.days, ctx.periods);
+    const bare = new RequestsService(ctx.repo, ctx.att, undefined, ctx.holidays, ctx.days, ctx.gate);
     bare.now = ctx.service.now;
     await assert.rejects(
       bare.createExplanationRequest({ employeeId: 'nv01', reason: 'Kẹt xe', workDate: '2026-11-03', cases: [] }),
@@ -195,12 +222,16 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
     await assert.rejects(expl({ actualCheckIn: 820, actualCheckOut: '17:00' }), /Giờ thực tế không hợp lệ: 820/);
   });
 
-  it('approval marks the day VALID', async () => {
+  it('approval rewrites the day row instead of marking the day VALID', async () => {
     const dto = await expl({ title: 'Giải trình quên quẹt thẻ vào', reason: 'Bảo vệ mở cửa muộn', cases: ['MISSING_CHECK_IN'], actualCheckIn: '08:05' });
     assert.deepEqual([dto.type, dto.status], ['EXPLANATION', 'PENDING']);
     const reviewed = await ctx.service.reviewRequest(dto.id, 'admin', 'APPROVE', 'Đã xác minh');
     assert.deepEqual([reviewed.status, reviewed.reviewedBy], ['APPROVED', ADMIN_UUID]);
-    assert.equal(ctx.att.dayStatuses.get(`${NV_UUID}:2026-11-03`), 'VALID');
+    // Một lần lúc nộp, một lần lúc duyệt; không còn đánh dấu ngày VALID.
+    assert.deepEqual(ctx.attendanceDays.calls.map(c => [c.employeeId, c.dates]), [
+      [NV_UUID, ['2026-11-03']],
+      [NV_UUID, ['2026-11-03']]
+    ]);
   });
 
   it('the factory takes the cases and both times', () => {

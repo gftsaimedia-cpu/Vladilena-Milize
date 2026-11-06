@@ -30,7 +30,8 @@ test.beforeEach(async ({ page }) => {
     const url = new URL(req.url());
     if (url.pathname.startsWith('/api')) calls.push(`${req.method()} ${url.pathname}`);
   });
-  await page.setViewportSize({ width: 1440, height: 900 });
+  // 1392px: vùng nội dung 1072px như lúc căn lưới (thanh bên 248 + lề 16 + khoảng 24 + lề phải 16 sau khi khung Admin theo board).
+  await page.setViewportSize({ width: 1392, height: 900 });
 });
 
 test('attendance week shows tiles, the current week and today without calling /api', async ({ page }) => {
@@ -40,7 +41,7 @@ test('attendance week shows tiles, the current week and today without calling /a
 
   await expect(page.getByRole('region', { name: 'Chỉ số chấm công' }).getByRole('article')).toHaveCount(6);
   await expect(tileOf(page, 'Cần xử lý').locator('.tile-v')).toHaveText('11');
-  await expect(tileOf(page, 'Cần xử lý').locator('.tile-n')).toHaveText('2 quên chấm · 9 yêu cầu chờ duyệt');
+  await expect(tileOf(page, 'Cần xử lý').locator('.tile-n')).toHaveText('2 chưa giải trình · 9 yêu cầu chờ duyệt');
   await expect(tileOf(page, 'Nghỉ có phép').locator('.tile-n')).toHaveText('3 đơn chờ duyệt');
 
   await expect(page.getByRole('tab', { name: 'Tuần', exact: true })).toHaveAttribute('aria-selected', 'true');
@@ -50,12 +51,9 @@ test('attendance week shows tiles, the current week and today without calling /a
   await expect(page.locator('.wk-label')).toHaveText('26/10 – 01/11/2026');
   await expect.poll(() => gridOf(page).evaluate(el => el.scrollLeft)).toBe(1344);
   await expect(rowsOf(page)).toHaveCount(11);
-  const count = (group: string) => page.locator(`[data-group="${group}"] .ct`);
-  await expect(count('work')).toHaveText('25');
-  await expect(count('late')).toHaveText('2');
-  await expect(count('leave')).toHaveText('0');
-  await expect(count('absent')).toHaveText('0');
-  await expect(count('todo')).toHaveText('8');
+  // Chú giải không còn số ô theo tuần: BE không trả số đó và FE không tự đếm (nguyên tắc FE chỉ hiện dữ liệu).
+  await expect(page.locator('.legend [data-group]')).toHaveCount(5);
+  await expect(page.locator('.legend .ct')).toHaveCount(0);
   await expect(page.getByText('Hiển thị 11 trong 128 nhân viên')).toBeVisible();
   expect(calls).toEqual([]);
 });
@@ -84,11 +82,11 @@ test('cells read their state and off days are not buttons', async ({ page }) => 
   await expect(link).toHaveAttribute('draggable', 'false');
 });
 
-test('name and department filters live in the URL and survive dialog, reload, back and forward', async ({ page }) => {
+test('name and group filters live in the URL and survive dialog, reload, back and forward', async ({ page }) => {
   await page.goto('/admin/tong-quan');
   await page.getByRole('navigation', { name: 'Điều hướng' }).getByRole('link', { name: 'Chấm công', exact: true }).click();
   const name = page.getByRole('textbox', { name: 'Lọc theo tên' });
-  const dept = page.getByRole('combobox', { name: 'Phòng ban' });
+  const dept = page.getByRole('combobox', { name: 'Nhóm' });
 
   await name.fill('nam');
   await expect(page).toHaveURL(/q=nam/);
@@ -122,12 +120,12 @@ test('name and department filters live in the URL and survive dialog, reload, ba
   await expect(page.getByText('Hiển thị 0 trong 128 nhân viên')).toBeVisible();
 });
 
-test('unknown department in the URL falls back to all', async ({ page }) => {
+test('unknown group in the URL falls back to all', async ({ page }) => {
   await page.goto('/admin/cham-cong?pb=Kho');
   await expect(rowsOf(page)).toHaveCount(11);
   await expect(page).not.toHaveURL(/pb=/);
-  await expect(page.getByRole('combobox', { name: 'Phòng ban' }).locator('option:checked')).toHaveText(
-    'Phòng ban: Tất cả'
+  await expect(page.getByRole('combobox', { name: 'Nhóm' }).locator('option:checked')).toHaveText(
+    'Nhóm: Tất cả'
   );
 });
 
@@ -136,7 +134,7 @@ test('phone keeps the labelled filters inside the viewport', async ({ page }) =>
   await page.goto('/admin/cham-cong');
   for (const control of [
     page.getByRole('textbox', { name: 'Lọc theo tên' }),
-    page.getByRole('combobox', { name: 'Phòng ban' })
+    page.getByRole('combobox', { name: 'Nhóm' })
   ]) {
     await expect(control).toBeVisible();
     const box = await control.boundingBox();
@@ -220,7 +218,6 @@ test('approving in the day dialog updates the cell, the tile and the bell', asyn
   await expect(dialogOf(page)).toHaveCount(0);
   await expect(cellOf(page, 'Lê Hoàng Nam, Thứ Ba 27/10: Đi muộn, 08:12–?')).toHaveClass(/\blate\b/);
   await expect(tileOf(page, 'Cần xử lý').locator('.tile-v')).toHaveText('10');
-  await expect(page.locator('[data-group="todo"] .ct')).toHaveText('7');
   await expect(bellOf(page)).toHaveAccessibleName('Thông báo, 12 việc cần xử lý');
 });
 
@@ -233,7 +230,8 @@ test('below 900px, after deciding an item in Cần xử lý, focus lands on the 
   const rows = list.getByRole('button');
   await expect(rows).toHaveCount(11);
   const names = await rows.locator('.nn').allInnerTexts();
-  const at = 3;
+  // Vị trí 4 (Đỗ Mai Linh) là việc cần duyệt. Vị trí 3 là "Quên Check-in" của Lý Thanh Tâm: nhắc giải trình giữ việc lại.
+  const at = 4;
   await rows.nth(at).click();
   await dialogOf(page).locator('.acts .btn').first().click();
   await expect(dialogOf(page)).toHaveCount(0);
@@ -443,7 +441,6 @@ test('the name cell shows the name alone and planned cells carry their hours onl
 
 const scrollLeftOf = (page: Page) => gridOf(page).evaluate(el => el.scrollLeft);
 const weekLabel = (page: Page) => page.locator('.wk-label');
-const legendCount = (page: Page, group: string) => page.locator(`.att .gc[data-group="${group}"] .ct`);
 // Đếm click lọt tới vùng cuộn (pha nổi bọt) sau lượt kéo: cú click bị chặn ở pha capture thì không bao giờ tới đây.
 const countClicks = (page: Page) =>
   gridOf(page).evaluate(el => {
@@ -502,19 +499,11 @@ test('week buttons move by seven days and Hôm nay returns to this week', async 
 
   await prev.click();
   await expect(weekLabel(page)).toHaveText('19/10 – 25/10/2026');
-  await expect(legendCount(page, 'work')).toHaveText('62');
-  await expect(legendCount(page, 'late')).toHaveText('1');
-  await expect(legendCount(page, 'leave')).toHaveText('1');
-  await expect(legendCount(page, 'todo')).toHaveText('2');
 
   await prev.click();
   await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
   await expect(prev).toBeDisabled();
   await expect(next).toBeFocused();
-  await expect(legendCount(page, 'work')).toHaveText('63');
-  await expect(legendCount(page, 'absent')).toHaveText('1');
-  await expect(legendCount(page, 'leave')).toHaveText('1');
-  await expect(legendCount(page, 'todo')).toHaveText('1');
 
   await page.getByRole('button', { name: 'Hôm nay' }).click();
   await expect(weekLabel(page)).toHaveText('26/10 – 01/11/2026');
@@ -548,7 +537,9 @@ test('dragging scrolls, snaps to a day and opens nothing', async ({ page }) => {
   await page.mouse.move(link.x + 150, link.y, { steps: 10 });
   await page.mouse.up();
   await expect.poll(() => scrollLeftOf(page)).toBe(1344);
-  await expect(page).toHaveURL(/\/admin\/cham-cong$/);
+  // Vẫn ở lưới (không sang hồ sơ); có thể đã có ?tuan= do lưới ghi chỗ đứng sau khi cuộn yên.
+  await expect(page).toHaveURL(/\/admin\/cham-cong(\?|$)/);
+  await expect(page).not.toHaveURL(/hop=/);
   expect(await clicksSeen(page)).toBe(0);
 
   // Cờ chặn tự xoá: một cú bấm thường ngay sau đó vẫn tới nơi và mở hộp.

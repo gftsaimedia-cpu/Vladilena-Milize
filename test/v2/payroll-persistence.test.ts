@@ -22,10 +22,10 @@ import {
   type EmployeeMonthlyRawData
 } from '../../src/modules/payroll/payroll.repository';
 import { KpiValidationError, PayrollFinalizedError } from '../../src/modules/payroll/payroll.errors';
-import { nvMonthData } from './payroll-fixtures';
+import { type MonthFixture, fixtureDays, nvMonthData } from './payroll-fixtures';
 
 class FixtureRepository extends PayrollRepository {
-  constructor(private readonly data: EmployeeMonthlyRawData) {
+  constructor(readonly data: MonthFixture) {
     super({} as any);
   }
 
@@ -34,8 +34,13 @@ class FixtureRepository extends PayrollRepository {
   }
 }
 
-const makeSlip = (overrides?: Parameters<typeof nvMonthData>[0]) =>
-  new PayrollService(new FixtureRepository(nvMonthData(overrides))).generateMonthlyPayslip('u1', '2026-10');
+const makeSlip = (overrides?: Parameters<typeof nvMonthData>[0]) => {
+  const data = nvMonthData(overrides);
+  return new PayrollService(new FixtureRepository(data), undefined, fixtureDays(() => [data])).generateMonthlyPayslip(
+    'u1',
+    '2026-10'
+  );
+};
 
 // A row as PostgreSQL returns it: the generated columns filled in and BIGINT values still strings.
 const storedRow = (row: Insertable<DB['payslips']>, id = 1) =>
@@ -259,7 +264,7 @@ describe('PayrollService.calculatePeriodPayslips (partial recalculation)', () =>
   class RunRepository extends PayrollRepository {
     constructor(
       db: Kysely<DB>,
-      private readonly months: Record<string, EmployeeMonthlyRawData>
+      readonly months: Record<string, MonthFixture>
     ) {
       super(db);
     }
@@ -285,7 +290,7 @@ describe('PayrollService.calculatePeriodPayslips (partial recalculation)', () =>
     storedRow(buildPayslipRow(5, await makeSlip({ staff: { username, uuid, baseSalary } })), id);
 
   async function setup(options: {
-    months: Record<string, EmployeeMonthlyRawData>;
+    months: Record<string, MonthFixture>;
     previous?: Array<Selectable<DB['payslips']>>;
     final?: boolean;
   }) {
@@ -305,7 +310,11 @@ describe('PayrollService.calculatePeriodPayslips (partial recalculation)', () =>
       if (sql.startsWith('insert into "payroll_runs"')) return [{ id: 42 }];
       return [];
     });
-    const service = new PayrollService(new RunRepository(recorded.db, options.months));
+    const service = new PayrollService(
+      new RunRepository(recorded.db, options.months),
+      undefined,
+      fixtureDays(() => Object.values(options.months))
+    );
     return { ...recorded, previous, service };
   }
 

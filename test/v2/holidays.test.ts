@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { BadRequestError, NotFoundError } from '../../src/common';
+import { gateAllows, PeriodLockedError, type GateUse, type PeriodGate, type PeriodStatus } from '../../src/modules/periods';
 import {
   FIXED_HOLIDAYS,
   HolidayNotFoundError,
@@ -42,10 +43,37 @@ class MemoryHolidays {
 }
 
 // Transaction và nhật ký giả: chỉ để test luật kiểm dữ liệu; hành vi ghi nhật ký thật ở audit-holidays.pg.test.ts.
-const fakeTx = { run: async <T>(cb: (trx: any) => Promise<T>) => cb({}) };
+// `FAKE_TRX` là giao dịch giả mà `run` đưa cho callback, để test thấy cổng kỳ chạy trên chính giao dịch đó.
+const FAKE_TRX = { fake: 'trx' };
+const fakeTx = { run: async <T>(cb: (trx: any) => Promise<T>) => cb(FAKE_TRX) };
 const fakeAudit = { append: async () => ({ id: 1, hash: '' }) };
 const makeService = (repo = new MemoryHolidays()) =>
   new HolidaysService(repo as unknown as HolidaysRepository, fakeTx as any, fakeAudit as any);
+
+/** Cổng kỳ giả: tháng 2026-09 đã chốt công, các tháng khác mở. Ghi lại các lần gọi. */
+function lockedSeptember() {
+  const calls: Array<{ trx: unknown; months: string[]; use: GateUse }> = [];
+  const statusOf = async (_trx: unknown, month: string): Promise<PeriodStatus> => (month === '2026-09' ? 'attendance_locked' : 'open');
+  const gate = {
+    statusOf,
+    hold: async (trx: unknown, months: string[], use: GateUse) => {
+      calls.push({ trx, months, use });
+      for (const month of months) {
+        const status = await statusOf(trx, month);
+        if (!gateAllows(status, use)) throw new PeriodLockedError(month, status);
+      }
+    }
+  } as unknown as PeriodGate;
+  return { gate, calls };
+}
+const makeGatedService = (repo = new MemoryHolidays()) => {
+  const { gate, calls } = lockedSeptember();
+  // Ghi lại dòng ngày công (attendance-core P4): chỉ ghi lại các ngày đã thật sự thêm/xoá, sau commit.
+  const refreshed: string[] = [];
+  const attendanceDays = { refreshDateForAll: async (date: string) => (refreshed.push(date), 0) };
+  const svc = new HolidaysService(repo as unknown as HolidaysRepository, fakeTx as any, fakeAudit as any, attendanceDays, gate);
+  return { svc, repo, calls, refreshed };
+};
 const sqlOf = (log: ReturnType<typeof createScriptedKysely>['log']): ScriptedQuery[] =>
   log.filter((e): e is ScriptedQuery => typeof e !== 'string');
 
@@ -129,6 +157,66 @@ describe('HolidaysService', () => {
     repo.remove = async () => (removeCalls++, null);
     await assert.rejects(makeService(repo).remove('2026-02-30', 'admin'), (e: any) => !(e instanceof HolidayNotFoundError) && /Ngày lễ không hợp lệ: 2026-02-30/.test(e.message));
     assert.equal(removeCalls, 0);
+  });
+});
+
+describe('HolidaysService with the period gate', () => {
+  const locked = (e: any) => e instanceof PeriodLockedError && e.status === 409 && e.details?.code === 'PERIOD_LOCKED' && e.details?.month === '2026-09';
+
+  it('add refuses a day of a locked month, writes nothing and holds the gate on the holiday transaction', async () => {
+    const { svc, repo, calls } = makeGatedService();
+    await assert.rejects(svc.add({ date: '2026-09-02', name: 'Quốc khánh' }, 'admin'), locked);
+    assert.equal(repo.rows.size, 0);
+    await svc.add({ date: '2026-10-10', name: 'Giỗ Tổ' }, 'admin');
+    assert.deepEqual(calls.map(c => [c.trx, c.months, c.use]), [[FAKE_TRX, ['2026-09'], 'holiday'], [FAKE_TRX, ['2026-10'], 'holiday']]);
+  });
+
+  it('input validation still comes before the gate', async () => {
+    const { svc, calls } = makeGatedService();
+    await assert.rejects(svc.add({ date: '2026-02-30', name: 'x' }, 'admin'), /Ngày lễ không hợp lệ/);
+    await assert.rejects(svc.remove('2026-02-30', 'admin'), /Ngày lễ không hợp lệ/);
+    assert.equal(calls.length, 0);
+  });
+
+  it('remove refuses a day of a locked month and keeps it', async () => {
+    const repo = new MemoryHolidays();
+    await repo.insert({ date: '2026-09-02', name: 'Quốc khánh' }, null);
+    const { svc } = makeGatedService(repo);
+    await assert.rejects(svc.remove('2026-09-02', 'admin'), locked);
+    assert.equal(repo.rows.has('2026-09-02'), true);
+  });
+
+  it('quickAdd skips the days of locked months instead of failing the whole year', async () => {
+    const { svc, repo } = makeGatedService();
+    assert.deepEqual(await svc.quickAdd(2026, 'admin'), ['2026-01-01', '2026-04-30', '2026-05-01']);
+    assert.equal(repo.rows.has('2026-09-02'), false);
+  });
+
+  it('a refused add or remove rewrites no day rows; an accepted one rewrites only its date', async () => {
+    const repo = new MemoryHolidays();
+    await repo.insert({ date: '2026-09-02', name: 'Quốc khánh' }, null);
+    const { svc, refreshed } = makeGatedService(repo);
+    await assert.rejects(svc.add({ date: '2026-09-10', name: 'x' }, 'admin'), locked);
+    await assert.rejects(svc.remove('2026-09-02', 'admin'), locked);
+    assert.deepEqual(refreshed, []);
+    await svc.add({ date: '2026-10-10', name: 'Giỗ Tổ' }, 'admin');
+    await svc.remove('2026-10-10', 'admin');
+    assert.deepEqual(refreshed, ['2026-10-10', '2026-10-10']);
+  });
+
+  it('quickAdd rewrites the day rows of the inserted dates only, not of the skipped locked-month date', async () => {
+    const repo = new MemoryHolidays();
+    await repo.insert({ date: '2026-01-01', name: 'Tết Dương lịch' }, null);
+    const { svc, refreshed } = makeGatedService(repo);
+    assert.deepEqual(await svc.quickAdd(2026, 'admin'), ['2026-04-30', '2026-05-01']);
+    assert.deepEqual(refreshed, ['2026-04-30', '2026-05-01']);
+  });
+
+  it('the controller rethrows the lock error as it is, not as a 400', async () => {
+    const { svc } = makeGatedService();
+    const ctrl = new HolidaysController(svc);
+    await assert.rejects(ctrl.create({ date: '2026-09-02', name: 'Quốc khánh' }, ADMIN), locked);
+    await assert.rejects(ctrl.remove('2026-09-02', ADMIN), locked);
   });
 });
 

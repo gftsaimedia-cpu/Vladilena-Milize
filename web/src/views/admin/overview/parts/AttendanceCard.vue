@@ -31,7 +31,7 @@ const label = computed(
       <figcaption class="legend" aria-hidden="true">
         <span><i class="sw present" />Có mặt</span>
         <span><i class="sw today" />Hôm nay</span>
-        <span><i class="sw rest" />Chưa có mặt</span>
+        <span><i class="sw rest" />Vắng hoặc chưa chấm</span>
       </figcaption>
     </figure>
   </section>

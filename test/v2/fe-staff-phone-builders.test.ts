@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { datesText } from '../../web/src/utils/format';
 import { describe, it } from 'node:test';
 import {
   attendanceViewOf,
@@ -28,7 +29,7 @@ describe('App nhân viên từ /me', () => {
     assert.equal(adv.icon, 'coin');
     assert.equal(adv.status, 'done');
     const cancelled = requestRowOf(req({ type: 'EXPLANATION', status: 'CANCELLED', explanationDate: '2026-10-27' }) as any);
-    assert.deepEqual([cancelled.title, cancelled.status, cancelled.statusText], ['Giải trình 27/10', 'rej', 'Đã huỷ']);
+    assert.deepEqual([cancelled.title, cancelled.status, cancelled.statusText], ['Giải trình 27/10', 'cancel', 'Đã huỷ']);
   });
 
   it('builds the request detail with steps in Vietnam time', () => {
@@ -40,6 +41,18 @@ describe('App nhân viên từ /me', () => {
     assert.deepEqual(d.steps[0], { label: 'Đã gửi', at: '03/11 20:14', state: 'done' });
     assert.ok(d.facts.some(([k, v]) => k === 'Giờ ra khai' && v === '17:30'));
     assert.ok(d.facts.some(([k, v]) => k === 'Lý do' && v === '“Việc nhà”'));
+  });
+
+  it('carries the request dates into the detail and words them for the cancel text', () => {
+    const d = requestDetailOf(req({ type: 'LEAVE', leaveStartDate: '2026-11-02', dates: ['2026-11-02', '2026-11-03'] }) as any, []);
+    assert.deepEqual(d.dates, ['2026-11-02', '2026-11-03']);
+    assert.deepEqual(requestDetailOf(req({ type: 'ADVANCE' }) as any, []).dates, []);
+    assert.equal(datesText(['2026-11-02', '2026-11-03']), '02 và 03/11');
+    assert.equal(datesText(['2026-11-02', '2026-11-03', '2026-11-04']), '02, 03 và 04/11');
+    assert.equal(datesText(['2026-11-30', '2026-12-01']), '30/11 và 01/12');
+    assert.equal(datesText(['2026-11-02']), '02/11');
+    assert.equal(datesText(['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-13']), 'từ 02/11 đến 13/11');
+    assert.equal(datesText([]), '');
   });
 
   // BUG-requests-12: hộp từ chối của Admin hứa "Nhân viên xem được ghi chú trong chi tiết yêu cầu"; /me trả reviewNote.
@@ -76,7 +89,7 @@ describe('App nhân viên từ /me', () => {
     const v = incomeViewOf({
       month: '2026-11',
       state: 'estimate',
-      payslip: { ...slip, insuranceDeduction: 0, personalIncomeTax: 0, advanceDeduction: 500_000, netIncome: 15_038_183 }
+      payslip: { ...slip, insuranceDeduction: 0, personalIncomeTax: 0, advanceDeduction: 500_000, deductionTotal: 500_000, netIncome: 15_038_183 }
     } as any);
     assert.equal(v.state, 'Tạm tính');
     assert.equal(v.label, 'Tháng 11/2026');
@@ -94,7 +107,7 @@ describe('App nhân viên từ /me', () => {
     const v = incomeViewOf({
       month: '2026-10',
       state: 'official',
-      payslip: { ...slip, insuranceDeduction: 1_260_000, personalIncomeTax: 0, advanceDeduction: 0, netIncome: 14_278_183 }
+      payslip: { ...slip, insuranceDeduction: 1_260_000, personalIncomeTax: 0, advanceDeduction: 0, deductionTotal: 1_260_000, netIncome: 14_278_183 }
     } as any);
     assert.equal(v.state, 'Chính thức');
     assert.equal(v.deduction, '1.260.000');
@@ -136,6 +149,74 @@ describe('App nhân viên từ /me', () => {
     assert.deepEqual(v.tiles[0], { value: '1', of: '25', label: 'Ngày công' });
     assert.equal(v.recent.length, 1);
     assert.equal(v.recent[0].times, '07:55 – 17:05');
+  });
+
+  // Máy chủ cũ chưa gửi reminders / due / explanation: màn nhận giá trị rỗng, không có dòng nhắc, không có nút.
+  it('gives no reminders and no due day when the server sends none', () => {
+    const day = (date: string) => ({ date, kind: 'work' as const, in: '07:59', out: null, lateMinutes: 0 });
+    const week = ['26', '27', '28', '29', '30', '31'].map(d => day(`2026-10-${d}`)).concat(day('2026-11-01'));
+    const profile = {
+      name: 'Lê Hoàng Nam', username: 'nam', dependants: 0,
+      contract: { status: 'nv', term: 'long', effectiveFrom: '2024-03-04' },
+      position: { type: 'nv', level: 2, jobTitle: null },
+      shift: { type: 'NORMAL', startTime: '08:00', endTime: '17:00' },
+      leave: { totalDays: 12, usedDays: 1, remainingDays: 11 }
+    };
+    const today = { date: '2026-10-28', shift: null, punches: { in: '07:59', out: null }, workedMinutes: 101, week, alert: null };
+    assert.deepEqual(homeViewOf(today, profile, null, [], '09:40').reminders, []);
+    const d = dayDetailOf({ ...day('2026-10-27'), shift: null }, { start: '08:00', end: '17:00' }, '2026-10-28', '09:40');
+    assert.equal(d?.due, null);
+  });
+
+  describe('nhắc giải trình, ngày cần giải trình và đơn chờ duyệt từ máy chủ', () => {
+    const day = (date: string) => ({ date, kind: 'work' as const, in: '07:59', out: null, lateMinutes: 0 });
+    const week = ['26', '27', '28', '29', '30', '31'].map(d => day(`2026-10-${d}`)).concat(day('2026-11-01'));
+    const profile = {
+      name: 'Lê Hoàng Nam', username: 'nam', dependants: 0,
+      contract: { status: 'nv', term: 'long', effectiveFrom: '2024-03-04' },
+      position: { type: 'nv', level: 2, jobTitle: null },
+      shift: { type: 'NORMAL', startTime: '08:00', endTime: '17:00' },
+      leave: { totalDays: 12, usedDays: 1, remainingDays: 11 }
+    };
+    const today = { date: '2026-10-28', shift: null, punches: { in: '07:59', out: null }, workedMinutes: 101, week, alert: null };
+    const detail = (over: Record<string, unknown>, date = '2026-10-27') =>
+      dayDetailOf({ ...day(date), shift: null, ...over } as any, { start: '08:00', end: '17:00' }, '2026-10-28', '09:40')!;
+
+    it('turns /me/today reminders into one line per day, newest first as the server sends them', () => {
+      const reminders = [
+        { date: '2026-10-24', remindedAt: '2026-10-27T02:40:00.000Z' },
+        { date: '2026-10-22', remindedAt: '2026-10-26T02:40:00.000Z' }
+      ];
+      assert.deepEqual(homeViewOf({ ...today, reminders } as any, profile, null, [], '09:40').reminders, [
+        { date: '2026-10-24', text: 'Admin nhắc giải trình 24/10' },
+        { date: '2026-10-22', text: 'Admin nhắc giải trình 22/10' }
+      ]);
+    });
+
+    it('keeps the due object of /me/attendance/:date as it is, and null when the day needs no explanation', () => {
+      const due = { cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, remindedAt: null };
+      assert.deepEqual(detail({ due }).due, due);
+      assert.equal(detail({ due: null }).due, null);
+    });
+
+    it('fills the claim only while the explanation is pending', () => {
+      const explanation = (over: Record<string, unknown>) => ({
+        id: 'e1', status: 'PENDING', sentAt: '2026-10-27T13:14:00.000Z', cases: ['MISSING_CHECK_OUT'],
+        actualCheckIn: null, actualCheckOut: '17:30', ...over
+      });
+      // Gửi ngay trong ngày (giờ Việt Nam 20:14 ngày 27/10): chỉ giờ.
+      assert.deepEqual(detail({ explanation: explanation({}) }).claim, { sentAt: '20:14', outClaim: '17:30' });
+      // Gửi ngày khác (09:40 ngày 28/10 cho ngày 27/10): thêm ngày gửi.
+      assert.deepEqual(detail({ explanation: explanation({ sentAt: '2026-10-28T02:40:00.000Z', actualCheckOut: null }) }).claim, {
+        sentAt: '09:40 28/10',
+        outClaim: null
+      });
+      // Gửi sau nửa đêm giờ Việt Nam nhưng còn là ngày hôm trước theo UTC: ngày gửi tính theo giờ Việt Nam.
+      assert.equal(detail({ explanation: explanation({ sentAt: '2026-10-27T17:30:00.000Z' }) }).claim?.sentAt, '00:30 28/10');
+      assert.equal(detail({ explanation: explanation({ status: 'APPROVED' }) }).claim, null);
+      assert.equal(detail({ explanation: explanation({ status: 'REJECTED' }) }).claim, null);
+      assert.equal(detail({ explanation: null }).claim, null);
+    });
   });
 
   // Tháng 11/2026: 01/11 là Chủ nhật; ngày 02, 03, 04 là ba loại nghỉ của bảng công.

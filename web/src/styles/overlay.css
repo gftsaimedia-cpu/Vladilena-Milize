@@ -322,6 +322,26 @@
 .drw.floating > .drw-f {
   background: var(--surface);
 }
+/* Ngăn kéo nổi có đường kẻ (ruled, ngăn kéo Cài đặt theo board M1): đầu 20/16/16/24 kẻ dưới, chân 16/24 kẻ trên. */
+.drw.floating.ruled > .drw-h {
+  padding: 20px 16px 16px 24px;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+}
+.drw.floating.ruled > .drw-h h2 {
+  font-size: 18px;
+  line-height: 24px;
+}
+.drw.floating.ruled > .drw-h .s {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+}
+.drw.floating.ruled > .drw-f {
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+}
 @media (max-width: 767px) {
   .drw.floating {
     left: 16px;

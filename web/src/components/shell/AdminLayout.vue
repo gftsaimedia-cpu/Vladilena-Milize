@@ -4,9 +4,11 @@
 // ?hop=chuong | menu-tai-khoan | doi-mat-khau mở sẵn (mục lục thiết kế).
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { onRealtime, type PunchEvent } from '@/services/realtime';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
 import { useUiStore } from '@/stores/ui';
+import { toast } from './toast';
 import AccountMenu from './AccountMenu.vue';
 import AdminSidebar from './AdminSidebar.vue';
 import AdminTopbar from './AdminTopbar.vue';
@@ -23,6 +25,12 @@ ui.init();
 const shell = useShellStore();
 onMounted(() => shell.load());
 onMounted(() => period.refresh());
+
+// Thông báo nhẹ khi có người chấm công (chữ ghép từ trường máy chủ gửi).
+const offPunch = onRealtime('attendance.punched', (e: PunchEvent) =>
+  toast.ok(`${e.name} vừa check-${e.direction === 'IN' ? 'in' : 'out'} ${e.time}`)
+);
+onUnmounted(offPunch);
 
 // Dải bước kỳ lương chỉ hiện ở các màn gắn với kỳ lương.
 const STEPS_NAV = ['cham-cong'];

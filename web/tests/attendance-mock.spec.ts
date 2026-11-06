@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { inApp } from './fixtures/in-app';
 
-// Dữ liệu giả chấm công (mock/attendance.ts) dựng từ nguồn việc chung (mock/inbox.ts): không page.route, không gọi /api.
+// Dữ liệu giả chấm công (mock/attendance.ts, trả DTO cùng dạng BE) dựng từ nguồn việc chung (mock/inbox.ts): không page.route, không gọi /api.
 // Mỗi test mở một trang mới nên module giả luôn bắt đầu từ trạng thái ban đầu (13 việc chờ).
+const EMP = `const E = await import('/src/mock/attendance-employee.ts');`;
 const IMPORTS = `const A = await import('/src/mock/attendance.ts'); const I = await import('/src/mock/inbox.ts');`;
 
 // Bộ ghi các request /api của trang hiện tại; test đầu tiên khẳng định nó rỗng.
@@ -30,10 +31,10 @@ test('roster and days follow the board', async ({ page }) => {
   }>(
     page,
     `${IMPORTS}
-    const v = A.attendanceView('2026-10');
+    const v = A.weekDto({ month: '2026-10' });
     const d = v.days;
     return {
-      ids: v.rows.map(r => r.person.id),
+      ids: v.rows.map(r => r.username),
       n: d.length,
       first: d[0].iso,
       today: { iso: d[16].iso, today: d[16].today },
@@ -173,7 +174,7 @@ test('pending items overlay their days and lift when resolved', async ({ page })
   const out = await inApp<Record<string, any>>(
     page,
     `${IMPORTS}
-    const todo = () => A.attendanceView('2026-10').rows.flatMap(r => r.cells).filter(c => c.kind === 'todo').length;
+    const todo = () => A.weekDto({ month: '2026-10' }).rows.flatMap(r => r.days).filter(c => c.kind === 'todo').length;
     const start = {
       todo: todo(),
       nam: A.cellOf('le-hoang-nam', '2026-10-27'),
@@ -199,11 +200,11 @@ test('tiles count pending items by scope', async ({ page }) => {
   const out = await inApp<Record<string, any>>(
     page,
     `${IMPORTS}
-    const view = () => A.attendanceView('2026-10');
+    const view = () => A.weekDto({ month: '2026-10' });
     const tile = (v, key) => v.tiles.find(t => t.key === key);
     const start = view();
-    const startTiles = Object.fromEntries(start.tiles.map(t => [t.key, [t.label, t.value, t.note]]));
-    const order = start.pending.map(p => p.person.name + ' ' + p.date);
+    const startTiles = Object.fromEntries(start.tiles.map(t => [t.key, [t.label, t.value, t.of ?? t.unit ?? null, t.note]]));
+    const order = start.pending.map(p => p.name + ' ' + p.date);
     const total = start.total;
     I.resolveInboxItem('ib-c1');
     const afterC1 = tile(view(), 'todo');
@@ -212,12 +213,12 @@ test('tiles count pending items by scope', async ({ page }) => {
     return { startTiles, order, total, afterC1: [afterC1.value, afterC1.note], afterA1: afterA1.value };`
   );
   expect(out.startTiles).toEqual({
-    todo: ['Cần xử lý', '11', '2 quên chấm · 9 yêu cầu chờ duyệt'],
-    present: ['Có mặt hôm nay', '113 / 128', '15 người chưa Check-in'],
-    late: ['Đi muộn hôm nay', '7', 'trung bình 14 phút'],
-    leave: ['Nghỉ có phép', '6', '3 đơn chờ duyệt'],
-    absent: ['Vắng không phép', '1', 'trong tháng 10'],
-    ot: ['Làm thêm tháng này', '126 giờ', '2 yêu cầu chờ duyệt']
+    todo: ['Cần xử lý', 11, null, '2 chưa giải trình · 9 yêu cầu chờ duyệt'],
+    present: ['Có mặt hôm nay', 113, 128, '15 người chưa Check-in'],
+    late: ['Đi muộn hôm nay', 7, null, 'trung bình 14 phút'],
+    leave: ['Nghỉ có phép', 6, null, '3 đơn chờ duyệt'],
+    absent: ['Vắng không phép', 1, null, 'trong tháng 10'],
+    ot: ['Làm thêm tháng này', 126, 'giờ', '2 yêu cầu chờ duyệt']
   });
   expect(out.total).toBe(128);
   expect(out.order).toEqual([
@@ -233,34 +234,50 @@ test('tiles count pending items by scope', async ({ page }) => {
     'Ngô Gia Bảo 2026-11-01',
     'Phạm Ngọc Anh 2026-11-03'
   ]);
-  expect(out.afterC1).toEqual(['10', '1 quên chấm · 9 yêu cầu chờ duyệt']);
-  expect(out.afterA1).toBe('10');
+  expect(out.afterC1).toEqual([10, '1 chưa giải trình · 9 yêu cầu chờ duyệt']);
+  expect(out.afterA1).toBe(10);
 });
 
-test('day detail and other months', async ({ page }) => {
+test('day cell of one person and other months', async ({ page }) => {
+  const out = await inApp<Record<string, any>>(
+    page,
+    `${IMPORTS} ${EMP}
+    const v = E.employeeDto('le-hoang-nam', '2026-10');
+    const d = v.days.find(x => x.date === '2026-10-27');
+    return {
+      cell: { in: d.in, out: d.out, itemId: d.itemId, kind: d.kind },
+      shift: v.dayHistory.find(h => h.date === '2026-10-27').shift,
+      nobody: E.employeeDto('khong-co', '2026-10'),
+      september: E.employeeDto('le-hoang-nam', '2026-09').days.length,
+      weekSeptember: A.weekDto({ month: '2026-09' })
+    };`
+  );
+  expect(out.cell).toEqual({ in: '08:12', out: null, itemId: 'ib-e1', kind: 'todo' });
+  expect(out.shift).toBe('HC 08:00–17:00');
+  expect(out.nobody).toBeNull();
+  expect(out.september).toBe(0); // tháng ngoài dữ liệu giả: hồ sơ còn nhưng không có ngày nào
+  expect(out.weekSeptember).toBeNull();
+});
+
+test('week filters by name and group like the backend', async ({ page }) => {
   const out = await inApp<Record<string, any>>(
     page,
     `${IMPORTS}
-    const d = A.dayDetail('le-hoang-nam', '2026-10-27');
+    const all = A.weekDto({ month: '2026-10' });
+    const byName = A.weekDto({ month: '2026-10', q: 'DUC' });
+    const byGroup = A.weekDto({ month: '2026-10', group: 'Sản xuất' });
     return {
-      title: d.title,
-      sub: d.sub,
-      cell: { in: d.cell.in, out: d.cell.out },
-      item: d.item.id,
-      nobody: A.dayDetail('khong-co', '2026-10-27'),
-      before: A.dayDetail('le-hoang-nam', '2026-09-30'),
-      bad: A.dayDetail('le-hoang-nam', '2026-13-01'),
-      september: A.attendanceView('2026-09')
+      groups: all.groups,
+      names: byName.rows.map(r => r.name),
+      pendingNames: byName.pending.map(p => p.name),
+      matched: [byName.matched, byGroup.matched, byGroup.total],
+      tileTodo: byName.tiles[0].value
     };`
   );
-  expect(out.title).toBe('Lê Hoàng Nam · Thứ Ba 27/10/2026');
-  expect(out.sub).toBe('Kinh doanh · Nhân viên kinh doanh · Ca HC 08:00–17:00');
-  expect(out.cell).toEqual({ in: '08:12', out: null });
-  expect(out.item).toBe('ib-e1');
-  expect(out.nobody).toBeNull();
-  expect(out.before).toBeNull();
-  expect(out.bad).toBeNull();
-  expect(out.september).toBeNull();
+  expect(out.groups.map((g: { key: string }) => g.key)).toEqual(['Kinh doanh', 'Kỹ thuật', 'Marketing', 'Nhân sự', 'Sản xuất', 'Tài chính']);
+  expect(out.names).toEqual(['Võ Đức Thịnh', 'Hoàng Minh Đức']);
+  expect(out.pendingNames).toEqual(['Hoàng Minh Đức', 'Võ Đức Thịnh']);
+  expect(out.matched).toEqual([2, 4, 128]);
 });
 
 test('weekdayName names every day', async ({ page }) => {
@@ -272,99 +289,59 @@ test('weekdayName names every day', async ({ page }) => {
 });
 
 // Hồ sơ chấm công (mock/attendance-employee.ts) dựng từ cùng ô chấm công và cùng nguồn việc chờ.
-const EMP = `const E = await import('/src/mock/attendance-employee.ts');`;
 
-test('employee view for Lê Hoàng Nam matches the board', async ({ page }) => {
+test('employee DTO for Lê Hoàng Nam matches the board', async ({ page }) => {
   const out = await inApp<Record<string, any>>(
     page,
     `${IMPORTS} ${EMP}
-    const v = E.employeeView('le-hoang-nam', '2026-10');
-    const d = v.data;
+    const v = E.employeeDto('le-hoang-nam', '2026-10');
     return {
-      index: v.index,
-      total: v.total,
-      prevId: v.prevId,
-      nextId: v.nextId,
-      values: d.stats.map(s => s.value),
-      notes: d.stats.map(s => s.note),
-      labels: d.stats.map(s => s.label),
-      chips: d.chips,
-      pending: d.pending,
-      stripLength: d.strip.length,
-      off: d.strip.filter(s => s.kind === 'off').length,
-      rest: d.strip.filter(s => s.kind !== 'off').length,
-      todo: d.strip.find(s => s.date === '2026-10-27'),
-      today: d.strip.filter(s => s.today).map(s => s.date),
-      history: d.history.map(h => (h.type === 'row' ? 'row:' + h.row.date : 'fold:' + h.label))
+      pos: [v.index, v.total, v.prev, v.next],
+      stats: v.stats.map(s => [s.key, s.label, s.value, s.unit ?? null, s.note]),
+      chips: v.chips,
+      pending: v.pending,
+      daysLength: v.days.length,
+      off: v.days.filter(s => s.kind === 'off').length,
+      todo: v.days.find(s => s.date === '2026-10-27'),
+      today: v.days.filter(s => s.today).map(s => s.date),
+      history: v.dayHistory.map(h => h.date).slice(0, 6),
+      historyLength: v.dayHistory.length
     };`
   );
-  expect([out.index, out.total, out.prevId, out.nextId]).toEqual([3, 11, 'tran-minh-quan', 'pham-ngoc-anh']);
-  expect(out.labels).toEqual(['Ngày công', 'Đi muộn', 'Giờ vào trung bình', 'Giờ ra trung bình']);
-  expect(out.values).toEqual(['25 / 26', '1 lần', '07:59', '17:08']);
-  expect(out.notes).toEqual(['cả kỳ 01–31/10', 'tổng 12 phút', 'ca bắt đầu 08:00', 'ca kết thúc 17:00']);
-  expect(out.chips).toEqual({ work: 22, late: 0, leave: 1, absent: 0, todo: 1 });
-  expect(out.pending).toEqual({
-    count: 1,
-    date: '2026-10-27',
-    text: '1 ngày cần xử lý · 27/10 thiếu giờ ra, chờ duyệt giải trình'
-  });
-  expect(out.stripLength).toBe(31);
-  expect(out.off).toBe(4);
-  expect(out.rest).toBe(27);
-  expect(out.todo).toMatchObject({ dow: 'T3', day: '27', kind: 'todo', aria: 'Thứ Ba 27/10: Cần xử lý, Thiếu giờ ra' });
-  expect(out.today).toEqual(['2026-10-28']);
-  expect(out.history).toEqual([
-    'row:2026-10-28',
-    'row:2026-10-27',
-    'row:2026-10-26',
-    'row:2026-10-24',
-    'row:2026-10-23',
-    'fold:9 ngày đi làm · 13/10 – 22/10',
-    'row:2026-10-12',
-    'fold:9 ngày đi làm · 01/10 – 10/10'
+  expect(out.pos).toEqual([3, 11, 'tran-minh-quan', 'pham-ngoc-anh']);
+  expect(out.stats).toEqual([
+    ['workDays', 'Ngày đi làm', 25, null, 'trong tháng 10'],
+    ['late', 'Lần đi muộn', 1, null, '12 phút'],
+    ['ot', 'Làm thêm', 0, 'giờ', ''],
+    ['leave', 'Phép năm còn', 5, 'ngày', '']
   ]);
+  expect(out.chips).toEqual({ work: 22, late: 0, leave: 1, absent: 0, todo: 1 });
+  expect(out.pending).toEqual({ count: 1, date: '2026-10-27', itemId: 'ib-e1', group: 'exp', text: 'Thiếu giờ ra · 27/10' });
+  expect(out.daysLength).toBe(31);
+  expect(out.off).toBe(4);
+  expect(out.todo).toMatchObject({ dow: 'T3', day: '27', kind: 'todo', aria: 'Cần xử lý, Thiếu giờ ra' });
+  expect(out.today).toEqual(['2026-10-28']);
+  // Lịch sử từng ngày mới nhất trước, bỏ ngày không ca và ngày chưa tới (đủ cả tháng, không gộp).
+  expect(out.history).toEqual(['2026-10-28', '2026-10-27', '2026-10-26', '2026-10-24', '2026-10-23', '2026-10-22']);
+  expect(out.historyLength).toBe(24);
 });
 
-test('history rows carry the times and the track', async ({ page }) => {
+test('history rows carry the times and follow the pending item', async ({ page }) => {
   const out = await inApp<Record<string, any>>(
     page,
     `${IMPORTS} ${EMP}
-    const rowsOf = v => Object.fromEntries(v.data.history.filter(h => h.type === 'row').map(h => [h.row.date, h.row]));
-    const before = E.employeeView('le-hoang-nam', '2026-10');
+    const rowsOf = v => Object.fromEntries(v.dayHistory.map(h => [h.date, h]));
+    const before = E.employeeDto('le-hoang-nam', '2026-10');
     const rows = rowsOf(before);
     I.resolveInboxItem('ib-e1');
-    const after = E.employeeView('le-hoang-nam', '2026-10');
-    return {
-      pct: [E.pct('06:00'), E.pct('08:00'), E.pct('08:12'), E.pct('09:40'), E.pct('17:30'), E.pct('20:00')],
-      live: rows['2026-10-28'],
-      late: rows['2026-10-27'],
-      work: rows['2026-10-26'],
-      leave: rows['2026-10-12'],
-      afterLate: rowsOf(after)['2026-10-27'],
-      afterPending: after.data.pending
-    };`
+    const after = E.employeeDto('le-hoang-nam', '2026-10');
+    return { live: rows['2026-10-28'], late: rows['2026-10-27'], work: rows['2026-10-26'], leave: rows['2026-10-12'], afterLate: rowsOf(after)['2026-10-27'], afterPending: after.pending };`
   );
-  expect(out.pct).toEqual([0, 13.33, 14.67, 24.44, 76.67, 93.33]);
-
-  expect(out.live).toMatchObject({ range: '07:59 – …', sub: 'Đang làm · 1g 41p', status: 'Đi làm', tone: 'work' });
-  expect(out.live.parts).toContainEqual({ type: 'now', from: 24.44 });
-
-  expect(out.late).toMatchObject({
-    range: '08:12 – ?',
-    sub: 'Trễ 12 phút · chưa có giờ ra',
-    status: 'Chờ duyệt giải trình',
-    tone: 'todo'
-  });
-  expect(out.late.parts).toContainEqual({ type: 'late', from: 13.33, to: 14.67 });
-  expect(out.late.parts).toContainEqual({ type: 'miss', from: 14.67, to: 76.67 });
-
-  expect(out.work).toMatchObject({ range: '07:56 – 17:10', sub: 'Có mặt 9g 14p', status: 'Đi làm' });
-  expect(out.work.parts).toContainEqual({ type: 'lunch', from: 40, to: 46.67 });
-
-  expect(out.leave).toMatchObject({ range: 'Cả ngày', sub: 'Phép năm', status: 'Nghỉ có phép', tone: 'leave' });
-
-  expect(out.afterLate.status).toBe('Đi muộn');
-  expect(out.afterLate.parts.some((p: { type: string }) => p.type === 'miss')).toBe(false);
+  expect(out.live).toMatchObject({ text: '07:59–…', in: '07:59', out: null, status: 'Đi làm', tone: 'work', shift: 'HC 08:00–17:00' });
+  expect(out.late).toMatchObject({ text: '08:12–?', in: '08:12', out: null, status: 'Cần xử lý', tone: 'todo', itemId: 'ib-e1' });
+  expect(out.work).toMatchObject({ text: '07:56–17:10', in: '07:56', out: '17:10', status: 'Đi làm' });
+  expect(out.leave).toMatchObject({ text: 'Phép năm', status: 'Nghỉ có phép', tone: 'leave' });
+  expect(out.afterLate).toMatchObject({ status: 'Đi muộn', itemId: null });
   expect(out.afterPending).toBeNull();
 });
 
@@ -373,14 +350,14 @@ test('unknown people and other months', async ({ page }) => {
     page,
     `${IMPORTS} ${EMP}
     return {
-      nobody: E.employeeView('khong-co', '2026-10'),
-      september: E.employeeView('le-hoang-nam', '2026-09').data,
-      first: E.employeeView('nguyen-thu-ha', '2026-10').prevId,
-      last: E.employeeView('hoang-minh-duc', '2026-10').nextId
+      nobody: E.employeeDto('khong-co', '2026-10'),
+      september: E.employeeDto('le-hoang-nam', '2026-09').days.length,
+      first: E.employeeDto('nguyen-thu-ha', '2026-10').prev,
+      last: E.employeeDto('hoang-minh-duc', '2026-10').next
     };`
   );
   expect(out.nobody).toBeNull();
-  expect(out.september).toBeNull();
+  expect(out.september).toBe(0); // tháng ngoài dữ liệu giả: hồ sơ còn nhưng không có ngày nào
   expect(out.first).toBeNull();
   expect(out.last).toBeNull();
 });

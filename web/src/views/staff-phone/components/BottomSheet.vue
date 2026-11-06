@@ -4,13 +4,15 @@
 // Đầu hộp: tiêu đề (cũng là tên của dialog) + dòng phụ bên trái, nhãn trạng thái ở slot #badge bên phải. Không có nút ×:
 // nút đóng của từng hộp nằm trong thân (slot mặc định).
 //   <BottomSheet title="Phép năm 12/10" sub="Đơn nghỉ" @close="…"><template #badge>…</template> …thân… </BottomSheet>
+// bare: thân tự vẽ đầu hộp (luồng Tạo yêu cầu, có nút ‹ và ✕); hộp chỉ giữ thanh nắm, title vẫn là tên của dialog.
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { lockScroll, unlockScroll } from '@/components/ui/overlay-lock';
 
 const props = defineProps({
   title: { type: String, default: '' },
   sub: { type: String, default: '' },
-  dismissable: { type: Boolean, default: true }
+  dismissable: { type: Boolean, default: true },
+  bare: { type: Boolean, default: false }
 });
 const emit = defineEmits(['close']);
 
@@ -110,7 +112,7 @@ onBeforeUnmount(() => {
       >
         <div class="drag-zone" @pointerdown="down" @pointermove="move" @pointerup="up" @pointercancel="up">
           <div class="grab" />
-          <div class="sh shd">
+          <div v-if="!bare" class="sh shd">
             <div class="shd-t">
               <h2>{{ title }}</h2>
               <div v-if="sub" class="mut">{{ sub }}</div>

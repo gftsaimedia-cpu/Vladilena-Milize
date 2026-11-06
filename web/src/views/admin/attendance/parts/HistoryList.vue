@@ -1,33 +1,14 @@
 <script setup lang="ts">
-// Lịch sử chấm công: dòng thời gian (mỗi ngày một dòng kèm trục giờ 06:00–20:00, các chuỗi ngày đi làm gộp thành một nút)
-// hoặc bảng giờ Ngày / Vào / Ra / Trạng thái. Bảng giờ luôn liệt kê từng ngày, không gộp.
-import { computed, ref } from 'vue';
-import type { HistoryEntry, HistoryRow, TrackPart } from '@/mock/attendance-employee';
+// Lịch sử chấm công: dòng thời gian (mỗi ngày một dòng kèm trục giờ 06:00–20:00) hoặc bảng giờ Ngày / Vào / Ra / Trạng thái.
+// Dòng do BE trả (dayHistory); trục giờ chỉ là hình vẽ từ giờ vào / ra, không suy thêm trạng thái.
+import type { HistoryRow } from '@/builders/api/attendance';
 
-const props = defineProps<{ entries: HistoryEntry[]; mode: 'timeline' | 'table'; empty: string }>();
+defineProps<{ entries: HistoryRow[]; mode: 'timeline' | 'table'; empty: string }>();
 
-const open = ref<Set<string>>(new Set());
-function toggle(label: string) {
-  const next = new Set(open.value);
-  if (!next.delete(label)) next.add(label);
-  open.value = next;
-}
-
-type Item = { key: string; row?: HistoryRow; label?: string; nested?: boolean };
-// Các dòng đang hiện: dòng thường, nút gộp, và các dòng của nút gộp đang mở (thụt vào).
-const items = computed<Item[]>(() =>
-  props.entries.flatMap<Item>(e => {
-    if (e.type === 'row') return [{ key: e.row.date, row: e.row }];
-    const head: Item = { key: e.label, label: e.label };
-    return open.value.has(e.label) ? [head, ...e.rows.map(row => ({ key: row.date, row, nested: true }))] : [head];
-  })
-);
-const flat = computed<HistoryRow[]>(() => props.entries.flatMap(e => (e.type === 'row' ? [e.row] : e.rows)));
-
-const partStyle = (p: TrackPart) => ({
-  left: `${p.from}%`,
-  ...(p.to !== undefined ? { width: `${p.to - p.from}%` } : {})
-});
+// Vị trí (phần trăm) của giờ 'HH:MM' trên trục 06:00–20:00.
+const pct = (t: string) => Math.round((((Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))) / 60 - 6) / 15) * 10000) / 100;
+const barStyle = (row: HistoryRow) =>
+  row.inTime && row.outTime ? { left: `${pct(row.inTime)}%`, width: `${pct(row.outTime) - pct(row.inTime)}%` } : null;
 </script>
 
 <template>
@@ -40,34 +21,20 @@ const partStyle = (p: TrackPart) => ({
       <span>Trạng thái</span>
     </div>
     <ul class="hl-list" aria-label="Dòng thời gian">
-      <template v-for="it in items" :key="it.key">
-        <li v-if="it.row" class="hl-r" :class="{ nested: it.nested }">
-          <span class="d">{{ it.row.dayLabel }}</span>
-          <span class="i">
-            <span class="rg">{{ it.row.range }}</span>
-            <span class="sb">{{ it.row.sub }}</span>
-          </span>
-          <span class="t" aria-hidden="true">
-            <span v-for="(p, k) in it.row.parts" :key="k" class="tp" :class="p.type" :style="partStyle(p)">{{
-              p.label
-            }}</span>
-          </span>
-          <span class="s"><span class="b" :class="it.row.tone" aria-hidden="true" />{{ it.row.status }}</span>
-        </li>
-        <li v-else class="hl-f">
-          <button type="button" class="fb" :aria-expanded="open.has(it.label)" @click="toggle(it.label)">
-            <span>{{ it.label }}</span>
-            <span class="fa">{{ open.has(it.label) ? 'Thu gọn' : 'Mở' }}</span>
-          </button>
-        </li>
-      </template>
+      <li v-for="row in entries" :key="row.date" class="hl-r">
+        <span class="d">{{ row.dayLabel }}</span>
+        <span class="i">
+          <span class="rg">{{ row.range }}</span>
+          <span class="sb">{{ row.sub }}</span>
+        </span>
+        <span class="t" aria-hidden="true">
+          <span v-if="barStyle(row)" class="tp bar" :style="barStyle(row)!" />
+        </span>
+        <span class="s"><span class="b" :class="row.tone" aria-hidden="true" />{{ row.status }}</span>
+      </li>
     </ul>
     <div class="hl-key">
-      <span class="k"><span class="kb shift" aria-hidden="true" />Ca</span>
       <span class="k"><span class="kb bar" aria-hidden="true" />Có mặt</span>
-      <span class="k"><span class="kb lunch" aria-hidden="true" />Nghỉ trưa</span>
-      <span class="k"><span class="kb late" aria-hidden="true" />Đi muộn</span>
-      <span class="k"><span class="kb miss" aria-hidden="true" />Giờ khai chờ duyệt</span>
     </div>
   </template>
   <div v-else class="hl-tw">
@@ -81,7 +48,7 @@ const partStyle = (p: TrackPart) => ({
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in flat" :key="row.date">
+        <tr v-for="row in entries" :key="row.date">
           <th scope="row">{{ row.dayLabel }}</th>
           <td>{{ row.inText }}</td>
           <td>{{ row.outText }}</td>
@@ -148,11 +115,20 @@ const partStyle = (p: TrackPart) => ({
   line-height: 16px;
   color: var(--muted);
 }
+/* Trạng thái là viên thuốc viền xám, căn phải cột (bảng AttendanceEmployee). */
 .hl-r .s {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+  justify-self: end;
+  max-width: 100%;
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 .b.nocheck {
   background: var(--status-draft);

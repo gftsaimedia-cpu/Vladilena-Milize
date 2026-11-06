@@ -4,10 +4,13 @@ import { sql, type Kysely } from 'kysely';
 import type { DB } from '../../src/database/schema';
 import { TransactionCoordinator } from '../../src/database/transaction';
 import { defaultsOf, encodeValues } from '../../src/modules/settings/domain/setting-groups';
+import { SettingsChanges } from '../../src/modules/settings/settings-changes';
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
 import { SettingsStaleError, TypeWeekMissingError } from '../../src/modules/settings/settings.errors';
 import { SettingsRepository, type ChangeRow } from '../../src/modules/settings/settings.repository';
 import { SettingsService } from '../../src/modules/settings/settings.service';
+import { AuditLog } from '../../src/modules/audit/audit-log';
+import { AuditRepository } from '../../src/modules/audit/audit.repository';
 import { withTempDb } from './helpers/pg-temp-db';
 
 const META = { actor: 'admin', at: '2026-11-05T03:00:00.000Z' };
@@ -231,7 +234,8 @@ test('zone, closed month, change log and stamps', async t => {
 test('two concurrent saves with the same stamp: one wins, the other gets stale', async t => {
   await withTempDb(t, 'settings_service_race', async db => {
     const repo = new SettingsRepository(db);
-    const svc = new SettingsService(repo, new SettingsReader(repo), new TransactionCoordinator(db));
+    const tx = new TransactionCoordinator(db);
+    const svc = new SettingsService(repo, new SettingsReader(repo), tx, new SettingsChanges(), new AuditLog(new AuditRepository(), tx));
     const now = new Date('2026-11-05T03:00:00Z');
     const results = await Promise.allSettled([
       svc.saveGroup('overtime', { effectiveMonth: '2026-12', values: { weekdayRate: 1.6 }, stamp: 0 }, 'admin-a', now),

@@ -195,6 +195,8 @@ export interface SystemRequestDTO {
   reviewNote: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Các ngày đơn giữ hoặc chạm tới (`requestDates`), tăng dần; tạm ứng là []. */
+  dates: string[];
 
   leaveType: LeaveType | null;
   leaveStartDate: string | null;

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Hồ sơ nhân sự</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body { margin: 0; }
+[hidden] { display: none !important; }
+a { color: #212121; }
+button:focus-visible, a:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+.stt { display: inline-flex; align-items: center; gap: 6px; height: 24px; box-sizing: border-box; padding: 0 10px; border-radius: 50px; border: 1px solid var(--border); background: #ffffff; font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.stt i { width: 8px; height: 8px; border-radius: 50%; }
+.d-ok { background: #1c1c1c; }
+.d-try { background: #e8c372; }
+.d-off { background: #2f5aa8; }
+.d-out { background: #9e9e9e; }
+.hb { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #212121; cursor: pointer; }
+.mut { color: #616161; font-size: 12px; line-height: 16px; }
+.nt { display: flex; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--page); }
+.nt i { width: 8px; height: 8px; flex: none; margin-top: 6px; border-radius: 50%; background: #2f5aa8; }
+.sd section h3 { margin: 0 0 4px; font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: #616161; }
+.sd .fr { display: grid; grid-template-columns: 148px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.sd .fr > span:first-child { color: #616161; }
+.sd .fr > span:last-child { font-weight: 500; }
+.d1, .d2 { height: 40px; padding: 0 16px; border-radius: 8px; font: inherit; font-weight: 500; cursor: pointer; }
+.d1 { flex: 1 1 0; background: #000000; border: 1px solid #000000; color: #ffffff; }
+.d2 { background: #ffffff; border: 1px solid var(--control); color: #212121; }
+</style>
+</helmet>
+<div style="--page: {{c.page}}; --border: {{c.border}}; --control: {{c.control}}; position: relative; min-height: 1200px; background: {{c.page}}; font-family: Geist, system-ui, sans-serif; font-size: 14px; line-height: 20px; color: #212121; font-variant-numeric: tabular-nums;">
+<dc-import name="Staff" sidebar="{{sidebar}}" theme="{{theme}}" hint-size="100%,1200px"></dc-import>
+<div aria-hidden="true" style="position: absolute; inset: 0; z-index: 5; background: rgba(28, 28, 28, 0.32);"></div>
+<aside role="dialog" aria-label="Hồ sơ của Hoàng Thị Mai" style="position: absolute; z-index: 6; top: 16px; right: 16px; bottom: 16px; width: 480px; max-width: calc(100% - 32px); box-sizing: border-box; display: flex; flex-direction: column; border-radius: 24px; background: #ffffff; overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 4px; padding: 20px 16px 0 24px;">
+<h2 style="margin: 0; flex-grow: 1; font-size: 18px; line-height: 24px; font-weight: 600;">Hồ sơ nhân sự</h2>
+<button type="button" class="hb" aria-label="Người trước"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></button>
+<button type="button" class="hb" aria-label="Người sau"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button>
+<a href="Staff.dc.html" class="hb" aria-label="Đóng" style="color: #616161;"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></a>
+</div>
+<div class="sd" style="flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 16px 24px 24px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span aria-hidden="true" style="width: 48px; height: 48px; flex: none; border-radius: 50px; display: grid; place-items: center; background: #fce8b2; font-weight: 600;">TM</span>
+<div style="flex-grow: 1; min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Hoàng Thị Mai</div><div class="mut">GFT-0118 · Kế toán viên</div></div>
+<span class="stt"><i class="d-off" aria-hidden="true"></i>Tạm nghỉ</span>
+</div>
+<div class="nt"><i aria-hidden="true"></i><div><div style="font-weight: 600;">Nghỉ thai sản</div><div class="mut">15/09/2026 – 15/03/2027 · đi làm lại 16/03/2027</div></div></div>
+<section><h3>Công việc</h3><div class="fr"><span>Phòng ban</span><span>Tài chính</span></div><div class="fr"><span>Chức danh</span><span>Kế toán viên</span></div><div class="fr"><span>Loại · bậc</span><span>NV · Bậc 2</span></div><div class="fr"><span>Quản lý trực tiếp</span><span>Nguyễn Thu Hà</span></div><div class="fr"><span>Ca làm</span><span>Hành chính · 08:00–17:00</span></div><div class="fr"><span>Ngày vào làm</span><span>02/05/2022 · 4 năm 5 tháng</span></div></section>
+<section><h3>Hợp đồng</h3><div class="fr"><span>Loại hợp đồng</span><span>HĐLĐ không xác định thời hạn</span></div><div class="fr"><span>Đóng bảo hiểm</span><span>Có</span></div><div class="fr"><span>Người phụ thuộc</span><span>1</span></div></section>
+<section><h3>Tài khoản</h3><div class="fr"><span>Email</span><span>mai.hoang@gft.vn</span></div><div class="fr"><span>Kích hoạt</span><span>Đã kích hoạt</span></div></section>
+</div>
+<div style="display: flex; gap: 8px; padding: 12px 24px 16px; border-top: 1px solid {{c.border}};">
+<a href="AttendanceEmployee.dc.html" class="d2" style="display: inline-flex; align-items: center; text-decoration: none; box-sizing: border-box;">Xem chấm công</a>
+<button type="button" class="d1">Sửa hồ sơ</button>
+</div>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Nền xám","Nền kem"],"default":"Nền xám","section":"Màu"},"sidebar":{"editor":"enum","options":["Tối","Sáng"],"default":"Tối","section":"Khung"},"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const kem = (this.props.theme ?? 'Nền xám') === 'Nền kem';
+    const c = kem
+      ? { page: '#f2ead8', border: '#e6dcc6', control: '#857f74', draft: '#e6dcc6' }
+      : { page: '#f5f5f5', border: '#e0e0e0', control: '#8a8a8a', draft: '#e0e0e0' };
+    return { c, theme: this.props.theme ?? 'Nền xám', sidebar: this.props.sidebar ?? 'Tối' };
+  }
+}
+</script>
+</body>
+</html>

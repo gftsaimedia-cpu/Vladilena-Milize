@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it, mock } from 'node:test';
 import 'reflect-metadata';
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import { HTTP_CODE_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ACCESS_KEY } from '../../src/common';
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { MeController } from '../../src/modules/me/me.controller';
+import { vnToday } from '../../src/modules/me/domain';
+import { PeriodLockedError } from '../../src/modules/periods/periods.errors';
 import { TypeWeekMissingError } from '../../src/modules/settings/settings.errors';
 
 const NAM: any = { uuid: 'u-nam', username: 'nam', name: 'Nam', role: 'staff', type: 'nv', level: 1, payrollSubject: true };
@@ -36,15 +38,15 @@ const settingsFake = (over: Record<string, (...a: any[]) => any> = {}) =>
     ...over
   });
 
-function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'sys' | 'expl' | 'set', ReturnType<typeof fake>>> = {}) {
+function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'periods' | 'expl' | 'set', ReturnType<typeof fake>>> = {}) {
   const att = over.att ?? fake({ listTimesheets: () => [], recordPunch: () => ({ punch: {} }), workdayOf: () => true });
   const reqs = over.reqs ?? fake({ listRequests: () => ({ items: [], total: 0 }) });
   const pay = over.pay ?? fake();
   const emp = over.emp ?? fake({ findByUsernameOrUuid: () => namEmployee() });
-  const sys = over.sys ?? fake({ getPeriod: () => null });
+  const periods = over.periods ?? fake({ getPeriod: () => null });
   const expl = over.expl ?? fake({ reminders: () => [], dayView: () => ({ explanation: null, due: null }) });
   const set = over.set ?? settingsFake();
-  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, sys.proxy, expl.proxy, set.proxy), att, reqs, pay, emp, sys, expl, set };
+  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, periods.proxy, expl.proxy, set.proxy), att, reqs, pay, emp, periods, expl, set };
 }
 
 describe('MeController', () => {
@@ -87,6 +89,18 @@ describe('MeController', () => {
     });
   });
 
+  it('a punch into a locked month is a 409 PERIOD_LOCKED, not a 400', async () => {
+    const lock = new PeriodLockedError('2026-10', 'attendance_locked');
+    const { ctl } = controller({ att: fake({ recordPunch: () => { throw lock; } }) });
+    await assert.rejects(ctl.punch(req(), { kind: 'IN', lat: 1, lng: 2, accuracyM: 10 } as any), (e: any) => e === lock && e.status === 409 && e.details.code === 'PERIOD_LOCKED');
+  });
+
+  it('filing a request into a locked month is a 409 PERIOD_LOCKED, not a 400', async () => {
+    const lock = new PeriodLockedError('2026-10', 'attendance_locked');
+    const { ctl } = controller({ reqs: fake({ createLeaveRequest: () => { throw lock; } }) });
+    await assert.rejects(ctl.createRequest(req(), 'leave', { leaveType: 'ANNUAL' }), (e: any) => e === lock && e.status === 409 && e.details.code === 'PERIOD_LOCKED');
+  });
+
   it("reading someone else's request is a 404", async () => {
     const { ctl } = controller({ reqs: fake({ getById: () => ({ id: 'r1', employeeId: 'ha', status: 'PENDING', createdAt: 'x', reviewedAt: null }) }) });
     await assert.rejects(ctl.getRequest(req(), 'r1'), (e: any) => e.status === 404);
@@ -105,6 +119,11 @@ describe('MeController', () => {
     const out = await ctl.previewRequest(req(), 'leave', { employeeId: 'mallory', leaveType: 'ANNUAL' } as any);
     assert.deepEqual(out, result);
     assert.deepEqual(reqs.calls.previewRequest, ['leave', { employeeId: 'nam', leaveType: 'ANNUAL' }, { filedBy: 'self' }]);
+  });
+
+  // BUG-requests-13: spec 2.2 và v2-contract ghi xem trước "luôn trả 200"; @Post của Nest mặc định 201.
+  it('preview answers 200, not the POST default 201', () => {
+    assert.equal(Reflect.getMetadata(HTTP_CODE_METADATA, MeController.prototype.previewRequest), 200);
   });
 
   it('preview of isat or unknown kind is 404', async () => {
@@ -237,11 +256,16 @@ describe('MeController', () => {
   });
 
   it('the month is locked once Admin closed it with Chốt công', async () => {
-    const { ctl, sys } = controller({ sys: fake({ getPeriod: () => ({ month: '2026-10', status: 'attendance_locked' }) }) });
+    const { ctl, periods } = controller({ periods: fake({ getPeriod: () => ({ month: '2026-10', status: 'attendance_locked' }) }) });
     assert.equal(((await ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'locked');
-    assert.equal(sys.calls.getPeriod[0], '2026-10');
+    assert.equal(periods.calls.getPeriod[0], '2026-10');
     const open = controller();
     assert.equal(((await open.ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'open');
+  });
+
+  it('a month Admin reopened with Mở lại công is open again', async () => {
+    const { ctl } = controller({ periods: fake({ getPeriod: () => ({ month: '2026-10', status: 'open' }) }) });
+    assert.equal(((await ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'open');
   });
 
   it('without a month the server picks this month, whatever the device clock says', async () => {
@@ -362,6 +386,121 @@ describe('MeController', () => {
     await assert.rejects(ctl.today(req()), (e: any) => e === boom);
     await assert.rejects(ctl.attendanceMonth(req(), '2026-10'), (e: any) => e === boom);
     await assert.rejects(ctl.attendanceDay(req(), '2026-10-10'), (e: any) => e === boom);
+  });
+
+  // ---- Dòng ngày dùng chung (spec attendance-core 8.2) ----
+  const LATE = { code: 'LATE_CHECK_IN', minutes: 40, affectsPay: true };
+  // Dòng ngày công như DailyTimesheetDTO: PRESENT, ca 08:00–17:00, vào 08:40 ra 17:00 (giờ VN), chưa giải trình.
+  const dayRow = (workDate: string, over: Record<string, unknown> = {}) => ({
+    employeeId: 'u-nam', workDate, status: 'PRESENT',
+    shiftType: 'NORMAL', shiftStartTime: '08:00', shiftEndTime: '17:00',
+    actualCheckIn: `${workDate}T01:40:00.000Z`, actualCheckOut: `${workDate}T10:00:00.000Z`,
+    metrics: { workHours: 8.33, lateMinutes: 40 },
+    leaveType: null, cases: [LATE], explanationStatus: 'NONE', explanationRequestId: null,
+    payUnits: 0, deductionMinutes: 0, countsAsWorkday: false, countsAsDayOff: false, makeupMinutes: 0, ...over
+  });
+  const noShift = { shiftType: null, shiftStartTime: null, shiftEndTime: null, actualCheckIn: null, actualCheckOut: null, metrics: { workHours: 0, lateMinutes: 0 }, cases: [] };
+
+  it('the month view reads the day rows: kind, explanationStatus, cases and totals', async () => {
+    const rows = [
+      dayRow('2026-10-05'), // chậm 40 phút, chưa duyệt: todo, chưa tính công
+      dayRow('2026-10-06', { cases: [], metrics: { workHours: 9, lateMinutes: 0 }, actualCheckIn: '2026-10-06T01:00:00.000Z', payUnits: 1, countsAsWorkday: true }),
+      dayRow('2026-10-07', { ...noShift, status: 'HOLIDAY', payUnits: 1 })
+    ];
+    const { ctl } = controller({ att: fake({ listTimesheets: () => rows }) });
+    const m = (await ctl.attendanceMonth(req(), '2026-10')) as any;
+    const d5 = m.days.find((d: any) => d.date === '2026-10-05');
+    assert.deepEqual([d5.kind, d5.explanationStatus, d5.cases, d5.in, d5.out], ['todo', 'none', [LATE], '08:40', '17:00']);
+    assert.equal(m.days.find((d: any) => d.date === '2026-10-06').kind, 'work');
+    const d7 = m.days.find((d: any) => d.date === '2026-10-07');
+    assert.deepEqual([d7.kind, d7.leave], ['leave', 'holiday']);
+    assert.deepEqual([m.totals.workDays, m.totals.paidLeaveDays, m.totals.lateCount], [1, 1, 0]);
+    assert.equal(m.totals.standardDays, 26); // lấy từ cài đặt như trước
+  });
+
+  it('the day view returns the row kind, keeps the explanation object and does not mix the two names', async () => {
+    const view = { explanation: { id: 'e1', status: 'PENDING' }, due: { dueDate: '2026-11-07', overdue: false } };
+    const { ctl } = controller({
+      att: fake({ getTimesheet: () => dayRow('2026-10-05', { explanationStatus: 'PENDING', explanationRequestId: 'e1' }) }),
+      expl: fake({ dayView: () => view })
+    });
+    const d = (await ctl.attendanceDay(req(), '2026-10-05')) as any;
+    assert.equal(d.kind, 'todo');
+    assert.equal(d.explanationStatus, 'pending');
+    assert.deepEqual(d.cases, [LATE]);
+    assert.deepEqual(d.explanation, view.explanation);
+    assert.deepEqual(d.due, view.due);
+    assert.deepEqual(d.shift, { start: '08:00', end: '17:00' });
+  });
+
+  it('a row without a shift gives shift null, never an object of nulls', async () => {
+    const holiday = dayRow('2026-10-05', { ...noShift, status: 'HOLIDAY', payUnits: 1 });
+    const { ctl } = controller({ att: fake({ getTimesheet: () => holiday }) });
+    const d = (await ctl.attendanceDay(req(), '2026-10-05')) as any;
+    assert.equal(d.shift, null);
+    assert.equal(d.kind, 'leave');
+
+    const today = vnToday();
+    const t = controller({ att: fake({ listTimesheets: () => [dayRow(today, { ...noShift, status: 'REST' })], workdayOf: () => false }) });
+    const out = (await t.ctl.today(req())) as any;
+    assert.equal(out.shift, null);
+    assert.equal(out.workedMinutes, 0);
+  });
+
+  it("today returns the row's shift, punches and worked minutes", async () => {
+    const today = vnToday();
+    const row = dayRow(today, { status: 'PENDING', actualCheckOut: null, cases: [], metrics: { workHours: 0, lateMinutes: 0 } });
+    const full = dayRow(today, { cases: [], metrics: { workHours: 7.5, lateMinutes: 0 } });
+    const pending = controller({ att: fake({ listTimesheets: () => [row] }) });
+    const p = (await pending.ctl.today(req())) as any;
+    assert.deepEqual(p.shift, { type: 'NORMAL', start: '08:00', end: '17:00' });
+    assert.deepEqual(p.punches, { in: '08:40', out: null });
+    assert.equal(p.week.find((d: any) => d.date === today).kind, 'work');
+    const done = controller({ att: fake({ listTimesheets: () => [full] }) });
+    assert.equal(((await done.ctl.today(req())) as any).workedMinutes, 450);
+  });
+
+  describe('the home alert', () => {
+    // Thứ Tư 09/12/2026: thứ Hai 07/12 và thứ Ba 08/12 đã qua.
+    const alertFor = async (rows: unknown[]) => {
+      mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-12-09T05:00:00Z') });
+      try {
+        const { ctl } = controller({ att: fake({ listTimesheets: () => rows }) });
+        return ((await ctl.today(req())) as any).alert;
+      } finally {
+        mock.timers.reset();
+      }
+    };
+
+    it('a past todo day with no explanation prompts', async () => {
+      assert.deepEqual(await alertFor([dayRow('2026-12-08')]), { date: '2026-12-08', kind: 'todo' });
+    });
+
+    it('a rejected explanation prompts again', async () => {
+      assert.deepEqual(await alertFor([dayRow('2026-12-08', { explanationStatus: 'REJECTED' })]), { date: '2026-12-08', kind: 'todo' });
+    });
+
+    it('a pending explanation does not prompt, but the day cell stays todo', async () => {
+      mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-12-09T05:00:00Z') });
+      try {
+        const { ctl } = controller({ att: fake({ listTimesheets: () => [dayRow('2026-12-08', { explanationStatus: 'PENDING' })] }) });
+        const t = (await ctl.today(req())) as any;
+        assert.equal(t.alert, null);
+        assert.equal(t.week.find((d: any) => d.date === '2026-12-08').kind, 'todo');
+      } finally {
+        mock.timers.reset();
+      }
+    });
+
+    it('a pending day is skipped for the latest older day that still needs an explanation', async () => {
+      const rows = [dayRow('2026-12-07'), dayRow('2026-12-08', { explanationStatus: 'PENDING' })];
+      assert.deepEqual(await alertFor(rows), { date: '2026-12-07', kind: 'todo' });
+    });
+
+    it('an approved explanation never prompts', async () => {
+      const approved = dayRow('2026-12-08', { explanationStatus: 'APPROVED', payUnits: 1, countsAsWorkday: true });
+      assert.equal(await alertFor([approved]), null);
+    });
   });
 
   it('income carries the pay date of the month in all three states', async () => {

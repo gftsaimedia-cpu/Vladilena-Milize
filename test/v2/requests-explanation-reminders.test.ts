@@ -106,7 +106,9 @@ describe('Lời nhắc giải trình và route Admin (spec 3.4–3.5)', () => {
         date: '2026-11-02',
         cases: ['MISSING_CHECK_OUT'],
         needs: { checkIn: false, checkOut: true },
-        remindedAt: null
+        remindedAt: null,
+        checkIn: '08:00',
+        checkOut: null
       });
     });
 
@@ -123,7 +125,7 @@ describe('Lời nhắc giải trình và route Admin (spec 3.4–3.5)', () => {
     it('skips a person whose days cannot be read (T8a)', async () => {
       ctx.repo.filingStaff = [
         { uuid: '0a7c4e2e-9999-4a6b-9c1d-000000000009', username: 'khong-ho-so', name: 'Không hồ sơ' },
-        ...ctx.repo.filingStaff
+        ...(ctx.repo.filingStaff ?? [])
       ];
       const items = await ctx.explanations.listDue();
       assert.deepEqual(
@@ -156,6 +158,21 @@ describe('Lời nhắc giải trình và route Admin (spec 3.4–3.5)', () => {
         ctl.remindExplanation({ employeeId: 'nv01', date: 'xyz' }, ADMIN),
         (e: any) => e instanceof BadRequestError
       );
+    });
+
+    it('remind route: a locked or calculated month can be reminded, an approved month is a 409 PERIOD_LOCKED', async () => {
+      setNow('2026-11-04T02:40:00Z');
+      const ctl = new RequestsController(ctx.service, ctx.explanations);
+      ctx.periods.statuses.set('2026-11', 'attendance_locked');
+      assert.equal((await ctl.remindExplanation({ employeeId: 'nv01', date: '2026-11-02' }, ADMIN)).reminded, true);
+      ctx.periods.statuses.set('2026-11', 'approved');
+      await assert.rejects(ctl.remindExplanation({ employeeId: 'nv01', date: '2026-11-03' }, ADMIN), (e: any) => {
+        assert.equal(e.status, 409);
+        assert.equal(e.message, 'Kỳ lương tháng 11/2026 đã phê duyệt');
+        assert.deepEqual(e.details, { code: 'PERIOD_LOCKED', month: '2026-11', status: 'approved' });
+        return true;
+      });
+      assert.deepEqual([...ctx.reminders.rows.values()].map(r => r.date), ['2026-11-02']);
     });
 
     it('remind route reminds as the signed-in admin', async () => {

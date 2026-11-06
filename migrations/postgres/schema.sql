@@ -73,12 +73,11 @@ CREATE TABLE pay_entries (
 
 CREATE TABLE payroll_periods (
     month TEXT PRIMARY KEY,
-    status TEXT NOT NULL CHECK (status IN ('open','attendance_locked','calculated','reviewed','approved','paid')),
+    status TEXT NOT NULL CHECK (status IN ('open','attendance_locked','calculated','approved','paid')),
     rev BIGINT NOT NULL DEFAULT 1,
     current_run_id BIGINT,
     attendance_locked_by TEXT, attendance_locked_at TEXT,
     calculated_by TEXT, calculated_at TEXT,
-    reviewed_by TEXT, reviewed_at TEXT,
     approved_by TEXT, approved_at TEXT,
     paid_by TEXT, paid_at TEXT, paid_ref TEXT,
     reopen_count BIGINT NOT NULL DEFAULT 0
@@ -371,10 +370,11 @@ CREATE TABLE timesheet_entries (
     id UUID PRIMARY KEY,
     employee_id TEXT NOT NULL REFERENCES staff(uuid),
     work_date DATE NOT NULL,
-    shift_type TEXT NOT NULL,
-    shift_start_time TEXT NOT NULL,
-    shift_end_time TEXT NOT NULL,
-    shift_allowance_pct INTEGER NOT NULL,
+    -- Ca: NULL trên ngày không có ca (OUTSIDE, REST, EXTRA, HOLIDAY, nghỉ)
+    shift_type TEXT,
+    shift_start_time TEXT,
+    shift_end_time TEXT,
+    shift_allowance_pct INTEGER,
     actual_check_in TIMESTAMPTZ,
     actual_check_out TIMESTAMPTZ,
     work_hours REAL NOT NULL DEFAULT 0,
@@ -382,11 +382,24 @@ CREATE TABLE timesheet_entries (
     ot_hours REAL NOT NULL DEFAULT 0,
     late_minutes INTEGER NOT NULL DEFAULT 0,
     early_minutes INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN
+      ('OUTSIDE', 'HOLIDAY', 'ISAT', 'LEAVE_PAID', 'LEAVE_UNPAID', 'LEAVE_MAKEUP', 'REST', 'EXTRA', 'PENDING', 'PRESENT', 'ABSENT')),
     is_locked BOOLEAN NOT NULL DEFAULT false,
     check_in_status TEXT NOT NULL DEFAULT 'PENDING',
     check_out_status TEXT NOT NULL DEFAULT 'PENDING',
     day_status TEXT NOT NULL DEFAULT 'IN_PROGRESS',
+    -- Dòng ngày đầy đủ (attendance-core, spec §6)
+    leave_type TEXT CHECK (leave_type IS NULL OR leave_type IN
+      ('ANNUAL', 'PERSONAL_PAID', 'PERSONAL_UNPAID', 'SOCIAL_INSURANCE', 'WELFARE', 'UNPAID')),
+    source_request_id UUID REFERENCES system_requests(id),
+    cases_json TEXT NOT NULL DEFAULT '[]',
+    explanation_status TEXT NOT NULL DEFAULT 'NONE' CHECK (explanation_status IN ('NONE', 'PENDING', 'APPROVED', 'REJECTED')),
+    explanation_request_id UUID REFERENCES system_requests(id),
+    pay_units REAL NOT NULL DEFAULT 0 CHECK (pay_units IN (0, 1)),
+    deduction_minutes INTEGER NOT NULL DEFAULT 0 CHECK (deduction_minutes >= 0),
+    counts_as_workday BOOLEAN NOT NULL DEFAULT false,
+    counts_as_day_off BOOLEAN NOT NULL DEFAULT false,
+    makeup_minutes INTEGER NOT NULL DEFAULT 0 CHECK (makeup_minutes >= 0),
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     CONSTRAINT uq_timesheet_emp_date UNIQUE(employee_id, work_date)

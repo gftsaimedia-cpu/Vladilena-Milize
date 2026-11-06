@@ -1,26 +1,25 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
-import { TransactionCoordinator } from '../../database';
-import { businessDateText } from '../../common/business-date';
+import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
+import { PeriodGate } from '../periods/period-gate';
+import { BadRequestError, assertEmployed } from '../../common';
+import { businessDateText, businessTimeText } from '../../common/business-date';
+import { isValidDateText } from '../../common/date-text';
 import { checkPunchLocation, isWorkday, SettingsReader, TypeWeekMissingError } from '../settings';
+import { RealtimeBus } from '../realtime/realtime-bus';
+import type { RealtimeEvent } from '../realtime/realtime-event';
 import { PunchRefusedError } from './attendance.errors';
 import { AttendanceRepository, TimesheetFilter } from './attendance.repository';
+import { AttendanceDaysService, employeeLockKey } from './attendance-days.service';
 import {
   GeoLocation,
   PunchEvent,
   PunchEventDTO,
-  DailyTimesheet,
   DailyTimesheetDTO,
-  ShiftType,
   CreatePunchEventProps,
-  WorkSchedule,
+  addDaysText,
+  datesOfMonth,
+  workDateOfPunch,
 } from './domain';
-
-export interface ShiftConfigInput {
-  shiftType: ShiftType;
-  shiftStartTime: string;
-  shiftEndTime: string;
-  shiftAllowancePct?: number;
-}
 
 export interface RecordPunchInput {
   employeeId: string;
@@ -32,21 +31,44 @@ export interface RecordPunchInput {
   note?: string;
   workDate?: string;
   punchedAt?: Date | string;
-  shiftConfig?: ShiftConfigInput;
 }
+
+/** Cùng câu với kiểm tra `workDate` của domain chấm công. */
+const workDateError = (workDate: unknown): string => `Ngày công (workDate) không hợp lệ (YYYY-MM-DD): ${workDate}`;
 
 export interface RecordPunchResult {
   punch: PunchEventDTO;
   timesheet: DailyTimesheetDTO;
 }
 
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 @Injectable()
 export class AttendanceService {
+  // Ruling: tham số bắt buộc trước, @Optional() cuối. `settings` bắt buộc trong DI (không @Optional, thiếu import thì Nest
+  // báo lỗi lúc khởi động) nên đứng thứ ba; `txCoordinator` đứng cuối. Kiểu TS của `settings` vẫn tuỳ chọn để test dựng tay
+  // gọi `new AttendanceService(repo, days)` hoặc `new AttendanceService(repo, days, settings, coordinator)`.
   constructor(
     @Inject(AttendanceRepository) private readonly repo: AttendanceRepository,
-    @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
+    @Inject(AttendanceDaysService) private readonly days: AttendanceDaysService,
     @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf' | 'zone'>,
+    @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
+    // Cổng kỳ (spec kỳ lương §5): tháng của ngày công đã chốt thì không chấm, không tính lại.
+    @Optional() @Inject(PeriodGate) private readonly periodGate?: Pick<PeriodGate, 'hold'>,
+    // Phát sự kiện realtime sau khi commit; thiếu thì không phát.
+    @Optional() @Inject(RealtimeBus) private readonly bus?: RealtimeBus,
   ) {}
+
+  /** Phát sự kiện sau commit. Lỗi ở đây (tra tên, bus) chỉ ghi log, không làm hỏng request chấm công/tính lại. */
+  private async announce(employeeId: string, build: (who: { username: string; name: string }) => RealtimeEvent): Promise<void> {
+    if (!this.bus) return;
+    try {
+      const who = await this.repo.findIdentity(employeeId);
+      if (who) this.bus.publish(build(who));
+    } catch (err) {
+      console.error('Không phát được sự kiện realtime:', err);
+    }
+  }
 
   /**
    * Ngày `date` có phải ngày làm của người này không: đã có lịch, thứ thuộc tuần làm của tháng đó,
@@ -56,23 +78,31 @@ export class AttendanceService {
     if (!this.settings) return true;
     const schedule = await this.repo.findSchedule(employeeId, date);
     if (schedule) return schedule.status !== 'ON_LEAVE'; // lịch nghỉ phép đã duyệt không phải ngày làm
-    return await this.workdayWithoutSchedule(this.settings, employeeId, date);
+    return await this.workdayWithoutSchedule(this.settings, this.repo, employeeId, date);
   }
 
-  private async workdayWithoutSchedule(settings: Pick<SettingsReader, 'workWeekOf'>, employeeId: string, date: string): Promise<boolean> {
+  /** `repo` và `trx`: trong khoá chấm công thì đọc trên giao dịch đang giữ khoá; ngoài khoá thì đọc thẳng. */
+  private async workdayWithoutSchedule(
+    settings: Pick<SettingsReader, 'workWeekOf'>,
+    repo: AttendanceRepository,
+    employeeId: string,
+    date: string,
+    trx?: DatabaseTransaction,
+  ): Promise<boolean> {
     // Loại nhân sự chưa có tuần làm (vd. tài khoản quản trị đầu tiên) thì coi như tuần T2–T7, cùng mặc định với app nhân viên.
     let weekdays: readonly number[] = [1, 2, 3, 4, 5, 6];
     try {
-      weekdays = (await settings.workWeekOf(employeeId, date.slice(0, 7))).weekdays;
+      weekdays = (await settings.workWeekOf(employeeId, date.slice(0, 7), trx)).weekdays;
     } catch (err) {
       if (!(err instanceof TypeWeekMissingError)) throw err;
     }
-    return isWorkday(weekdays, date) || (await this.repo.hasApprovedWorkOn(employeeId, date));
+    return isWorkday(weekdays, date) || (await repo.hasApprovedWorkOn(employeeId, date));
   }
 
   /**
-   * Ghi nhận sự kiện chấm công và tính toán lại bảng công nhật (với lock bảo vệ).
-   * Có cài đặt thì kiểm ngày làm (chỉ chấm vào) rồi vùng chấm công (khi `checkZone`) trước khi ghi bất cứ gì.
+   * Ghi nhận sự kiện chấm công rồi để AttendanceDaysService dựng lại dòng ngày (T1).
+   * Mọi bước chạy trong một giao dịch, dưới khoá của nhân sự (cùng khoá với Đơn từ).
+   * Có cài đặt thì kiểm ngày làm (chỉ lần vào) rồi vùng chấm công (khi `checkZone`) trước khi lưu lần chấm.
    */
   async recordPunch(input: RecordPunchInput, options: { checkZone?: boolean } = {}): Promise<RecordPunchResult> {
     if (!input.employeeId) {
@@ -81,24 +111,68 @@ export class AttendanceService {
     if (input.type !== 'IN' && input.type !== 'OUT') {
       throw new Error("Loại chấm công phải là 'IN' hoặc 'OUT'");
     }
+    // Kiểm trước cổng kỳ: cột DATE vẫn đọc được '20261020' hay ' 2026-10-20', nhưng tháng cắt ra từ đó là rác.
+    if (input.workDate && !isValidDateText(input.workDate)) {
+      throw new Error(workDateError(input.workDate));
+    }
 
-    const workDate = input.workDate || businessDateText();
-    const lockKey = `punch_${input.employeeId}_${workDate}`;
+    const punchedAt = input.punchedAt ? new Date(input.punchedAt) : new Date();
+    if (isNaN(punchedAt.getTime())) {
+      throw new Error(`Thời điểm chấm công (punchedAt) không hợp lệ: ${input.punchedAt}`);
+    }
 
-    const executePunch = async () => {
-      // 1. Lấy hoặc tạo lịch làm việc cho ngày công
-      let schedule = await this.repo.findSchedule(input.employeeId, workDate);
+    const execute = async (trx?: DatabaseTransaction): Promise<RecordPunchResult> => {
+      const repo = trx ? this.repo.withTransaction(trx) : this.repo;
 
-      // Kiểm ngày làm và vùng trước khi tạo lịch mặc định: repo ghi bằng pool riêng nên kiểm sau thì lần bị từ chối vẫn để lại lịch.
+      // Ngày công: có workDate thì giữ nguyên; không thì theo ngày D của lần chấm, riêng lần ra ca đêm theo L21.
+      // Đọc dòng D−1 sau khi đã có khoá của nhân sự.
+      let workDate = input.workDate;
+      if (!workDate) {
+        const day = businessDateText(punchedAt);
+        const previous = input.type === 'OUT' ? await repo.findTimesheet(input.employeeId, addDaysText(day, -1)) : null;
+        workDate = workDateOfPunch({
+          at: punchedAt,
+          type: input.type,
+          previousDay: {
+            crossesMidnight: Boolean(
+              previous?.shiftStartTime && previous.shiftEndTime && previous.shiftEndTime <= previous.shiftStartTime,
+            ),
+            hasInWithoutOut: Boolean(previous?.actualCheckIn && !previous.actualCheckOut),
+          },
+        });
+      }
+
+      // 0. Tháng của NGÀY CÔNG (không phải ngày của lần chấm: lần ra 05:00 ngày 01/12 của ca đêm 30/11 thuộc tháng 11) đã
+      // chốt thì không ghi gì. Giữ khoá chia sẻ của tháng trên chính giao dịch của khoá nhân sự, để Chốt công chờ lượt chấm
+      // đang chạy.
+      await this.periodGate?.hold(trx, [workDate.slice(0, 7)], 'punch');
+
+      // 0b. Ngày công phải nằm trong thời gian làm việc (vào làm .. nghỉ việc); ngoài khoảng đó thì không ghi gì.
+      const employment = await repo.findEmployment(input.employeeId);
+      if (employment) assertEmployed(employment, [workDate]);
+
+      // 1. Chặn chấm công nếu nhân viên đang trong ngày nghỉ phép
+      const schedule = await repo.findSchedule(input.employeeId, workDate);
+      if (schedule && schedule.status === 'ON_LEAVE') {
+        throw new Error('Nhân viên đang trong ngày nghỉ phép / làm bù đã duyệt, không thể chấm công');
+      }
+
+      // 2. Kiểm tra xem ngày công đã bị khóa chưa
+      const existing = await repo.findTimesheet(input.employeeId, workDate);
+      if (existing && existing.isLocked) {
+        throw new Error('Bảng công ngày đã bị khóa cho kỳ lương, không thể tính toán lại');
+      }
+
+      // 3. Kiểm theo cài đặt: ngày làm (chỉ lần vào vào ngày chưa có lịch), rồi vùng chấm công (khi `checkZone`).
       let distanceM = 0;
       if (this.settings) {
-        if (!schedule && !input.shiftConfig && input.type === 'IN') {
-          if (!(await this.workdayWithoutSchedule(this.settings, input.employeeId, workDate))) {
+        if (!schedule && input.type === 'IN') {
+          if (!(await this.workdayWithoutSchedule(this.settings, repo, input.employeeId, workDate, trx))) {
             throw new PunchRefusedError('NOT_A_WORKDAY', 'Hôm nay không phải ngày làm của bạn');
           }
         }
         if (options.checkZone) {
-          const zone = await this.settings.zone();
+          const zone = await this.settings.zone(trx);
           const check = checkPunchLocation(zone, {
             lat: input.latitude ?? input.userLocation?.latitude,
             lng: input.longitude ?? input.userLocation?.longitude,
@@ -114,32 +188,7 @@ export class AttendanceService {
         }
       }
 
-      if (!schedule) {
-        if (input.shiftConfig) {
-          schedule = WorkSchedule.create({
-            employeeId: input.employeeId,
-            workDate,
-            shiftType: input.shiftConfig.shiftType,
-            plannedStartTime: input.shiftConfig.shiftStartTime,
-            plannedEndTime: input.shiftConfig.shiftEndTime,
-          });
-          await this.repo.saveSchedule(schedule);
-        } else {
-          schedule = await this.repo.ensureDefaultSchedule(input.employeeId, workDate);
-        }
-      }
-
-      // 2. Chặn chấm công nếu nhân viên đang trong ngày nghỉ phép
-      if (schedule.status === 'ON_LEAVE') {
-        throw new Error('Nhân viên đang trong ngày nghỉ phép / làm bù đã duyệt, không thể chấm công');
-      }
-
-      // 3. Kiểm tra xem ngày công đã bị khóa chưa
-      let timesheet = await this.repo.findTimesheet(input.employeeId, workDate);
-      if (timesheet && timesheet.isLocked) {
-        throw new Error('Bảng công ngày đã bị khóa cho kỳ lương, không thể tính toán lại');
-      }
-
+      // 4. Lưu lần chấm
       const lat = input.latitude ?? input.userLocation?.latitude ?? 0;
       const lng = input.longitude ?? input.userLocation?.longitude ?? 0;
       const accuracy = input.accuracyMeters ?? input.userLocation?.accuracyMeters ?? 0;
@@ -152,7 +201,7 @@ export class AttendanceService {
       const punchProps: CreatePunchEventProps = {
         employeeId: input.employeeId,
         workDate,
-        punchedAt: input.punchedAt,
+        punchedAt,
         type: input.type,
         userLocation,
         note: input.note,
@@ -161,33 +210,14 @@ export class AttendanceService {
       };
 
       const punch = PunchEvent.create(punchProps);
-      await this.repo.savePunch(punch);
+      await repo.savePunch(punch);
 
-      const punches = await this.repo.findPunches(input.employeeId, workDate);
-
+      // 5. Dựng lại dòng ngày từ nguồn sự thật, 6. rồi đọc lại để trả về
+      await this.days.refreshDays(input.employeeId, [workDate], trx ? { trx } : undefined);
+      const timesheet = await repo.findTimesheet(input.employeeId, workDate);
       if (!timesheet) {
-        const shiftType = (schedule.shiftType === 'CUSTOM' ? 'NORMAL' : schedule.shiftType) as ShiftType;
-        const shiftStartTime = schedule.plannedStartTime;
-        const shiftEndTime = schedule.plannedEndTime;
-        let shiftAllowancePct = input.shiftConfig?.shiftAllowancePct;
-        if (shiftAllowancePct === undefined) {
-          if (shiftType === 'NORMAL') shiftAllowancePct = 0;
-          else if (shiftType === 'FLEX') shiftAllowancePct = 10;
-          else shiftAllowancePct = 30;
-        }
-
-        timesheet = DailyTimesheet.create({
-          employeeId: input.employeeId,
-          workDate,
-          shiftType,
-          shiftStartTime,
-          shiftEndTime,
-          shiftAllowancePct,
-        });
+        throw new Error(`Không đọc lại được bảng công ngày ${workDate} sau khi chấm công`);
       }
-
-      timesheet = timesheet.calculate(punches, schedule);
-      await this.repo.saveTimesheet(timesheet);
 
       return {
         punch: punch.toJSON(),
@@ -195,33 +225,72 @@ export class AttendanceService {
       };
     };
 
-    if (this.txCoordinator) {
-      return await this.txCoordinator.withLock(lockKey, executePunch);
-    }
-    return await executePunch();
+    const result = this.txCoordinator
+      ? await this.txCoordinator.withLock(employeeLockKey(input.employeeId), trx => execute(trx))
+      : await execute();
+    const { punch } = result;
+    await this.announce(input.employeeId, who => ({
+      type: 'attendance.punched',
+      username: who.username,
+      name: who.name,
+      workDate: punch.workDate,
+      direction: input.type,
+      at: punchedAt.toISOString(),
+      time: businessTimeText(punchedAt),
+      source: options.checkZone ? 'self' : 'admin',
+    }));
+    return result;
   }
 
+  /** Admin tính lại một ngày (T7): dựng lại dòng ngày từ nguồn rồi trả dòng đó. */
   async recalculateTimesheet(employeeId: string, workDate: string): Promise<DailyTimesheetDTO> {
-    const schedule = await this.repo.findSchedule(employeeId, workDate);
-    if (!schedule) {
-      throw new Error(`Không tìm thấy lịch làm việc cho ngày ${workDate}`);
+    // Như ở recordPunch. Route tính lại không đổi lỗi thường thành 400, nên lỗi ngày là BadRequestError.
+    if (!isValidDateText(workDate)) {
+      throw new BadRequestError(workDateError(workDate), { code: 'INVALID_DATE' });
     }
+    const execute = async (trx?: DatabaseTransaction): Promise<DailyTimesheetDTO> => {
+      // Tháng đã chốt thì 409 PERIOD_LOCKED, không dựng lại gì; khoá chia sẻ của tháng giữ tới commit, như lúc chấm công.
+      await this.periodGate?.hold(trx, [workDate.slice(0, 7)], 'recalculate');
+      await this.days.refreshDays(employeeId, [workDate], trx ? { trx } : undefined);
+      const repo = trx ? this.repo.withTransaction(trx) : this.repo;
+      const timesheet = await repo.findTimesheet(employeeId, workDate);
+      if (!timesheet) {
+        throw new Error(`Không tìm thấy bảng công ngày ${workDate}`);
+      }
+      return timesheet.toJSON();
+    };
 
-    let timesheet = await this.repo.findTimesheet(employeeId, workDate);
-    if (!timesheet) {
-      timesheet = DailyTimesheet.create({
+    const result = this.txCoordinator
+      ? await this.txCoordinator.withLock(employeeLockKey(employeeId), trx => execute(trx))
+      : await execute();
+    await this.announce(employeeId, who => ({ type: 'attendance.changed', username: who.username, workDate }));
+    return result;
+  }
+
+  /** Admin tính lại cả tháng 'YYYY-MM' (T7): trả mọi dòng ngày của tháng theo ngày tăng. */
+  async recalculateMonth(employeeId: string, month: string): Promise<DailyTimesheetDTO[]> {
+    if (!MONTH_PATTERN.test(month)) {
+      throw new Error(`Tháng không hợp lệ (YYYY-MM): ${month}`);
+    }
+    const dates = datesOfMonth(month);
+
+    const execute = async (trx?: DatabaseTransaction): Promise<DailyTimesheetDTO[]> => {
+      // Cùng cổng kỳ với tính lại một ngày, theo tháng được tính lại.
+      await this.periodGate?.hold(trx, [month], 'recalculate');
+      await this.days.refreshMonth(employeeId, month, trx ? { trx } : undefined);
+      const repo = trx ? this.repo.withTransaction(trx) : this.repo;
+      const timesheets = await repo.listTimesheets({
         employeeId,
-        workDate,
-        shiftType: (schedule.shiftType === 'CUSTOM' ? 'NORMAL' : schedule.shiftType) as ShiftType,
-        shiftStartTime: schedule.plannedStartTime,
-        shiftEndTime: schedule.plannedEndTime,
+        startDate: dates[0],
+        endDate: dates[dates.length - 1],
       });
-    }
+      return timesheets.map((t) => t.toJSON());
+    };
 
-    const punches = await this.repo.findPunches(employeeId, workDate);
-    timesheet = timesheet.calculate(punches, schedule);
-    await this.repo.saveTimesheet(timesheet);
-    return timesheet.toJSON();
+    if (this.txCoordinator) {
+      return await this.txCoordinator.withLock(employeeLockKey(employeeId), trx => execute(trx));
+    }
+    return await execute();
   }
 
   async getPunches(employeeId: string, workDate: string): Promise<PunchEventDTO[]> {

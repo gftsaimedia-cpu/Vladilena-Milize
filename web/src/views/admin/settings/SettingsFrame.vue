@@ -5,16 +5,12 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad';
-import { getSettingsBadges } from '@/services/admin-settings';
 import { SETTINGS_NAV, PATHS } from './nav';
 import './settings-extra.css';
 
 defineProps({ active: { type: String, required: true } });
 
 const router = useRouter();
-const { data: badges } = useLoad(() => getSettingsBadges());
-
 // Ô tìm: Enter chuyển sang trang Tất cả cài đặt với từ khoá
 const q = ref('');
 function search() {
@@ -60,7 +56,6 @@ function search() {
         >
           <Icon :name="icon" />
           {{ label }}
-          <span v-if="badges && badges[key]" class="cnt2">{{ badges[key] }}</span>
         </RouterLink>
       </template>
     </nav>

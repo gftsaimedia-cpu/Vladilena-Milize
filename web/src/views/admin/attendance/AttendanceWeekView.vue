@@ -1,17 +1,17 @@
 <script setup lang="ts">
 // Chấm công theo tuần trên dữ liệu giả: 6 chỉ số, lưới 28 ngày (tab Tuần) và danh sách việc cần xử lý (tab Cần xử lý).
-// Tab, lọc tên, lọc phòng ban, việc đang chọn và hộp chi tiết ngày đều nằm trên URL (?xem, ?q, ?pb, ?viec, ?hop) và đổi bằng router.replace.
+// Tab, lọc tên, lọc nhóm, việc đang chọn và hộp chi tiết ngày đều nằm trên URL (?xem, ?q, ?pb (nhóm do BE trả), ?viec, ?hop) và đổi bằng router.replace.
 // Tab "Cần xử lý" từ 900px: danh sách bên trái, chi tiết việc đang chọn (BellDetail) bên phải; hẹp hơn thì chỉ có danh sách và
 // bấm dòng mở hộp chi tiết ngày như trước.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { fold } from '@/builders/admin-attendance/common';
 import BellDetail from '@/components/shell/BellDetail.vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import type { InboxItem } from '@/mock/inbox';
 import { getAttendance } from '@/services/admin-attendance';
+import { useRealtimeReload } from '@/composables/useRealtimeReload';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
 import DayDetailDialog from './DayDetailDialog.vue';
@@ -20,18 +20,22 @@ import WeekGrid from './parts/WeekGrid.vue';
 import { focusLost, untilIdle, useDayHop } from './useDayHop';
 import './attendance.css';
 
-const DEPARTMENTS = ['Tài chính', 'Kỹ thuật', 'Kinh doanh', 'Nhân sự', 'Marketing', 'Sản xuất'];
 const TILE_SWATCH: Record<string, string> = { todo: 'todo', present: 'work', late: 'late', leave: 'leave', absent: 'absent' };
 
 const route = useRoute();
 const router = useRouter();
+const str = (v: unknown) => (typeof v === 'string' ? v : '');
+const q = computed(() => str(route.query.q));
+const dept = computed(() => str(route.query.pb));
 const period = usePeriodStore();
 const shell = useShellStore();
 
-const { data, loading } = useLoad(
-  () => getAttendance(period.month),
-  () => `${period.month}|${shell.version}`
+// Lọc tên và nhóm do BE làm: đổi ?q hoặc ?pb thì tải lại.
+const { data, loading, reload } = useLoad(
+  () => getAttendance(period.month, q.value, dept.value),
+  () => `${period.month}|${shell.version}|${q.value}|${dept.value}`
 );
+useRealtimeReload(reload);
 
 // Trả focus sau hộp chi tiết ngày. Nút mở còn thì focus về nút đó (AppModal đã làm). Xử lý xong mà nút biến mất thì:
 //  - dòng trong "Cần xử lý": dòng đang đứng đúng chỗ đó (dòng sau dồn lên), không có thì dòng liền trước, hết dòng thì tab "Cần xử lý";
@@ -66,9 +70,6 @@ const { day, openDay, closeDay } = useDayHop<OpenerAt>({
   }
 });
 
-const str = (v: unknown) => (typeof v === 'string' ? v : '');
-const q = computed(() => str(route.query.q));
-const dept = computed(() => (DEPARTMENTS.includes(str(route.query.pb)) ? str(route.query.pb) : ''));
 const view = computed(() => (route.query.xem === 'can-xu-ly' ? 'pending' : 'week'));
 const monthNo = computed(() => Number(period.month.slice(5, 7)));
 const monthText = computed(() => `${monthNo.value}/${period.month.slice(0, 4)}`);
@@ -82,18 +83,16 @@ function setQuery(patch: Record<string, string>) {
   }
   router.replace({ query });
 }
+// Nhóm lạ trên URL (không có trong groups của BE) thì bỏ khỏi bộ lọc.
 watch(
-  () => route.query.pb,
-  pb => {
-    if (pb !== undefined && !DEPARTMENTS.includes(str(pb))) setQuery({ pb: '' });
-  },
-  { immediate: true }
+  () => data.value?.groups,
+  groups => {
+    if (groups && dept.value && !groups.some(g => g.key === dept.value)) setQuery({ pb: '' });
+  }
 );
 
-const keep = (person: { name: string; dept: string }) =>
-  (!dept.value || person.dept === dept.value) && (!q.value.trim() || fold(person.name).includes(fold(q.value.trim())));
-const rows = computed(() => (data.value?.rows ?? []).filter(r => keep(r.person)));
-const pending = computed(() => (data.value?.pending ?? []).filter(p => keep(p.person)));
+const rows = computed(() => data.value?.rows ?? []);
+const pending = computed(() => data.value?.pending ?? []);
 const filtered = computed(() => !!dept.value || !!q.value.trim());
 
 // ---- Tab "Cần xử lý": việc đang chọn ----
@@ -108,12 +107,14 @@ onBeforeUnmount(() => narrowQuery?.removeEventListener('change', onNarrow));
 
 const viecKey = computed(() => str(route.query.viec));
 const visibleIds = computed(() => pending.value.map(p => p.item.id));
-const sourceIds = computed(() => (data.value?.pending ?? []).map(p => p.item.id));
 
 // Việc đang hiện ở khung phải là bản chụp: BellDetail tự gọi decide, decide tải lại danh sách và việc vừa xử lý biến mất khỏi nguồn
 // trước khi thẻ kịp báo 'decided'; thẻ bị gỡ giữa chừng thì emit bị bỏ. Nên việc đã biến mất khỏi nguồn được giữ lại cho tới khi
 // onDecided chuyển sang việc khác. ?viec thiếu, sai hoặc bị lọc mất thì hiện dòng đầu đang thấy.
+// Việc vẫn còn trong nguồn (vừa nhắc giải trình) thì lấy bản mới để thẻ hiện "Đã nhắc" và nút "Nhắc lại".
 const shown = shallowRef<InboxItem | null>(null);
+// Đổi bộ lọc thì danh sách do BE trả lại khác hẳn: bỏ bản chụp cũ.
+watch([q, dept], () => (shown.value = null), { flush: 'sync' });
 watch(
   [pending, viecKey],
   () => {
@@ -121,8 +122,11 @@ watch(
     const hit = list.find(p => p.item.id === viecKey.value);
     const target = hit ?? list[0];
     const current = shown.value;
-    if (current && !hit && !sourceIds.value.includes(current.id)) return;
-    if (current && target && current.id === target.item.id) return;
+    if (current && !hit && !visibleIds.value.includes(current.id)) return;
+    if (current && target && current.id === target.item.id) {
+      if (current !== target.item) shown.value = target.item;
+      return;
+    }
     shown.value = target?.item ?? null;
   },
   { immediate: true }
@@ -135,9 +139,11 @@ watch(visibleIds, (_, before) => (previousIds = before ?? []), { flush: 'sync' }
 function pickItem(id: string) {
   setQuery({ viec: id });
 }
-async function onDecided({ id, ok, text }: { id: string; ok: boolean; text: string }) {
+// Việc vừa nhắc giải trình (`kept`) ở lại danh sách nên vẫn chọn nó, như ở chuông; thẻ tự trả focus về nút "Nhắc lại".
+async function onDecided({ id, ok, text, kept }: { id: string; ok: boolean; text: string; kept: boolean }) {
   if (ok) toast.ok(text);
   else toast.error(text);
+  if (kept) return;
   const base = visibleIds.value.includes(id) ? visibleIds.value : previousIds.includes(id) ? previousIds : visibleIds.value;
   const at = base.indexOf(id);
   const rest = base.filter(x => x !== id && visibleIds.value.includes(x));
@@ -225,12 +231,12 @@ function onTabKey(event: KeyboardEvent) {
           </label>
           <label class="fsel">
             <select
-              aria-label="Phòng ban"
+              aria-label="Nhóm"
               :value="dept"
               @change="setQuery({ pb: ($event.target as HTMLSelectElement).value })"
             >
-              <option value="">Phòng ban: Tất cả</option>
-              <option v-for="d in DEPARTMENTS" :key="d" :value="d">{{ d }}</option>
+              <option value="" :selected="!dept">Nhóm: Tất cả</option>
+              <option v-for="g in data.groups" :key="g.key" :value="g.key">{{ g.key }} ({{ g.count }})</option>
             </select>
             <Icon name="chev" :size="16" />
           </label>
@@ -238,7 +244,7 @@ function onTabKey(event: KeyboardEvent) {
 
         <WeekGrid v-if="view === 'week'" :days="data.days" :rows="rows" :month-no="monthNo" @open-day="openDay" />
         <template v-else>
-          <p v-if="filtered && !pending.length && data.pending.length" class="none">Không có nhân viên nào khớp.</p>
+          <p v-if="filtered && !pending.length && !rows.length" class="none">Không có nhân viên nào khớp.</p>
           <div v-else class="pv" :class="{ one: !wide }">
             <PendingList
               :pending="pending"
@@ -271,7 +277,7 @@ function onTabKey(event: KeyboardEvent) {
 
         <div v-if="view === 'week'" class="foot">
           <span class="live"><span class="dot" aria-hidden="true" />Đang làm</span>
-          <span class="cnt">Hiển thị {{ rows.length }} trong {{ data.total }} nhân viên</span>
+          <span class="cnt">Hiển thị {{ data.matched }} trong {{ data.total }} nhân viên</span>
         </div>
       </section>
     </template>
@@ -395,10 +401,9 @@ function onTabKey(event: KeyboardEvent) {
   display: inline-grid;
   place-items: center;
   border-radius: 50px;
-  border: 2px solid var(--status-pending);
-  background: var(--surface);
+  background: var(--status-pending);
   color: var(--text);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 16px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;

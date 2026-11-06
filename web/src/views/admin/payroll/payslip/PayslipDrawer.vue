@@ -14,6 +14,7 @@ import { kindLevelText } from '@/constants/labels';
 import type { Payslip } from '@/mock/payroll';
 import type { KpiPart, KpiScores } from '@/mock/payroll-calc';
 import { previewPayslip } from '@/services/admin-payroll';
+import { usePeriodStore } from '@/stores/period';
 import { monthShort } from '@/utils/format';
 import StatusPill from '../parts/StatusPill.vue';
 import SlipAttendance from './SlipAttendance.vue';
@@ -30,6 +31,17 @@ const props = defineProps<{
   decide: (id: string, decision: 'approve' | 'reject', note?: string) => Promise<void>;
 }>();
 const emit = defineEmits<{ close: []; prev: []; next: [] }>();
+
+// Trạng thái kỳ: chỉ duyệt / từ chối phiếu khi kỳ đã tính sau chốt công ('calculated'); kỳ đã phê duyệt hoặc đã trả thì
+// khoá luôn điểm KPI (BE trả PAYROLL_FINALIZED).
+const periodStatus = computed(() => usePeriodStore().view?.status);
+const canDecide = computed(() => periodStatus.value === 'calculated');
+const finalized = computed(() => periodStatus.value === 'approved' || periodStatus.value === 'paid');
+const lockedNote = computed(() =>
+  finalized.value
+    ? 'Kỳ lương đã phê duyệt: không duyệt, từ chối hay sửa điểm KPI được nữa. Huỷ phê duyệt kỳ để sửa.'
+    : 'Chỉ duyệt phiếu khi kỳ lương đã tính sau chốt công.'
+);
 
 const draft = ref<KpiScores>({ ...props.slip.kpi.scores });
 const PARTS = Object.keys(draft.value) as KpiPart[];
@@ -86,7 +98,8 @@ const close = () => {
 };
 const go = (to: 'prev' | 'next') => {
   flush();
-  emit(to);
+  if (to === 'prev') emit('prev');
+  else emit('next');
 };
 
 // Đang chờ một quyết định: các nút tắt để bấm đúp chỉ quyết một lần.
@@ -200,13 +213,22 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
 
     <SlipAttendance :slip="slip" :month="month" />
     <SlipSummary :slip="view" :month="month">
-      <template #kpi><SlipKpi :key="slip.id" :scores="view.kpi.scores" :name="slip.name" @update="update" @save="save" /></template>
+      <template #kpi>
+        <SlipKpi
+          :key="slip.id"
+          :scores="view.kpi.scores"
+          :weights="slip.rates?.kpiWeights ?? null"
+          :name="slip.name"
+          :readonly="finalized"
+          @update="update" @save="save" />
+        <p v-if="finalized" class="pd-note" role="note">Điểm KPI chỉ xem: kỳ lương đã phê duyệt.</p>
+      </template>
       <template #history><SlipHistory :key="slip.id" :history="view.kpi.history" /></template>
     </SlipSummary>
 
     <template #footer>
       <div class="pd-foot">
-        <div v-if="asking && !decided" class="pd-rs">
+        <div v-if="asking && !decided && canDecide" class="pd-rs">
           <label for="pd-reason">Lý do từ chối (không bắt buộc)</label>
           <textarea
             id="pd-reason"
@@ -220,6 +242,7 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
             <p>{{ decided }}</p>
             <p v-if="decidedNote" class="pd-why">Lý do: {{ decidedNote }}</p>
           </div>
+          <p v-else-if="!canDecide" class="pd-lock" role="note">{{ lockedNote }}</p>
           <template v-else-if="asking">
             <button type="button" class="btn" :disabled="deciding" @click="cancelReject">Huỷ</button>
             <button type="button" class="btn pri pd-approve" :disabled="deciding" @click="confirmReject">Xác nhận từ chối</button>
@@ -235,6 +258,12 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
 </template>
 
 <style scoped>
+.pd-lock {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--muted);
+}
 .pd-head {
   display: flex;
   align-items: center;

@@ -1,6 +1,6 @@
 {
   "extends": "../tsconfig.json",
-  "compilerOptions": {},
-  "include": ["./**/*.ts"],
+  "compilerOptions": { "lib": ["ES2024", "DOM"] },
+  "include": ["./**/*.ts", "../web/src/env.d.ts"],
   "exclude": ["../node_modules"]
 }

@@ -13,6 +13,7 @@ import {
   type ScheduleDay,
   type StaffContext
 } from '../../../src/modules/requests/requests.repository';
+import type { AttendanceDaysService } from '../../../src/modules/attendance/attendance-days.service';
 import { AttendanceRepository, type TimesheetFilter } from '../../../src/modules/attendance/attendance.repository';
 import { HolidaysRepository, type Holiday } from '../../../src/modules/holidays/holidays.repository';
 import { DayStatusRepository } from '../../../src/modules/requests/day-status.repository';
@@ -20,6 +21,8 @@ import { DailyTimesheet, WorkSchedule } from '../../../src/modules/attendance/do
 import type { TransactionCoordinator } from '../../../src/database';
 import type { AdvanceQuote } from '../../../src/modules/payroll/domain';
 import type { SettingsReader } from '../../../src/modules/settings';
+import { PeriodGate } from '../../../src/modules/periods/period-gate';
+import type { PeriodsRepository } from '../../../src/modules/periods/periods.repository';
 import {
   SystemRequest,
   eachDate,
@@ -194,7 +197,6 @@ export class FakeAttendanceRepository extends AttendanceRepository {
   }
 
   schedules = new Map<string, WorkSchedule>();
-  dayStatuses = new Map<string, string>();
   /** Bảng công các ngày (giờ vào/ra thật); dựng bằng `timesheet(...)`. */
   timesheets: DailyTimesheet[] = [];
 
@@ -234,11 +236,6 @@ export class FakeAttendanceRepository extends AttendanceRepository {
   override async saveSchedule(schedule: WorkSchedule): Promise<void> {
     this.calls.push(['saveSchedule', this.trx]);
     this.schedules.set(`${schedule.employeeId}:${schedule.workDate}`, schedule);
-  }
-
-  override async updateDayStatus(employeeId: string, workDate: string, status: string): Promise<void> {
-    this.calls.push(['updateDayStatus', this.trx]);
-    this.dayStatuses.set(`${employeeId}:${workDate}`, status);
   }
 }
 
@@ -418,15 +415,38 @@ export class RecordingLock {
   }
 }
 
-/** Kỳ lương trong bộ nhớ: `statuses` map tháng (YYYY-MM) → trạng thái; tháng không có trong map là chưa có dòng kỳ. */
+/** Thay AttendanceDaysService: ghi lại mỗi lần ghi lại ngày công (`calls`), không tính gì. */
+export class RecordingDays {
+  calls: Array<{ employeeId: string; dates: string[]; trx: unknown }> = [];
+
+  async refreshDays(employeeId: string, dates: readonly string[], opts: { trx?: unknown } = {}): Promise<[]> {
+    this.calls.push({ employeeId, dates: [...dates], trx: opts.trx });
+    return [];
+  }
+}
+
+/**
+ * Kỳ lương trong bộ nhớ, cùng hợp đồng với PeriodsRepository ở phần cổng kỳ đọc (`find`, `lockShared`): `statuses` map
+ * tháng (YYYY-MM) → trạng thái; tháng không có trong map là chưa có dòng kỳ. `PeriodGate` thật chạy trên repo này, nên
+ * test đi đúng bảng cổng (`gateAllows`) và lỗi `PeriodLockedError`. `sharedLocks` ghi [giao dịch, tháng] mỗi lần khoá
+ * chia sẻ.
+ */
 export class FakePeriods {
   statuses = new Map<string, string>();
+  sharedLocks: Array<[unknown, string]> = [];
 
-  async getPeriod(month: string): Promise<{ month: string; status: string } | null> {
+  async find(month: string): Promise<{ month: string; status: string } | null> {
     const status = this.statuses.get(month);
     return status === undefined ? null : { month, status };
   }
+
+  async lockShared(trx: unknown, month: string): Promise<void> {
+    this.sharedLocks.push([trx, month]);
+  }
 }
+
+/** Cổng kỳ thật trên kỳ lương trong bộ nhớ. */
+export const gateOver = (periods: FakePeriods): PeriodGate => new PeriodGate(periods as unknown as PeriodsRepository);
 
 /** Số tiền tạm ứng giả: `quote` trả về, hoặc ném `failWith`; `calls` ghi [uuid, tháng]. */
 export class FakePayroll {
@@ -452,23 +472,27 @@ export function makeService(settings?: Pick<SettingsReader, 'workWeekOf'>) {
   const days = new FakeDayStatusRepository(repo);
   const lock = new RecordingLock();
   const periods = new FakePeriods();
+  const gate = gateOver(periods);
   const payroll = new FakePayroll();
   const reminders = new FakeRemindersRepository();
-  const explanations = new ExplanationsService(repo, att, holidays, days, reminders, periods, settings);
+  const explanations = new ExplanationsService(repo, att, holidays, days, reminders, gate, settings);
+  const attendanceDays = new RecordingDays();
   const service = new RequestsService(
     repo,
     att,
     lock as unknown as TransactionCoordinator,
     holidays,
     days,
-    periods,
-    payroll,
+    gate,
+    payroll as any,
     explanations,
-    settings
+    settings,
+    undefined,
+    attendanceDays as unknown as AttendanceDaysService
   );
   service.now = () => new Date('2026-11-04T10:00:00Z');
   explanations.now = () => service.now();
-  return { service, repo, att, holidays, days, lock, periods, payroll, explanations, reminders };
+  return { service, repo, att, holidays, days, lock, periods, gate, payroll, explanations, reminders, attendanceDays };
 }
 
 // ---- Đơn dựng sẵn cho test (mặc định của nv01, đang chờ) ----

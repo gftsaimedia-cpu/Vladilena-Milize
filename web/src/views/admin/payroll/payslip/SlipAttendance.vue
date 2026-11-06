@@ -19,7 +19,7 @@ const stats = computed(() => [
   { label: 'Phép · iSAT', value: `${d.value.leave} · ${d.value.isat}`, unit: '' },
   { label: 'Chờ giải trình', value: String(d.value.pending), unit: '' },
   { label: 'Làm thêm', value: num(sum(props.slip.ot.hours)), unit: ' giờ' },
-  { label: 'Đi muộn', value: String(sum(props.slip.late.minutes)), unit: ' phút' }
+  { label: 'Đi muộn', value: String(props.slip.late.minutes), unit: ' phút' }
 ]);
 const KIND_CLASS: Record<DayKind, string> = {
   work: 'work',
@@ -69,10 +69,8 @@ const KIND_CLASS: Record<DayKind, string> = {
   font-weight: 600;
 }
 .sa-h a {
-  font-size: 12px;
-  color: var(--muted);
-}
-.sa-h a:hover {
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text);
   text-decoration: underline;
 }
@@ -114,14 +112,18 @@ const KIND_CLASS: Record<DayKind, string> = {
 }
 .sa-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
-  gap: 8px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   margin: 0;
-}
-.sa-stats > div {
-  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
+  overflow: hidden;
+}
+.sa-stats > div {
+  padding: 8px 12px 10px;
+}
+.sa-stats > div + div {
+  border-left: 1px solid var(--border);
 }
 .sa-stats dt {
   font-size: 12px;

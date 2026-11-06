@@ -64,7 +64,7 @@ const slips = computed(() =>
           <i class="sw net" /><span>Thực nhận</span><b>{{ period.net }}</b>
         </li>
         <li>
-          <i class="sw ded" /><span>Khấu trừ BHXH và thuế</span><b>{{ period.deductions }}</b>
+          <i class="sw ded" /><span>Khấu trừ (BHXH, thuế, tạm ứng)</span><b>{{ period.deductions }}</b>
         </li>
       </ul>
     </div>

@@ -1,9 +1,12 @@
 <script setup lang="ts">
 // Năm ô điểm KPI của một phiếu (spec 4.4). Gõ: làm sạch rồi báo `update` (phiếu tính lại ngay); rời ô: báo `save`.
-import { KPI_LABELS, KPI_WEIGHTS as MOCK_KPI_WEIGHTS } from '@/constants/labels';
+// Điểm theo luật của BE: 0–100, tối đa 2 chữ số thập phân. Trọng số (%) lấy từ dữ liệu BE (`weights`); chưa có thì không in.
+import { reactive } from 'vue';
+import { KPI_LABELS } from '@/constants/labels';
 import type { KpiPart, KpiScores } from '@/mock/payroll-calc';
+import { num } from '@/utils/format';
 
-defineProps<{ scores: KpiScores; name: string }>();
+defineProps<{ scores: KpiScores; name: string; readonly?: boolean; weights?: Record<KpiPart, number> | null }>();
 const emit = defineEmits<{ update: [part: KpiPart, value: number | null]; save: [part: KpiPart] }>();
 
 const PARTS = Object.keys(KPI_LABELS) as KpiPart[];
@@ -16,29 +19,32 @@ const SHORT: Record<KpiPart, string> = {
   self: 'Tự đánh giá'
 };
 
-// Gõ từng phím: "," hay "." bị chặn và đánh dấu ô là "đã qua dấu thập phân"; khi đó các ký tự gõ tiếp bị chặn, nên "72,5"
-// ra 72 chứ không thành 725. Xoá bất kỳ ký tự nào, rời ô, hay đổi phiếu (SlipKpi gắn khoá theo phiếu) thì bỏ dấu đánh.
-// Gõ đè vùng đang chọn, hay gõ khi con trỏ chưa ở cuối ô, cũng bỏ dấu đánh: đó là sửa giá trị, không phải gõ tiếp sau dấu.
-const pastPoint = new Set<KpiPart>();
-function onBeforeInput(part: KpiPart, e: InputEvent) {
-  if (e.inputType.startsWith('delete')) pastPoint.delete(part);
-  else if (e.inputType === 'insertText') {
-    const el = e.target as HTMLInputElement;
-    if (el.selectionStart !== el.selectionEnd || el.selectionEnd !== el.value.length) pastPoint.delete(part);
-    if (e.data === ',' || e.data === '.') {
-      pastPoint.add(part);
-      e.preventDefault();
-    } else if (pastPoint.has(part)) e.preventDefault();
-  }
-}
+// Điểm hiện bằng dấu phẩy thập phân, đúng giá trị BE trả.
+const shown = (v: number | null) => (v == null ? '' : String(v).replace('.', ','));
+// Chữ đang gõ dở (như "72,") giữ nguyên trong ô chừng nào còn khớp điểm hiện tại; điểm đổi từ ngoài thì hiện lại điểm.
+const typed = reactive<Partial<Record<KpiPart, string>>>({});
+const valueOf = (text: string) => (text === '' ? null : Number(text.replace(',', '.')));
+const display = (part: KpiPart, v: number | null) => {
+  const text = typed[part];
+  return text !== undefined && valueOf(text) === v ? text : shown(v);
+};
 
-// Dán hay điền cả chuỗi: dấu thập phân (, hoặc .) cắt bỏ nó và phần sau ("72,5" thành 72); ký tự khác không phải số thì bỏ riêng ("1a5" thành 15).
-// Trên 100 thành 100, trống là null (thiếu điểm). Gán lại el.value để "150" hiện "100", "007" hiện "7".
+// Làm sạch cả chuỗi (gõ, dán, điền): "," hay "." là dấu thập phân (giữ dấu đang gõ dở như "72,"), tối đa 2 chữ số thập phân,
+// ký tự khác không phải số thì bỏ ("1a5" thành 15), trên 100 thành 100, không có phần nguyên là trống (null, thiếu điểm).
+// Gán lại el.value để "150" hiện "100", "007" hiện "7".
 function onInput(part: KpiPart, e: Event) {
   const el = e.target as HTMLInputElement;
-  const digits = el.value.split(/[.,]/)[0].replace(/\D/g, '');
-  const value = digits === '' ? null : Math.min(100, Number(digits));
-  el.value = value === null ? '' : String(value);
+  const raw = el.value.replace('.', ',');
+  const at = raw.indexOf(',');
+  const whole = (at < 0 ? raw : raw.slice(0, at)).replace(/\D/g, '');
+  const frac = at < 0 ? '' : raw.slice(at + 1).replace(/\D/g, '').slice(0, 2);
+  if (whole === '') {
+    el.value = typed[part] = '';
+    emit('update', part, null);
+    return;
+  }
+  const value = Math.min(100, Number(`${whole}.${frac || '0'}`));
+  el.value = typed[part] = value === 100 ? '100' : `${Number(whole)}${at < 0 ? '' : `,${frac}`}`;
   emit('update', part, value);
 }
 </script>
@@ -46,19 +52,18 @@ function onInput(part: KpiPart, e: Event) {
 <template>
   <div class="sk">
     <div v-for="p in PARTS" :key="p" class="sk-c">
-      <span class="sk-l">{{ SHORT[p] }} ({{ MOCK_KPI_WEIGHTS[p] }}%)</span>
+      <span class="sk-l">{{ SHORT[p] }}<template v-if="weights?.[p] != null"> ({{ num(weights[p]) }}%)</template></span>
       <span class="sk-f">
         <input
           type="text"
-          inputmode="numeric"
-          maxlength="3"
+          inputmode="decimal"
+          maxlength="6"
           autocomplete="off"
           :class="{ empty: scores[p] == null }"
-          :value="scores[p] ?? ''"
+          :value="display(p, scores[p])"
+          :readonly="readonly"
           :aria-label="`Điểm ${KPI_LABELS[p]} của ${name}, phần trăm`"
-          @beforeinput="onBeforeInput(p, $event as InputEvent)"
           @input="onInput(p, $event)"
-          @blur="pastPoint.delete(p)"
           @change="emit('save', p)"
         />
         <span aria-hidden="true">%</span>

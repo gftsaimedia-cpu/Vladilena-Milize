@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Tạo yêu cầu · làm thêm giờ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face { font-family: Geist; src: url("/_blob/408154e04f313c54998bea9c3f98f182") format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/cd12623746d6bbfc6da195a4946a6080") format("woff2"); font-weight: 600; unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/fd9de8133057c7ea3e38abcb3bc6c389") format("woff2"); font-weight: 600; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+
+.mut { color: #616161; }
+.sm { font-size: 12px; line-height: 16px; }
+.sh { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rb { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 50px; border: 1px solid var(--border); background: #ffffff; color: #212121; padding: 0; text-decoration: none; }
+.scrim { position: absolute; inset: 0; z-index: 5; background: rgba(28, 28, 28, 0.4); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; padding: 8px 20px 24px; border-radius: 24px 24px 0 0; background: #ffffff; font-family: Geist, system-ui, sans-serif; font-size: 14px; line-height: 20px; color: #212121; font-variant-numeric: tabular-nums; }
+.sheet .grab { width: 40px; height: 4px; border-radius: 50px; background: #e0e0e0; margin: 0 auto -4px; }
+.sheet h2 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+.fl { display: flex; flex-direction: column; gap: 8px; }
+.fl label { font-weight: 600; }
+.in { height: 48px; width: 100%; box-sizing: border-box; margin: 0; padding: 0 12px; border-radius: 8px; border: 1px solid #8a8a8a; background: #ffffff; font: inherit; color: #212121; }
+.in::placeholder { color: #757575; }
+.box { position: relative; }
+.box svg { position: absolute; top: 14px; pointer-events: none; color: #616161; }
+.sel .in { appearance: none; -webkit-appearance: none; padding-right: 44px; }
+.sel svg { right: 14px; }
+textarea.in { height: 96px; padding: 12px; resize: none; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sum { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--page); }
+.b1 { height: 48px; width: 100%; box-sizing: border-box; border-radius: 8px; border: 0; background: #1c1c1c; color: #ffffff; font: inherit; font-weight: 600; display: grid; place-items: center; text-decoration: none; }
+</style>
+</helmet>
+<div style="--page: {{c.page}}; --border: {{c.border}}; position: relative; width: 390px; height: 844px; overflow: hidden; background: {{c.page}};">
+<dc-import name="PhoneRequests" theme="{{theme}}" hint-size="390px,844px"></dc-import>
+<div aria-hidden="true" class="scrim"></div>
+<section class="sheet" role="dialog" aria-label="Làm thêm giờ">
+<div class="grab"></div>
+<div class="sh">
+<a class="rb" href="PhoneNewRequest.dc.html" aria-label="Quay lại chọn loại"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"></path></svg></a>
+<h2 style="flex: 1 1 auto;">Làm thêm giờ</h2>
+<a class="rb" href="PhoneRequests.dc.html" aria-label="Đóng"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></a>
+</div>
+<div class="fl">
+<label for="j15-ngay">Ngày</label>
+<div class="box sel"><select id="j15-ngay" class="in" value="{{x.d}}" onChange="{{onD}}"><sc-for list="{{dates}}" as="o" hint-placeholder-count="5"><option>{{o}}</option></sc-for></select><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+</div>
+<div class="fl" style="gap: 12px;">
+<div class="two">
+<div class="fl"><label for="j15-tu">Giờ bắt đầu</label><div class="box sel"><select id="j15-tu" class="in" value="{{x.s}}" onChange="{{onS}}"><sc-for list="{{starts}}" as="o" hint-placeholder-count="5"><option>{{o}}</option></sc-for></select><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+<div class="fl"><label for="j15-den">Giờ kết thúc</label><div class="box sel"><select id="j15-den" class="in" value="{{x.e}}" onChange="{{onE}}"><sc-for list="{{ends}}" as="o" hint-placeholder-count="4"><option>{{o}}</option></sc-for></select><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+</div>
+<div class="sum" aria-live="polite"><div><b>{{hours}} giờ làm thêm,</b> {{when}} ca 08–17</div><div class="mut">Đã đăng ký tháng {{m}}: {{used}} / 40 giờ</div><div class="mut">Sau đơn này còn đăng ký được {{left}} giờ</div></div>
+</div>
+<div class="fl">
+<label for="j15-ly">Lý do</label>
+<textarea id="j15-ly" class="in" placeholder="Ví dụ: chạy bảng lương cuối tháng"></textarea>
+</div>
+<a class="b1" href="PhoneRequestSent.dc.html">Gửi yêu cầu</a>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Nền xám","Nền kem"],"default":"Nền xám","section":"Màu"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  st() { return { d: 'T5 29/10', s: '18:00', e: '20:00', ...(this.state || {}) }; }
+  renderVals() {
+    const kem = (this.props.theme ?? 'Nền xám') === 'Nền kem';
+    const c = kem ? { page: '#f2ead8', border: '#e6dcc6' } : { page: '#f5f5f5', border: '#e0e0e0' };
+    const hh = (n) => (n < 10 ? '0' : '') + n + ':00';
+    const num = (t) => parseInt(t, 10);
+    // Chỉ giờ tròn ngoài ca 08–17, cách ca ít nhất 1 giờ, không qua 22h: 06–07 hoặc 18–22, tối đa 4 giờ.
+    const dates = ['T5 29/10', 'T6 30/10', 'T7 31/10', 'T2 02/11', 'T3 03/11'];
+    const starts = ['06:00', '18:00', '19:00', '20:00', '21:00'];
+    const endsFor = (s) => { const a = num(s); if (a === 6) return ['07:00']; const r = []; for (let h = a + 1; h <= 22; h++) r.push(hh(h)); return r; };
+    const x = this.st();
+    const ends = endsFor(x.s);
+    const set = (k) => (ev) => {
+      const nx = { ...x, [k]: ev.target.value };
+      const en = endsFor(nx.s);
+      if (en.indexOf(nx.e) < 0) nx.e = en[0];
+      this.setState(nx);
+    };
+    const hours = num(x.e) - num(x.s);
+    const m = x.d.indexOf('/10') > 0 ? '10' : '11';
+    const used = m === '10' ? 9 : 0;
+    return { c, theme: this.props.theme ?? 'Nền xám', x, dates, starts, ends, onD: set('d'), onS: set('s'), onE: set('e'), hours, when: num(x.s) < 8 ? 'trước' : 'sau', m, used, left: 40 - used - hours };
+  }
+}
+</script>
+</body>
+</html>

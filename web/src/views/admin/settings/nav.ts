@@ -38,19 +38,19 @@ export const ADMIN_SIDEBAR_GROUPS = [
       ['luong', 'cash', 'Bảng lương', '/admin/bang-luong']
     ]
   ],
-  ['Đội ngũ', [['ho-so', 'file', 'Nhân sự', '/admin/nhan-su']]]
+  ['Đội ngũ', [['ho-so', 'team', 'Nhân sự', '/admin/nhan-su']]]
 ];
 
 // Đường dẫn dùng lại ở nhiều màn (liên kết chéo)
 export const PATHS = {
   congThuc: '/admin/cai-dat',
   cheDo: '/admin/cai-dat/che-do',
+  chucVu: '/admin/cai-dat/chuc-vu-bac',
   lich: '/admin/cai-dat/lich',
   kpi: '/admin/cai-dat/kpi',
   canhBao: '/admin/cai-dat/canh-bao',
   vaiTro: '/admin/cai-dat/phan-quyen',
   taiKhoan: '/admin/cai-dat/phan-quyen/tai-khoan',
-  xuLyYeuCau: '/admin/cai-dat/phan-quyen/xu-ly-yeu-cau',
   nhatKy: '/admin/cai-dat/nhat-ky',
   tatCa: '/admin/cai-dat/tat-ca',
   bangLuong: '/admin/bang-luong'

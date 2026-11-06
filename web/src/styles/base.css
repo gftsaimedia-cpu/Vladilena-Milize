@@ -138,7 +138,7 @@ button {
   background: var(--side-bg);
   border: 1px solid var(--side-edge);
   border-radius: var(--r-card);
-  padding: 20px 12px 16px;
+  padding: 24px 12px 16px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -155,11 +155,11 @@ button {
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 8px 4px;
+  gap: 12px;
+  padding: 0 12px;
 }
 .brand img {
-  width: 46px;
+  width: 52px;
   height: auto;
 }
 .brand b {
@@ -178,27 +178,27 @@ button {
   color: var(--side-muted);
 }
 .nav {
-  margin-top: 20px;
+  margin-top: 24px;
   flex: 1;
 }
 .grp {
   font-size: 12px;
   line-height: 16px;
   color: var(--side-muted);
-  padding: 0 12px;
-  margin: 20px 0 8px;
+  padding: 20px 12px 4px;
+  margin: 0 0 4px;
 }
 .grp:first-child {
-  margin-top: 0;
+  padding-top: 0;
 }
 .item {
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   height: 40px;
   margin-bottom: 4px;
-  padding: 0 10px 0 12px;
+  padding: 0 12px;
   border-radius: var(--r-ctl);
   color: var(--side-ink);
   font-size: 14px;
@@ -224,16 +224,20 @@ button {
 .side-foot {
   border-top: 1px solid var(--side-rule);
   padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .me {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px 0 12px;
+  gap: 12px;
+  min-height: 48px;
+  padding: 4px 12px;
 }
 .me .av {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
 }
 .me b {
   display: block;
@@ -247,7 +251,7 @@ button {
 }
 
 .canvas {
-  padding: 20px var(--pad) 48px;
+  padding: 4px 16px 16px 0;
   min-width: 0;
 }
 
@@ -491,10 +495,8 @@ button {
   letter-spacing: -0.28px;
 }
 .title p {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   color: var(--muted);
-  font-size: 15px;
-  line-height: 22px;
 }
 .title p b {
   color: var(--text);
@@ -503,7 +505,11 @@ button {
 .title .acts {
   margin-left: auto;
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.title .acts .btn {
+  height: 40px;
 }
 
 /* buttons */

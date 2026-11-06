@@ -5,9 +5,14 @@ import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { securityHeaders, serveStatic, ApiExceptionFilter } from './common';
+import { AttendanceDaysJob } from './modules/attendance/attendance-days.job';
 import { jsonBodyErrors, requireJsonBody } from './common/http-guards';
 
-export function createServer(): http.Server {
+/**
+ * `startJobs` bật các job nền (hiện là job ngày công mỗi giờ). Chỉ điểm vào thật (server.ts) bật;
+ * mặc định tắt để test dựng app không chạy job trên DB tạm (spec R5).
+ */
+export function createServer(opts?: { startJobs?: boolean }): http.Server {
   const instance = express();
   instance.disable('x-powered-by');
   instance.disable('etag');
@@ -21,7 +26,10 @@ export function createServer(): http.Server {
     logger: ['error', 'warn'],
   }).then((app) => {
     app.useGlobalFilters(new ApiExceptionFilter());
-    return app.init();
+    return app.init().then((initialized) => {
+      if (opts?.startJobs) initialized.get(AttendanceDaysJob).start();
+      return initialized;
+    });
   });
 
   ready.catch((err) => console.error('Lỗi khởi tạo NestJS:', err));

@@ -624,7 +624,7 @@ describe('Duyệt, từ chối và huỷ giữ day_status và lịch (§4.2, §4
     });
     assert.equal(ctx.repo.requests.get(overtime.id)?.status, 'PENDING');
     assert.equal(ctx.att.schedules.size, 0);
-    assert.equal(ctx.att.dayStatuses.size, 0);
+    assert.deepEqual(ctx.attendanceDays.calls, []);
     assert.deepEqual([...ctx.days.rows.entries()], rowsBefore);
 
     // Admin vẫn từ chối được.

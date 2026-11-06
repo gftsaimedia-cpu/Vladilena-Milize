@@ -6,6 +6,7 @@ import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import { ALREADY_HANDLED, decisionText, getOverview } from '@/services/admin-main';
+import { useRealtimeReload } from '@/composables/useRealtimeReload';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
 import { monthNo } from '@/utils/format';
@@ -19,10 +20,11 @@ const route = useRoute();
 const linkTo = (path: string) => ({ path, query: route.query.thang ? { thang: route.query.thang } : {} });
 const period = usePeriodStore();
 const shell = useShellStore();
-const { data } = useLoad(
+const { data, reload } = useLoad(
   () => getOverview(period.month),
   () => `${period.month}|${shell.version}`
 );
+useRealtimeReload(reload);
 
 const deciding = new Set<string>();
 async function decide(id: string, approve: boolean) {

@@ -2,9 +2,11 @@
 // Dải các ngày của tháng trong vùng cuộn riêng: thứ viết tắt, số ngày và một ô màu theo nhóm. Ngày không có ca là span,
 // ngày khác là nút mở hộp chi tiết ngày. Lúc mở dải cuộn tới ngày hôm nay.
 import { onMounted, ref } from 'vue';
-import type { StripDay } from '@/mock/attendance-employee';
+import type { StripDay } from '@/builders/api/attendance';
+import { useRealtimeStore } from '@/stores/realtime';
 
-const props = defineProps<{ days: StripDay[]; monthNo: number }>();
+const props = defineProps<{ days: StripDay[]; monthNo: number; personId?: string }>();
+const realtime = useRealtimeStore();
 const emit = defineEmits<{ 'open-day': [date: string] }>();
 
 const STEP = 48; // 44px mỗi ngày + 4px khoảng cách; giữ cố định để bề rộng không phụ thuộc phông chữ
@@ -30,7 +32,7 @@ onMounted(() => {
           v-else
           type="button"
           class="ms-i"
-          :class="{ today: d.today }"
+          :class="{ today: d.today, flash: !!personId && realtime.isFlash(personId, d.date) }"
           :data-date="d.date"
           :aria-label="d.aria"
           :aria-current="d.today ? 'date' : undefined"
@@ -46,10 +48,24 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@media (prefers-reduced-motion: no-preference) {
+  .ms-i.flash {
+    animation: rt-flash 1.5s ease-out;
+  }
+}
+@keyframes rt-flash {
+  0%,
+  60% {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
 .ms {
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  padding: 4px 16px 16px;
+  padding: 0 24px 16px;
   scrollbar-width: thin;
   scrollbar-color: var(--status-draft) transparent;
 }
@@ -57,28 +73,28 @@ onMounted(() => {
   outline: 2px solid var(--text);
   outline-offset: -2px;
 }
+/* Theo board F: 31 ngày chia đều bề rộng thẻ (cách nhau 2px); hẹp hơn 34px một ngày thì vùng cuộn ngang. */
 .ms-list {
-  /* Bề rộng ghi thẳng từ số ngày: mỗi ô 44px, cách nhau 4px. */
-  width: calc(var(--days) * 44px + (var(--days) - 1) * 4px);
+  min-width: calc(var(--days) * 34px - 2px);
   display: flex;
-  gap: 4px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .ms-d {
-  flex: none;
-  width: 44px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 .ms-i {
   width: 100%;
-  padding: 8px 0;
+  padding: 4px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   font: inherit;
   font-variant-numeric: tabular-nums;
@@ -98,35 +114,41 @@ button.ms-i:focus-visible {
   background: var(--gold-pale);
 }
 .dw {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--muted);
+  font-size: 10px;
+  line-height: 12px;
+  color: #9e9e9e;
 }
 .dn {
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 500;
+  min-width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  line-height: 16px;
 }
-.ms-i.today .dw,
 .ms-i.today .dn {
-  color: var(--text);
+  background: var(--surface-dark);
+  color: var(--on-primary);
   font-weight: 600;
 }
-.ms-i.off .dw,
 .ms-i.off .dn {
-  color: var(--muted);
-  font-weight: 400;
+  color: #9e9e9e;
 }
 .ms-i .dot,
 .ms-i .sp {
   width: 22px;
   height: 22px;
-  border-radius: 8px;
+  border-radius: 50%;
 }
 .ms-i .sp {
   display: block;
+  background: var(--ground);
 }
 .ms-i .dot.nocheck {
   background: var(--status-draft);
+}
+.ms-i .dot.todo {
+  border-width: 3px;
 }
 </style>

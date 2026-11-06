@@ -13,10 +13,13 @@ import { PayrollController } from '../../src/modules/payroll/payroll.controller'
 import { RequestsController } from '../../src/modules/requests/requests.controller';
 import { RolesController } from '../../src/modules/roles/roles.controller';
 import { SystemController } from '../../src/modules/system/system.controller';
+import { PeriodsController } from '../../src/modules/periods/periods.controller';
 import { MeController } from '../../src/modules/me/me.controller';
 import { PositionsController } from '../../src/modules/positions/positions.controller';
 import { SettingsController } from '../../src/modules/settings/settings.controller';
 import { AuditController } from '../../src/modules/audit/audit.controller';
+import { OverviewController } from '../../src/modules/overview/overview.controller';
+import { RealtimeController } from '../../src/modules/realtime/realtime.controller';
 
 // Mọi controller của các module mà AppModule nạp.
 function allControllers(): any[] {
@@ -47,9 +50,14 @@ const TABLE: Array<[any, string, AccessRule]> = [
   [SystemController, 'health', pub],
   [SystemController, 'healthV2', pub],
   [SystemController, 'getSettings', cap('config.read')],
-  [SystemController, 'listPeriods', cap('config.read')],
   [SystemController, 'updateSetting', cap('config.write')],
-  [SystemController, 'lockPeriod', cap('attendance.lock')],
+  [PeriodsController, 'listPeriods', cap('config.read')],
+  [PeriodsController, 'getPeriod', cap('config.read')],
+  [PeriodsController, 'lockPeriod', cap('attendance.lock')],
+  [PeriodsController, 'unlockPeriod', cap('attendance.lock')],
+  [PeriodsController, 'approvePeriod', cap('payroll.approve')],
+  [PeriodsController, 'unapprovePeriod', cap('payroll.approve')],
+  [PeriodsController, 'payPeriod', cap('payroll.approve')],
   [AuditController, 'list', cap('audit.read')],
   [AuditController, 'verify', cap('audit.read')],
   [RolesController, 'list', cap('staff.manage')],
@@ -85,6 +93,10 @@ const TABLE: Array<[any, string, AccessRule]> = [
   ...['profile', 'today', 'punch', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income', 'requestContext', 'previewRequest'].map(
     m => [MeController, m, authed] as [any, string, AccessRule]
   ),
+  [RealtimeController, 'stream', cap('attendance.correct')],
+  [OverviewController, 'week', cap('attendance.correct')],
+  [OverviewController, 'employee', cap('attendance.correct')],
+  [OverviewController, 'overview', cap('config.read')],
   ...['savePositions', 'saveLevel', 'addLevel'].map(
     m => [PositionsController, m, cap('config.write')] as [any, string, AccessRule]
   ),

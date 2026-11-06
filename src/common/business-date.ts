@@ -19,3 +19,15 @@ export function businessDateText(at: Date = new Date()): string {
 export function businessMonthText(at: Date = new Date()): string {
   return businessDateText(at).slice(0, 7);
 }
+
+const timeFormat = new Intl.DateTimeFormat('en-GB', {
+  timeZone: BUSINESS_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23'
+});
+
+/** Giờ 'HH:mm' theo giờ Việt Nam của một thời điểm. */
+export function businessTimeText(at: Date = new Date()): string {
+  return timeFormat.format(at);
+}

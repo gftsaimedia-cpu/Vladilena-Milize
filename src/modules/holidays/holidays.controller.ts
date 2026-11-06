@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Delete, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
-import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
+import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { businessDateText } from '../../common/business-date';
 import { AuditEntryError } from '../audit';
 import { HolidayNotFoundError } from './holidays.errors';
@@ -44,7 +44,7 @@ export class HolidaysController {
 
   /**
    * Ngày không có trong lịch → 404 HOLIDAY_NOT_FOUND; lỗi ghi nhật ký (lỗi lập trình, spec audit-log mục 4) → để filter
-   * trả 500; mọi lỗi khác của service → 400 BAD_REQUEST, như controller requests.
+   * trả 500; lỗi HTTP (kỳ đã chốt → 409) giữ nguyên; mọi lỗi khác của service → 400 BAD_REQUEST, như controller requests.
    */
   private async run<T>(action: () => Promise<T>): Promise<T> {
     try {
@@ -54,6 +54,7 @@ export class HolidaysController {
       if (err instanceof HolidayNotFoundError) {
         throw new NotFoundError(err.message, { code: 'HOLIDAY_NOT_FOUND' });
       }
+      if (err instanceof HttpError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }

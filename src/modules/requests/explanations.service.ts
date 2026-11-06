@@ -4,7 +4,6 @@ import {
   eachDate,
   explanationCasesOf,
   formatDayMonth,
-  isClosedPeriod,
   lastDayOfMonth,
   monthOf,
   requireDateText,
@@ -22,7 +21,9 @@ import { loadEmployeeDays } from './load-days';
 import { AttendanceRepository } from '../attendance/attendance.repository';
 import type { DailyTimesheet } from '../attendance/domain';
 import { HolidaysRepository } from '../holidays/holidays.repository';
-import { SystemService } from '../system/system.service';
+import { gateAllows, type PeriodStatus } from '../periods/domain';
+import { PeriodGate } from '../periods/period-gate';
+import { PeriodLockedError } from '../periods/periods.errors';
 import { SettingsReader } from '../settings';
 import { withPersonWeek } from './staff-week';
 
@@ -32,6 +33,9 @@ export interface DueDay {
   cases: ExplanationCase[];
   needs: ExplanationNeeds;
   remindedAt: string | null;
+  /** Giờ vào/ra thực của ngày ('HH:mm' giờ Việt Nam) theo bảng công; null khi ngày chưa có lần chấm đó. */
+  checkIn: string | null;
+  checkOut: string | null;
 }
 
 /** Một ngày cần giải trình của một nhân sự, cho chuông của Admin (spec 3.4). */
@@ -40,15 +44,38 @@ export interface DueItem extends DueDay {
   name: string;
 }
 
+/**
+ * Ngày bị từ chối: câu báo vì sao (R-P4). Từ chối vì kỳ lương của tháng đã khoá giải trình (đã phê duyệt hoặc đã trả)
+ * thì kèm `locked` (tháng và trạng thái kỳ), để nơi gọi ném đúng lỗi 409 `PERIOD_LOCKED`.
+ */
+export type DayRefusal = { ok: false; message: string; locked?: { month: string; status: PeriodStatus } };
+
 /** Kết quả xét một ngày: cần giải trình thì kèm trường hợp và giờ phải nhập, không thì câu báo vì sao (R-P4). */
-export type DueCheck =
-  | { ok: true; cases: ExplanationCase[]; needs: ExplanationNeeds }
-  | { ok: false; message: string };
+export type DueCheck = { ok: true; cases: ExplanationCase[]; needs: ExplanationNeeds } | DayRefusal;
+
+/** Giờ của một lần chấm theo giờ Việt Nam ('HH:mm'); không có thì null. */
+function vnTime(at: Date | string | null | undefined): string | null {
+  if (!at) return null;
+  const d = at instanceof Date ? at : new Date(at);
+  return Number.isNaN(d.getTime()) ? null : new Date(d.getTime() + 7 * 3600000).toISOString().slice(11, 16);
+}
 
 /** Như `DueCheck`; ngày cần giải trình kèm ca của ngày ('HH:MM') để người nộp xét giờ ra sau giờ vào (R-P5). */
 export type StaffDayCheck =
-  | { ok: true; cases: ExplanationCase[]; needs: ExplanationNeeds; shift: { startTime: string; endTime: string } }
-  | { ok: false; message: string };
+  | {
+      ok: true;
+      cases: ExplanationCase[];
+      needs: ExplanationNeeds;
+      shift: { startTime: string; endTime: string };
+      checkIn: string | null;
+      checkOut: string | null;
+    }
+  | DayRefusal;
+
+/** Lỗi 409 `PERIOD_LOCKED` của một lần từ chối vì kỳ lương; lần từ chối khác thành lỗi nghiệp vụ thường. */
+export function refusalError(refusal: DayRefusal): Error {
+  return refusal.locked ? new PeriodLockedError(refusal.locked.month, refusal.locked.status) : new Error(refusal.message);
+}
 
 /** Đơn giải trình của một ngày, như màn nhân viên hiện (spec 3.6). `sentAt` là lúc nộp (ISO). */
 export interface ExplanationView {
@@ -88,7 +115,7 @@ function monthsBetween(from: string, to: string): string[] {
   return months;
 }
 
-const refuse = (message: string): { ok: false; message: string } => ({ ok: false, message });
+const refuse = (message: string): DayRefusal => ({ ok: false, message });
 
 const viewOf = (r: SystemRequest): ExplanationView => ({
   id: r.id,
@@ -101,7 +128,9 @@ const viewOf = (r: SystemRequest): ExplanationView => ({
 
 /**
  * Ngày cần giải trình (spec 3.1–3.2, 3.6): xét từ lịch, ngày lễ, đơn đang giữ ngày, giờ vào/ra thật của bảng công, đơn
- * giải trình đã có và kỳ lương đã chốt. Chỉ đọc; không phụ thuộc `RequestsService` (chiều ngược lại thì có).
+ * giải trình đã có và kỳ lương. Giải trình nộp được tới khi kỳ được phê duyệt (người dùng chốt 05/11, spec kỳ lương
+ * D2): chỉ tháng có kỳ `approved` hay `paid` bị bỏ (cổng kỳ `explain`). Chỉ đọc; không phụ thuộc `RequestsService`
+ * (chiều ngược lại thì có).
  */
 @Injectable()
 export class ExplanationsService {
@@ -114,13 +143,14 @@ export class ExplanationsService {
     @Inject(HolidaysRepository) private readonly holidays: HolidaysRepository,
     @Inject(DayStatusRepository) private readonly days: DayStatusRepository,
     @Inject(ExplanationRemindersRepository) private readonly reminderRows: ExplanationRemindersRepository,
-    @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>,
+    @Optional() @Inject(PeriodGate) private readonly periodGate?: Pick<PeriodGate, 'statusOf'>,
     @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf'>
   ) {}
 
   /**
    * Các ngày cần giải trình, mới nhất trước: từ ngày 01 tháng trước (hoặc ngày vào làm, nếu muộn hơn) tới hôm nay (R1),
-   * bỏ tháng đã chốt công, ngày không phải ngày làm và ngày đã có đơn; giữ ngày máy tìm ra ít nhất một trường hợp.
+   * bỏ tháng mà kỳ lương đã phê duyệt hoặc đã trả, ngày không phải ngày làm và ngày đã có đơn; giữ ngày máy tìm ra ít
+   * nhất một trường hợp. Tháng đã chốt công hay đã tính lương vẫn còn ngày cần giải trình.
    */
   async dueDays(employeeIdOrUsername: string): Promise<DueDay[]> {
     const today = vietnamToday(this.now());
@@ -130,16 +160,23 @@ export class ExplanationsService {
     if (from > today) return [];
 
     const facts = await this.loadFacts(staff, from, today, today);
-    const [closed, reminders] = await Promise.all([
-      this.closedMonths(from, today),
+    const [locked, reminders] = await Promise.all([
+      this.lockedMonths(from, today),
       this.remindersOf(staff.employeeId, from, today)
     ]);
     const due: DueDay[] = [];
     for (const date of eachDate(from, today).reverse()) {
-      if (closed.has(monthOf(date))) continue;
+      if (locked.has(monthOf(date))) continue;
       const check = this.judge(facts, date);
       if (check.ok) {
-        due.push({ date, cases: check.cases, needs: check.needs, remindedAt: reminders.get(date) ?? null });
+        due.push({
+          date,
+          cases: check.cases,
+          needs: check.needs,
+          remindedAt: reminders.get(date) ?? null,
+          checkIn: check.checkIn,
+          checkOut: check.checkOut
+        });
       }
     }
     return due;
@@ -167,12 +204,13 @@ export class ExplanationsService {
 
   /**
    * Admin nhắc nhân sự giải trình ngày `date` (spec 3.5): ngày phải còn cần giải trình; nhắc lại thì ghi đè giờ và người
-   * nhắc. `reminded_by` là uuid của Admin, tra như lúc duyệt đơn.
+   * nhắc. `reminded_by` là uuid của Admin, tra như lúc duyệt đơn. Kỳ lương của tháng đã phê duyệt hoặc đã trả thì 409
+   * `PERIOD_LOCKED`; lý do khác là lỗi nghiệp vụ thường.
    */
   async remind(employeeIdOrUsername: string, date: string, adminIdOrUsername: string): Promise<{ remindedAt: string }> {
     const check = await this.checkDay(employeeIdOrUsername, date);
     if (!check.ok) {
-      throw new Error(check.message);
+      throw refusalError(check);
     }
     const staff = await this.resolveStaff(employeeIdOrUsername, monthOf(date));
     const adminId = await this.requests.resolveStaffUuid(adminIdOrUsername);
@@ -200,17 +238,22 @@ export class ExplanationsService {
 
   /**
    * Như `checkDay`, cho người gọi đã có hồ sơ (nộp đơn giải trình); thêm ca của ngày khi ngày cần giải trình. Thứ tự:
-   * tương lai → tháng đã chốt → không phải ngày làm (gồm trước ngày vào làm) → đã có đơn → không có trường hợp. Hai bước
-   * đầu không cần đọc lịch, nên loại nhân sự chưa cấu hình chỉ báo lỗi cấu hình từ bước ba.
+   * tương lai → kỳ lương đã khoá giải trình (đã phê duyệt hoặc đã trả; câu và `locked` như lỗi `PERIOD_LOCKED`) → không
+   * phải ngày làm (gồm trước ngày vào làm) → đã có đơn → không có trường hợp. Hai bước đầu không cần đọc lịch, nên loại
+   * nhân sự chưa cấu hình chỉ báo lỗi cấu hình từ bước ba. `period: false` bỏ bước kỳ lương: lúc nộp đơn, cổng kỳ
+   * `explain` trong khoá nhân viên xét bước đó (một chỗ kiểm cho một thao tác).
    */
-  async checkStaffDay(staff: StaffContext, date: string): Promise<StaffDayCheck> {
+  async checkStaffDay(staff: StaffContext, date: string, opts: { period?: boolean } = {}): Promise<StaffDayCheck> {
     const today = vietnamToday(this.now());
     if (date > today) {
       return refuse('Không giải trình cho ngày trong tương lai');
     }
-    const month = monthOf(date);
-    if (await this.isClosedMonth(month)) {
-      return refuse(`Tháng ${Number(month.slice(5, 7))} đã chốt công`);
+    if (opts.period !== false) {
+      const month = monthOf(date);
+      const status = await this.lockedStatus(month);
+      if (status !== null) {
+        return { ok: false, message: new PeriodLockedError(month, status).message, locked: { month, status } };
+      }
     }
     return this.judge(await this.loadFacts(staff, date, date, today), date);
   }
@@ -243,7 +286,7 @@ export class ExplanationsService {
   }
 
   /**
-   * Ngày `date` (đã qua bước tương lai và tháng chốt) theo dữ liệu đã đọc: ngày làm, chưa có đơn, có trường hợp. Ca lấy
+   * Ngày `date` (đã qua bước tương lai và bước kỳ lương) theo dữ liệu đã đọc: ngày làm, chưa có đơn, có trường hợp. Ca lấy
    * từ `shiftOf`, giờ vào/ra từ bảng công, `hasOt` tính cả OT chờ duyệt lẫn đã duyệt (R-P2).
    */
   private judge(facts: RangeFacts, date: string): StaffDayCheck {
@@ -278,7 +321,14 @@ export class ExplanationsService {
     if (cases.length === 0) {
       return refuse(`Ngày ${day} không có gì cần giải trình`);
     }
-    return { ok: true, cases, needs, shift: { startTime, endTime } };
+    return {
+      ok: true,
+      cases,
+      needs,
+      shift: { startTime, endTime },
+      checkIn: vnTime(sheet?.actualCheckIn),
+      checkOut: vnTime(sheet?.actualCheckOut)
+    };
   }
 
   /** Lịch quanh [from, to] (cần cấu hình loại nhân sự), bảng công của khoảng và các ngày đã có đơn giải trình. */
@@ -304,17 +354,21 @@ export class ExplanationsService {
     };
   }
 
-  /** Tháng đã chốt công trong các tháng mà [from, to] chạm tới. */
-  private async closedMonths(from: string, to: string): Promise<Set<string>> {
+  /** Các tháng mà [from, to] chạm tới có kỳ lương đã khoá giải trình (đã phê duyệt hoặc đã trả). */
+  private async lockedMonths(from: string, to: string): Promise<Set<string>> {
     const months = monthsBetween(from, to);
-    const closed = await Promise.all(months.map(month => this.isClosedMonth(month)));
-    return new Set(months.filter((_, i) => closed[i]));
+    const statuses = await Promise.all(months.map(month => this.lockedStatus(month)));
+    return new Set(months.filter((_, i) => statuses[i] !== null));
   }
 
-  /** Kỳ lương đã có dòng và không còn 'open'; không có `periods` thì chưa chốt. */
-  private async isClosedMonth(month: string): Promise<boolean> {
-    if (!this.periods) return false;
-    return isClosedPeriod(await this.periods.getPeriod(month));
+  /**
+   * Trạng thái kỳ của tháng khi cổng kỳ không cho giải trình (`approved`, `paid`); tháng còn nhận giải trình (`open`,
+   * `attendance_locked`, `calculated`) thì null. Không có cổng kỳ thì không tháng nào bị khoá.
+   */
+  private async lockedStatus(month: string): Promise<PeriodStatus | null> {
+    if (!this.periodGate) return null;
+    const status = await this.periodGate.statusOf(undefined, month);
+    return gateAllows(status, 'explain') ? null : status;
   }
 
   /** Lần nhắc theo ngày trong [from, to] của nhân sự: ngày → `remindedAt` (ISO). */

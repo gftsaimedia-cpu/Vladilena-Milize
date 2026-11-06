@@ -147,8 +147,6 @@ export interface PayrollPeriodsTable {
   attendance_locked_at: Generated<string | null>;
   calculated_by: Generated<string | null>;
   calculated_at: Generated<string | null>;
-  reviewed_by: Generated<string | null>;
-  reviewed_at: Generated<string | null>;
   approved_by: Generated<string | null>;
   approved_at: Generated<string | null>;
   paid_by: Generated<string | null>;
@@ -439,10 +437,11 @@ export interface TimesheetEntriesTable {
   id: string;
   employee_id: string;
   work_date: string;
-  shift_type: string;
-  shift_start_time: string;
-  shift_end_time: string;
-  shift_allowance_pct: number;
+  // Ca rỗng trên ngày không có ca (spec attendance-core 6).
+  shift_type: string | null;
+  shift_start_time: string | null;
+  shift_end_time: string | null;
+  shift_allowance_pct: number | null;
   actual_check_in: Generated<Date | null>;
   actual_check_out: Generated<Date | null>;
   work_hours: Generated<number>;
@@ -455,6 +454,16 @@ export interface TimesheetEntriesTable {
   check_in_status: Generated<string>;
   check_out_status: Generated<string>;
   day_status: Generated<string>;
+  leave_type: Generated<string | null>;
+  source_request_id: Generated<string | null>;
+  cases_json: Generated<string>;
+  explanation_status: Generated<string>;
+  explanation_request_id: Generated<string | null>;
+  pay_units: Generated<number>;
+  deduction_minutes: Generated<number>;
+  counts_as_workday: Generated<boolean>;
+  counts_as_day_off: Generated<boolean>;
+  makeup_minutes: Generated<number>;
   created_at: Date;
   updated_at: Date;
 }

@@ -72,23 +72,49 @@ describe('Luật khi nhân viên tự nộp (filedBy: self)', () => {
     assert.equal(dto.otDate, '2026-11-04');
   });
 
+  // Cổng kỳ `file` (spec kỳ lương §5): tháng không còn 'open' thì 409 PERIOD_LOCKED, cho cả nhân viên lẫn Admin nộp thay.
+  const lockedIn = (month: string, status: string, message: string) => (e: any) => {
+    assert.equal(e.status, 409);
+    assert.equal(e.message, message);
+    assert.deepEqual(e.details, { code: 'PERIOD_LOCKED', month, status });
+    return true;
+  };
+
   it('self closed month', async () => {
     ctx.periods.statuses.set('2026-11', 'calculated');
-    await assert.rejects(ctx.service.createOvertimeRequest(overtime('2026-11-12'), SELF), {
-      message: 'Tháng 11 đã chốt công'
-    });
+    await assert.rejects(
+      ctx.service.createOvertimeRequest(overtime('2026-11-12'), SELF),
+      lockedIn('2026-11', 'calculated', 'Tháng 11/2026 đã chốt công')
+    );
     ctx.periods.statuses.set('2026-12', 'attendance_locked');
-    await assert.rejects(ctx.service.createLeaveRequest(leave('2026-12-01'), SELF), {
-      message: 'Tháng 12 đã chốt công'
+    await assert.rejects(
+      ctx.service.createLeaveRequest(leave('2026-12-01'), SELF),
+      lockedIn('2026-12', 'attendance_locked', 'Tháng 12/2026 đã chốt công')
+    );
+    assert.deepEqual(await ctx.service.previewRequest('leave', leave('2026-12-01'), SELF), {
+      ok: false,
+      message: 'Tháng 12/2026 đã chốt công',
+      code: 'PERIOD_LOCKED',
+      month: '2026-12',
+      status: 'attendance_locked'
     });
+    assert.equal(ctx.repo.requests.size, 0);
   });
 
-  it('open period does not block, admin ignores closed months', async () => {
+  it('open period does not block; Admin filing into a closed month is refused too', async () => {
     ctx.periods.statuses.set('2026-11', 'open');
     await ctx.service.createOvertimeRequest(overtime('2026-11-12'), SELF);
     ctx.periods.statuses.set('2026-12', 'calculated');
-    const dto = await ctx.service.createLeaveRequest(leave('2026-12-01'));
-    assert.equal(dto.leaveStartDate, '2026-12-01');
+    await assert.rejects(
+      ctx.service.createLeaveRequest(leave('2026-12-01')),
+      lockedIn('2026-12', 'calculated', 'Tháng 12/2026 đã chốt công')
+    );
+    ctx.periods.statuses.set('2026-12', 'paid');
+    await assert.rejects(
+      ctx.service.createLeaveRequest(leave('2026-12-01')),
+      lockedIn('2026-12', 'paid', 'Kỳ lương tháng 12/2026 đã trả lương')
+    );
+    assert.equal(ctx.repo.requests.size, 1);
   });
 
   it('self whole hours', async () => {

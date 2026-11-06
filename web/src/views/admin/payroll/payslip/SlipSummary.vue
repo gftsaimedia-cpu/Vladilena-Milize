@@ -16,14 +16,23 @@ type Group = { id: string; title: string; rows: Row[]; lead?: 'kpi'; trail?: 'hi
 
 const money = (n: number) => vnd(n);
 const cut = (n: number) => (n === 0 ? '0' : `−${vnd(n)}`);
-const minutes = computed(() => props.slip.late.minutes.reduce((a, b) => a + b, 0));
+// Nhãn tỉ lệ lấy từ cài đặt BE áp cho kỳ (slip.rates); phiếu BE lưu cũ chưa có thì không in tỉ lệ.
+const pct = (n: number) => `${num(n)}%`;
+const mult = (n: number) => `×${num(n)}`;
+
+const otLabel = computed(() => {
+  const m = props.slip.rates?.otMultipliers;
+  return m ? `OT ${mult(m.weekday)} · ${mult(m.weekend)} · ${mult(m.holiday)} (giờ)` : 'OT theo hệ số ngày thường · cuối tuần · lễ (giờ)';
+});
 
 const groups = computed<Group[]>(() => {
   const s = props.slip;
   const c = s.calc;
   const missing = c.kpiMissing.map(p => KPI_LABELS[p]);
-  const lateSub = minutes.value
-    ? `Đi muộn ${minutes.value} phút` + (s.late.minutes.every(m => m <= 15) ? ', không quá 15 phút nên không trừ' : '')
+  const rates = s.rates;
+  // BE chỉ ghi phút muộn quá ân hạn; mỗi lần muộn trong ân hạn thì không bị trừ.
+  const lateSub = s.late.minutes
+    ? `Đi muộn ${s.late.minutes} phút` + (rates ? `, mỗi lần muộn không quá ${rates.lateGraceMinutes} phút thì không trừ` : '')
     : undefined;
   return [
     {
@@ -31,7 +40,7 @@ const groups = computed<Group[]>(() => {
       title: 'Ngày công và lương cơ bản',
       rows: [
         { label: `Ngày công tháng ${monthNo(props.month)}`, rule: String(s.days.standard), actual: String(s.days.work) },
-        { label: 'Lương cơ bản (đ)', rule: money(s.base), actual: money(c.baseActual) },
+        { label: 'Lương cơ bản (đ)', rule: money(s.base), actual: money(c.baseActual), strong: true },
         {
           label: 'Chờ giải trình (ngày)',
           actual: String(s.days.pending),
@@ -46,16 +55,16 @@ const groups = computed<Group[]>(() => {
       title: 'Nghỉ phép và ngày lễ',
       rows: [
         { label: 'Nghỉ phép có lương (ngày)', rule: String(s.days.leave), actual: money(s.leavePay) },
-        { label: 'Quyết toán phép dư (ngày)', rule: '0', actual: '0' },
+        { label: 'Quyết toán phép dư (đ)', actual: money(s.settlementPay) },
         { label: 'Nghỉ thứ 7 hưởng lương · iSAT (ngày)', rule: String(s.days.isat), actual: money(s.isatPay) },
-        { label: 'Nghỉ lễ hưởng lương (ngày)', rule: '0', actual: '0' }
+        { label: 'Nghỉ lễ hưởng lương (ngày)', rule: String(s.holiday.days), actual: money(s.holiday.pay) }
       ]
     },
     {
       id: 'ot',
       title: 'Làm thêm giờ',
       rows: [
-        { label: 'OT ×1,5 · ×2 · ×3 (giờ)', rule: s.ot.hours.map(h => num(h)).join(' · ') },
+        { label: otLabel.value, rule: s.ot.hours.map(h => num(h)).join(' · ') },
         { label: 'Tiền OT', actual: money(s.ot.pay) }
       ]
     },
@@ -93,11 +102,16 @@ const groups = computed<Group[]>(() => {
 const totals = computed<Row[]>(() => {
   const s = props.slip;
   const c = s.calc;
+  const ins = s.rates?.insurancePct;
   return [
     { label: 'Tổng thu nhập (đ)', actual: money(c.gross), strong: true },
     { label: 'Các khoản miễn thuế', actual: money(s.exempt) },
     { label: 'Thu nhập chịu thuế', actual: money(c.taxable) },
-    { label: 'Bảo hiểm bắt buộc 10,5%', sub: 'BHXH 8% · BHTN 1% · BHYT 1,5%', actual: money(c.insurance) },
+    {
+      label: ins ? `Bảo hiểm bắt buộc ${pct(ins.total)}` : 'Bảo hiểm bắt buộc',
+      sub: ins ? `BHXH ${pct(ins.bhxh)} · BHTN ${pct(ins.bhtn)} · BHYT ${pct(ins.bhyt)}` : undefined,
+      actual: money(c.insurance)
+    },
     { label: 'Thu nhập sau bảo hiểm (đ)', actual: money(c.afterInsurance), strong: true },
     { label: 'Thuế TNCN', sub: `Lũy tiến · ${s.dependants} người phụ thuộc`, actual: money(c.tax) },
     { label: 'Tạm ứng', actual: money(s.advance) }
@@ -233,8 +247,8 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
   background: var(--ground);
   font-size: 11px;
   line-height: 16px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--muted);
 }

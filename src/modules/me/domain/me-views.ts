@@ -1,23 +1,50 @@
 // Hàm thuần dựng dữ liệu "của tôi" từ bảng công và đơn từ: ngày theo giờ Việt Nam, tuần thứ Hai – Chủ nhật,
 // một ô ngày công, công cả tháng và các bước của một đơn.
 
-export type DayKind = 'work' | 'late' | 'leave' | 'absent' | 'todo' | 'off' | 'future';
-/** Loại của một ngày nghỉ, lấy thẳng từ trạng thái bảng công. */
-export type LeaveKind = 'paid' | 'unpaid' | 'holiday';
-export type DaySummary = { date: string; kind: DayKind; leave?: LeaveKind; in: string | null; out: string | null; lateMinutes: number };
+/** Loại ô ngày công, suy ra từ dòng ngày dùng chung (spec attendance-core 8.2). */
+export type DayKind = 'work' | 'late' | 'leave' | 'absent' | 'todo' | 'off' | 'future' | 'outside' | 'extra';
+/** Loại của một ngày nghỉ, lấy thẳng từ trạng thái dòng ngày. */
+export type LeaveKind = 'paid' | 'unpaid' | 'holiday' | 'isat' | 'makeup';
+/** Trạng thái giải trình của ngày, chữ thường. */
+export type ExplanationState = 'none' | 'pending' | 'approved' | 'rejected';
+/** Một trường hợp giải trình đã dò được trên ngày (mã, số phút, có ảnh hưởng tiền hay không). */
+export type DayCase = { code: string; minutes: number; affectsPay: boolean };
+export type DaySummary = {
+  date: string;
+  kind: DayKind;
+  leave?: LeaveKind;
+  in: string | null;
+  out: string | null;
+  lateMinutes: number;
+  /** Không đặt tên là `explanation`: route ngày đã trả đối tượng `explanation` của đơn giải trình. */
+  explanationStatus: ExplanationState;
+  cases: DayCase[];
+};
 
+/** Phần của dòng ngày (DailyTimesheetDTO) mà /me đọc. */
 export type TimesheetLike = {
   workDate: string;
   actualCheckIn: string | null;
   actualCheckOut: string | null;
   status: string;
-  checkInStatus: string;
-  checkOutStatus: string;
   isLocked?: boolean;
   metrics?: { lateMinutes?: number };
+  cases?: DayCase[];
+  explanationStatus?: string;
+  payUnits?: number;
+  deductionMinutes?: number;
+  countsAsWorkday?: boolean;
 };
 
-const LEAVE_OF: Record<string, LeaveKind> = { LEAVE_PAID: 'paid', LEAVE_UNPAID: 'unpaid', HOLIDAY: 'holiday' };
+const LEAVE_OF: Record<string, LeaveKind> = {
+  HOLIDAY: 'holiday',
+  ISAT: 'isat',
+  LEAVE_PAID: 'paid',
+  LEAVE_UNPAID: 'unpaid',
+  LEAVE_MAKEUP: 'makeup'
+};
+
+const PAID_LEAVE_STATUSES = new Set(['LEAVE_PAID', 'HOLIDAY', 'ISAT']);
 
 const VN_OFFSET_MS = 7 * 3600000;
 const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
@@ -43,33 +70,52 @@ function hhmm(v: string | null): string | null {
 /** Tuần làm mặc định khi chưa biết tuần của người đó: thứ Hai – thứ Bảy (Chủ nhật nghỉ). */
 export const DEFAULT_WEEKDAYS: readonly number[] = [1, 2, 3, 4, 5, 6];
 
-/** Một ngày công của chính mình. Thiếu giờ vào hoặc ra ở ngày đã qua là "todo" (cần giải trình).
- *  `weekdays` là các thứ (0 = Chủ nhật … 6 = thứ Bảy) trong tuần làm của người đó ở tháng của ngày này: ngày không có
- *  bảng công mà thứ không thuộc tuần là "off", không phải "absent". */
+const explanationOf = (v: string | undefined): ExplanationState => {
+  const x = String(v ?? 'NONE').toLowerCase();
+  return x === 'pending' || x === 'approved' || x === 'rejected' ? x : 'none';
+};
+
+/** Một ngày công của chính mình, đọc từ dòng ngày (bảng spec 8.2).
+ *  `weekdays` là các thứ (0 = Chủ nhật … 6 = thứ Bảy) trong tuần làm của người đó ở tháng của ngày này: chỉ dùng khi
+ *  ngày chưa có dòng, thứ không thuộc tuần là "off", không phải "absent". */
 export function daySummaryOf(
   ts: TimesheetLike | undefined,
   date: string,
   today: string,
   weekdays: readonly number[] = DEFAULT_WEEKDAYS
 ): DaySummary {
-  const empty = { date, in: null, out: null, lateMinutes: 0 };
+  const base = { date, in: null, out: null, lateMinutes: 0, explanationStatus: 'none' as ExplanationState, cases: [] as DayCase[] };
   if (!ts) {
-    if (!weekdays.includes(dow(date))) return { ...empty, kind: 'off' };
-    return { ...empty, kind: date > today ? 'future' : 'absent' };
+    if (!weekdays.includes(dow(date))) return { ...base, kind: 'off' };
+    return { ...base, kind: date > today ? 'future' : 'absent' };
   }
+  const cases = ts.cases ?? [];
+  const explanationStatus = explanationOf(ts.explanationStatus);
+  const shown = { date, in: hhmm(ts.actualCheckIn), out: hhmm(ts.actualCheckOut), lateMinutes: ts.metrics?.lateMinutes || 0, explanationStatus, cases };
   const leave = LEAVE_OF[ts.status];
-  if (leave) return { date, kind: 'leave', leave, in: null, out: null, lateMinutes: 0 };
-  const cin = hhmm(ts.actualCheckIn);
-  const cout = hhmm(ts.actualCheckOut);
-  const lateMinutes = ts.metrics?.lateMinutes || 0;
-  let kind: DayKind;
-  if (!cin && !cout) kind = date > today ? 'future' : 'absent';
-  else if (!cin || !cout) kind = date === today ? 'work' : 'todo';
-  else kind = ts.checkInStatus === 'LATE' || ts.checkOutStatus === 'EARLY' ? 'late' : 'work';
-  return { date, kind, in: cin, out: cout, lateMinutes };
+  if (leave) return { ...base, kind: 'leave', leave, explanationStatus, cases };
+  switch (ts.status) {
+    case 'OUTSIDE':
+      return { ...base, kind: 'outside', explanationStatus, cases };
+    case 'REST':
+      return { ...shown, kind: 'off' };
+    case 'EXTRA':
+      return { ...shown, kind: 'extra' };
+    case 'PENDING':
+      return { ...shown, kind: date > today ? 'future' : 'work' };
+    case 'ABSENT':
+      return { ...shown, kind: 'absent' };
+    case 'PRESENT': {
+      // Có mã ảnh hưởng tiền mà chưa được duyệt thì còn việc phải giải trình.
+      if (cases.some(c => c.affectsPay) && explanationStatus !== 'approved') return { ...shown, kind: 'todo' };
+      return { ...shown, kind: (ts.deductionMinutes ?? 0) > 0 ? 'late' : 'work' };
+    }
+    default:
+      return { ...shown, kind: 'off' };
+  }
 }
 
-/** Công cả tháng: một ô mỗi ngày và số đếm (ngày công chuẩn = các ngày của tháng có thứ thuộc `weekdays`; controller
+/** Công cả tháng: một ô mỗi ngày và số đếm (workDays = số dòng tính là ngày công, ngày công chuẩn = các ngày của tháng có thứ thuộc `weekdays`; controller
  *  thay bằng số chuẩn của cài đặt).
  *  Kỳ công "locked" khi Admin đã Chốt công tháng đó (periodStatus của payroll_periods khác 'open') hoặc tháng có dòng
  *  công đã khoá (cờ chặn chấm công). */
@@ -92,10 +138,11 @@ export function monthOf(
     month,
     periodState: (periodStatus && periodStatus !== 'open') || inMonth.some(t => t.isLocked) ? ('locked' as const) : ('open' as const),
     totals: {
-      workDays: days.filter(d => d.kind === 'work' || d.kind === 'late').length,
+      workDays: inMonth.filter(t => t.countsAsWorkday).length,
       standardDays: days.filter(d => weekdays.includes(dow(d.date))).length,
       lateCount: days.filter(d => d.kind === 'late').length,
-      paidLeaveDays: inMonth.filter(t => t.status === 'LEAVE_PAID' || t.status === 'HOLIDAY').length
+      // R11: nghỉ hưởng lương gồm phép có lương, lễ có lương và iSAT có lương (payUnits = 1).
+      paidLeaveDays: inMonth.filter(t => PAID_LEAVE_STATUSES.has(t.status) && t.payUnits === 1).length
     },
     days
   };

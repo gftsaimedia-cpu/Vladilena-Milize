@@ -1,51 +1,59 @@
-// Dịch vụ Chấm công Admin. Máy chủ thật: GET /api/v2/attendance/timesheets (cả lưới 4 tuần và tháng đang xem),
-// /employees và các đơn đang chờ (chuông); dữ liệu giả: mock/attendance.ts.
-import { attendanceFromTimesheets, dayDetailFrom, employeeViewFrom, gridFromOf, type AttendanceInput } from '@/builders/api/attendance';
-import { attendanceView, dayDetail, type AttendanceView, type DayDetail } from '@/mock/attendance';
-import { employeeView, type EmployeeView } from '@/mock/attendance-employee';
+// Dịch vụ Chấm công Admin. Máy chủ thật: GET /api/v2/attendance/week (lưới, đã lọc q/group) và
+// GET /api/v2/attendance/employees/:username (hồ sơ tháng), BE tính hết; đơn chờ (chuông) vẫn từ /requests để có chữ chi tiết.
+// Dữ liệu giả: mock/attendance.ts trả cùng dạng DTO.
+import {
+  attendanceFromWeek,
+  dayDetailFromDto,
+  employeeFromDto,
+  type AttendanceView,
+  type DayDetail,
+  type EmployeeMonthDTO,
+  type EmployeeView,
+  type WeekDTO
+} from '@/builders/api/attendance';
+import { employeeDto } from '@/mock/attendance-employee';
+import { weekDto } from '@/mock/attendance';
 import { respond } from '@/mock/respond';
-import { useSessionStore } from '@/stores/session';
 import { getInbox } from './admin-main';
 import { api, qs } from './http';
 
-const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+const GRID_DAYS = 28;
 
-// Hôm nay theo giờ Việt Nam (UTC+7) của đồng hồ máy chủ.
-function today(): string {
-  const now = useSessionStore().serverNow;
-  return new Date((now ? Date.parse(now) : Date.now()) + 7 * 3600000).toISOString().slice(0, 10);
+async function fetchWeek(month: string, q: string, group: string): Promise<WeekDTO | null> {
+  if (__MOCK__) {
+    const dto = weekDto({ month, q, group });
+    return dto ? respond(dto) : null;
+  }
+  return api.get(`/attendance/week${qs({ days: GRID_DAYS, month, q: q.trim() || undefined, group: group || undefined })}`);
 }
 
-// Đọc một lần đủ dữ liệu cho tháng `month` và lưới 4 tuần quanh hôm nay.
-async function load(month: string): Promise<AttendanceInput> {
-  const t = today();
-  const [y, m] = month.split('-').map(Number);
-  const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-  const gridFrom = gridFromOf(t);
-  const startDate = [gridFrom, `${month}-01`].sort()[0];
-  const endDate = [addDays(gridFrom, 27), monthEnd].sort()[1];
-  const [ts, emp, inbox] = await Promise.all([
-    api.get(`/attendance/timesheets${qs({ startDate, endDate })}`),
-    api.get('/employees'),
-    getInbox()
-  ]);
-  return { month, today: t, employees: emp.employees || [], timesheets: ts.timesheets || [], pending: inbox.items };
+async function fetchEmployee(username: string, month: string): Promise<EmployeeMonthDTO | null> {
+  if (__MOCK__) {
+    const dto = employeeDto(username, month);
+    return dto ? respond(dto) : null;
+  }
+  try {
+    return await api.get(`/attendance/employees/${encodeURIComponent(username)}${qs({ month })}`);
+  } catch (e: any) {
+    if (e?.status === 404) return null;
+    throw e;
+  }
 }
 
-/** Màn Chấm công của một tháng 'YYYY-MM'; null khi tháng đó không có dữ liệu giả (chế độ dữ liệu giả). */
-export async function getAttendance(month: string): Promise<AttendanceView | null> {
-  if (__MOCK__) return respond(attendanceView(month));
-  return attendanceFromTimesheets(await load(month));
+/** Màn Chấm công của một tháng 'YYYY-MM', lọc theo tên (`q`) và nhóm (`group`) ngay ở máy chủ; null khi tháng không có dữ liệu giả. */
+export async function getAttendance(month: string, q = '', group = ''): Promise<AttendanceView | null> {
+  const [dto, inbox] = await Promise.all([fetchWeek(month, q, group), getInbox()]);
+  return dto ? attendanceFromWeek(dto, inbox.items) : null;
 }
 
 /** Hộp chi tiết một ngày của một người; null khi không có người này. */
 export async function getDayDetail(personId: string, date: string): Promise<DayDetail | null> {
-  if (__MOCK__) return respond(dayDetail(personId, date));
-  return dayDetailFrom(await load(date.slice(0, 7)), personId, date);
+  const [dto, inbox] = await Promise.all([fetchEmployee(personId, date.slice(0, 7)), getInbox()]);
+  return dto ? dayDetailFromDto(dto, date, inbox.items) : null;
 }
 
 /** Hồ sơ chấm công của một người trong một tháng; null khi không có người này. */
 export async function getEmployeeAttendance(personId: string, month: string): Promise<EmployeeView | null> {
-  if (__MOCK__) return respond(employeeView(personId, month));
-  return employeeViewFrom(await load(month), personId);
+  const dto = await fetchEmployee(personId, month);
+  return dto ? employeeFromDto(dto) : null;
 }

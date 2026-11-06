@@ -17,20 +17,13 @@ export {
 
 // ---------- Bản nối máy chủ thật (services/admin-config.js) ----------
 export {
-  getSettingsBadges,
   getBenefits,
   benefitChangesAt,
   saveBenefits,
-  getAllSettings,
-  saveAllSettings,
   getCalendar,
-  getCalendarSetup,
-  saveCalendarSetup,
   addHoliday,
   quickAddHolidays,
   removeHoliday,
   getAuditLog,
   verifyAuditLog
 } from './admin-config';
-export { getPayFormula, getPayDrawer, savePayDrawer } from './admin-config';
-export { getKpiRules } from './admin-config';

@@ -3,11 +3,26 @@ import { SettingsModule } from '../settings';
 import { AttendanceRepository } from './attendance.repository';
 import { AttendanceService } from './attendance.service';
 import { AttendanceController } from './attendance.controller';
+import { AttendanceDaysJob } from './attendance-days.job';
+import { AttendanceDaysRepository } from './attendance-days.repository';
+import { AttendanceDaysService } from './attendance-days.service';
+import { AttendanceSettingsListener } from './attendance-settings.listener';
+import { AttendanceSettingsPort, SettingsAttendanceSettings } from './attendance-settings.port';
+import { PeriodsModule } from '../periods/periods.module';
 
 @Module({
-  imports: [SettingsModule],
+  imports: [SettingsModule, PeriodsModule],
   controllers: [AttendanceController],
-  providers: [AttendanceRepository, AttendanceService],
-  exports: [AttendanceService, AttendanceRepository],
+  providers: [
+    AttendanceRepository,
+    AttendanceService,
+    AttendanceDaysRepository,
+    AttendanceDaysService,
+    AttendanceDaysJob,
+    { provide: AttendanceSettingsPort, useClass: SettingsAttendanceSettings },
+    // Ghi lại dòng ngày công khi tuần làm riêng hoặc ân hạn đổi (spec 9.2).
+    AttendanceSettingsListener
+  ],
+  exports: [AttendanceService, AttendanceRepository, AttendanceDaysRepository, AttendanceDaysService, AttendanceDaysJob, AttendanceSettingsPort]
 })
 export class AttendanceModule {}

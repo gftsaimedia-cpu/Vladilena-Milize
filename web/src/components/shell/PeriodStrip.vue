@@ -1,38 +1,12 @@
 <script setup lang="ts">
 // Dải bước kỳ lương: trạng thái kỳ và các bước. AdminLayout đặt dải dưới thanh trên ở Chấm công;
-// Bảng lương tự đặt dải dạng thẻ (card) dưới tiêu đề trang.
-// Máy chủ thật: người có năng lực attendance.lock thấy nút "Chốt công" khi tháng chưa chốt công.
-import { computed, ref } from 'vue';
-import { toast } from '@/components/shell/toast';
+// Bảng lương tự đặt dải dạng thẻ (card) dưới tiêu đề trang, nút Phê duyệt kỳ lương nằm ở tiêu đề trang theo board, các nút còn lại ở cuối dải (PeriodActions).
 import Icon from '@/components/ui/Icon.vue';
 import { usePeriodStore } from '@/stores/period';
-import { useSessionStore } from '@/stores/session';
+import PeriodActions from './PeriodActions.vue';
 
 withDefaults(defineProps<{ card?: boolean }>(), { card: false });
 const period = usePeriodStore();
-const session = useSessionStore();
-
-const canLock = computed(
-  () =>
-    !__MOCK__ &&
-    session.caps.includes('attendance.lock') &&
-    period.strip.steps.length > 1 &&
-    period.strip.steps[1][0] !== 'done'
-);
-const locking = ref(false);
-async function lock() {
-  if (locking.value) return;
-  if (!window.confirm(`Chốt công ${period.strip.month.toLowerCase()}? Kỳ lương chuyển sang bước tính lương.`)) return;
-  locking.value = true;
-  try {
-    await period.lock();
-    toast.ok(`Đã chốt công ${period.strip.month.toLowerCase()}.`);
-  } catch (e) {
-    toast.error(e.message);
-  } finally {
-    locking.value = false;
-  }
-}
 </script>
 
 <template>
@@ -59,9 +33,7 @@ async function lock() {
         </span>
       </template>
     </div>
-    <button v-if="canLock" type="button" class="btn sm" :disabled="locking" @click="lock">
-      {{ locking ? 'Đang chốt…' : 'Chốt công' }}
-    </button>
+    <PeriodActions :only="card ? 'rest' : ''" />
   </div>
 </template>
 
@@ -110,7 +82,7 @@ async function lock() {
   min-width: 0;
   margin: 0;
   gap: 8px;
-  padding: 4px 2px;
+  padding: 0 2px;
   overflow-x: auto;
   scrollbar-width: thin;
 }

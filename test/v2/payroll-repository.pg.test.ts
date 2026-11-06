@@ -4,14 +4,22 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { Client } from 'pg';
+import type { Kysely } from 'kysely';
 import { createKysely, createPgPool } from '../../src/database/kysely';
+import type { DB } from '../../src/database/schema';
 import { TransactionCoordinator } from '../../src/database/transaction';
+import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
+import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
+import { SettingsAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { PayrollRepository } from '../../src/modules/payroll/payroll.repository';
 import { PayrollFinalizedError } from '../../src/modules/payroll/payroll.errors';
+import { SettingsChanges } from '../../src/modules/settings/settings-changes';
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
 import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { SettingsService } from '../../src/modules/settings/settings.service';
+import { AuditLog } from '../../src/modules/audit/audit-log';
+import { AuditRepository } from '../../src/modules/audit/audit.repository';
 import { withTempDb } from './helpers/pg-temp-db';
 
 // Needs a real PostgreSQL. PG_TEST_URL is a control connection (a role that may CREATE/DROP DATABASE): the test
@@ -21,6 +29,34 @@ const CONTROL_URL = process.env.PG_TEST_URL;
 const SCHEMA = join(__dirname, '..', '..', 'migrations', 'postgres', 'schema.sql');
 const MONTH = '2026-10';
 const PARTIAL_MONTH = '2026-11';
+
+/** A punch on the Vietnam clock; the payslip reads it through the day row (AttendanceDaysService). */
+async function punch(client: Client, employeeId: string, date: string, inTime: string, outTime: string) {
+  for (const [time, type] of [
+    [inTime, 'IN'],
+    [outTime, 'OUT']
+  ]) {
+    await client.query(
+      `INSERT INTO punch_events (id, employee_id, punched_at, work_date, type, latitude, longitude,
+         accuracy_meters, distance_meters, is_within_office, created_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, 0, 0, 1, 1, true, now())`,
+      [employeeId, `${date}T${time}:00+07:00`, date, type]
+    );
+  }
+}
+
+/** The payroll service on the real day rows, with "now" fixed after the months it computes. */
+function payrollOn(db: Kysely<DB>, now: Date, reader?: SettingsReader) {
+  const coordinator = new TransactionCoordinator(db);
+  const days = new AttendanceDaysService(
+    new AttendanceDaysRepository(db),
+    new SettingsAttendanceSettings(reader ?? new SettingsReader(new SettingsRepository(db))),
+    coordinator
+  );
+  const service = new PayrollService(new PayrollRepository(db), reader, days, coordinator);
+  service.now = () => now;
+  return service;
+}
 
 test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
   if (!CONTROL_URL) {
@@ -55,12 +91,7 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
        VALUES ('pg-user', 'Nhân viên PG', 'nv', 1, 'x', $1, 'long', 'pg-uuid-1')`,
       [now]
     );
-    await client.query(
-      `INSERT INTO timesheet_entries (id, employee_id, work_date, shift_type, shift_start_time, shift_end_time,
-         shift_allowance_pct, work_hours, status, day_status, created_at, updated_at)
-       VALUES (gen_random_uuid(), 'pg-uuid-1', '2026-10-01', 'NORMAL', '08:00', '17:00', 0, 8, 'PRESENT', 'VALID',
-         now(), now())`
-    );
+    await punch(client, 'pg-uuid-1', '2026-10-01', '08:00', '17:00');
     await client.query(
       `INSERT INTO system_requests (id, employee_id, title, type, reason, status, ot_date, ot_hours,
          created_at, updated_at)
@@ -76,7 +107,7 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
 
     // iSAT requests: only the APPROVED one of pg-uuid-1 on a Saturday of 2026-10 is paid. The others must not show:
     // a PENDING one on another Saturday of the month, an APPROVED one in 2026-09 and an APPROVED one of another
-    // employee in 2026-10.
+    // employee in 2026-10. Approving one writes the ISAT schedule of that Saturday (markIsatDay); a pending one has none.
     await client.query(
       `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid)
        VALUES ('pg-user-3', 'Nhân viên PG 3', 'nv', 1, 'x', $1, 'long', 'pg-uuid-3')`,
@@ -95,6 +126,14 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
          VALUES ($1, $2, 'Nhân viên PG', 'Team PG', 'nv', 1, NULL, 'NORMAL', '08:00', '17:00')`,
         [request.rows[0].id, saturday]
       );
+      if (status === 'APPROVED') {
+        await client.query(
+          `INSERT INTO work_schedules (employee_id, work_date, shift_type, planned_start_time, planned_end_time,
+             schedule_type, status, source_request_id)
+           VALUES ($1, $2, 'NORMAL', '08:00', '17:00', 'ISAT', 'ON_LEAVE', $3)`,
+          [employeeId, saturday, request.rows[0].id]
+        );
+      }
     };
     await seedIsat('pg-uuid-1', 'APPROVED', '2026-10-10');
     await seedIsat('pg-uuid-1', 'PENDING', '2026-10-17');
@@ -102,15 +141,15 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
     await seedIsat('pg-uuid-3', 'APPROVED', '2026-10-24');
 
     const repo = new PayrollRepository(db);
-    const service = new PayrollService(repo);
+    // Computed on 01/12: every day of October and November has reached its evaluation time.
+    const service = payrollOn(db, new Date('2026-12-01T03:00:00Z'));
 
     // The monthly query runs on real DATE columns and returns numbers for the BIGINT ones.
     const data = await repo.getMonthlyData('pg-uuid-1', MONTH);
     assert.ok(data);
     assert.equal(data.requests.length, 1);
     assert.equal(data.requests[0].otDate, '2026-10-01');
-    assert.equal(data.timesheets.length, 1);
-    assert.equal(data.timesheets[0].workDate, '2026-10-01');
+    assert.equal('timesheets' in data, false);
     assert.equal(typeof data.staff.baseSalary, 'number');
     assert.equal(data.staff.baseSalary, 6_000_000);
     assert.equal(typeof data.kpi?.proposedAmount, 'number');
@@ -118,10 +157,29 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
     assert.equal(data.staff.contractTerm, 'long');
     assert.equal(data.staff.insured, true);
     assert.equal(data.staff.contractStatusText, 'HĐLĐ từ 3 tháng');
-    assert.deepEqual(data.isatDates, ['2026-10-10']);
+    assert.equal('isatDates' in data, false);
 
     // Two calculations of the same month: the second one becomes run 2 and supersedes the first.
     const slip = await service.generateMonthlyPayslip('pg-uuid-1', MONTH);
+    // The worked day and the paid iSAT Saturday are day rows the payslip wrote and read back.
+    const worked = slip.dailyLines.find(line => line.date === '2026-10-01');
+    assert.deepEqual([worked?.kind, worked?.daySalary], ['PRESENT', 230_769]);
+    const stored = await client.query(
+      `SELECT to_char(work_date, 'YYYY-MM-DD') AS d, status FROM timesheet_entries
+       WHERE employee_id = 'pg-uuid-1' AND work_date IN ('2026-10-01', '2026-10-10') ORDER BY work_date`
+    );
+    assert.deepEqual(
+      stored.rows.map(r => [r.d, r.status]),
+      [
+        ['2026-10-01', 'PRESENT'],
+        ['2026-10-10', 'ISAT']
+      ]
+    );
+    assert.deepEqual(
+      slip.dailyLines.filter(line => line.kind === 'ISAT').map(line => [line.date, line.daySalary]),
+      [['2026-10-10', 230_769]]
+    );
+    assert.equal(slip.isatDays, 1);
     const firstRunId = Number(await repo.savePayrollRunAndSlips(MONTH, 'tester', [slip]));
     const secondRunId = Number(await repo.savePayrollRunAndSlips(MONTH, 'tester', [slip], 1));
 
@@ -245,25 +303,22 @@ test('A payroll run reads the settings store and stores the month snapshot on Po
     );
     const settingsRepo = new SettingsRepository(db);
     const reader = new SettingsReader(settingsRepo);
-    const settings = new SettingsService(settingsRepo, reader, new TransactionCoordinator(db));
+    const tx = new TransactionCoordinator(db);
+    const settings = new SettingsService(settingsRepo, reader, tx, new SettingsChanges(), new AuditLog(new AuditRepository(), tx));
     await settings.saveWorkWeek('nv-binh', { weekdays: [1, 2, 3, 4, 5], effectiveMonth: '2026-12', stamp: 0 }, 'admin', now);
     await settings.saveGroup('insurance', { values: { bhxhPct: 10 }, effectiveMonth: '2026-12', stamp: 0 }, 'admin', now);
 
-    // All 23 Mon–Fri days of December 2026 worked.
+    // All 23 Mon–Fri days of December 2026 worked, punched 08:00–17:00.
     for (let day = 1; day <= 31; day++) {
       const date = `2026-12-${String(day).padStart(2, '0')}`;
       const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
       if (weekday === 0 || weekday === 6) continue;
-      await client.query(
-        `INSERT INTO timesheet_entries (id, employee_id, work_date, shift_type, shift_start_time, shift_end_time,
-           shift_allowance_pct, work_hours, status, day_status, created_at, updated_at)
-         VALUES (gen_random_uuid(), 'u-binh', $1, 'NORMAL', '08:00', '17:00', 0, 8, 'PRESENT', 'VALID', now(), now())`,
-        [date]
-      );
+      await punch(client, 'u-binh', date, '08:00', '17:00');
     }
 
     const repo = new PayrollRepository(db);
-    const result = await new PayrollService(repo, reader).calculatePeriodPayslips('2026-12', ['u-binh'], 'tester');
+    const payroll = payrollOn(db, new Date('2027-01-01T03:00:00Z'), reader);
+    const result = await payroll.calculatePeriodPayslips('2026-12', ['u-binh'], 'tester');
     assert.deepEqual(result.errors, []);
     assert.ok(result.runId !== null);
 

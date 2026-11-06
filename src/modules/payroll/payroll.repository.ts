@@ -39,22 +39,7 @@ export interface EmployeeMonthlyRawData {
     dependants: number;
     kpiCap: KpiCap;
   };
-  timesheets: Array<{
-    workDate: string;
-    shiftType: string;
-    shiftStartTime: string;
-    shiftEndTime: string;
-    shiftAllowancePct: number;
-    actualCheckIn?: string | null;
-    actualCheckOut?: string | null;
-    workHours: number;
-    otHours: number;
-    lateMinutes: number;
-    earlyMinutes: number;
-    status: string;
-    dayStatus: string;
-    scheduleType?: string;
-  }>;
+  // The day rows are not here: the payslip reads them from AttendanceDaysService (spec 8.1).
   requests: Array<{
     id: string;
     type: string;
@@ -72,8 +57,7 @@ export interface EmployeeMonthlyRawData {
     advanceAmount?: number | bigint | null;
     advancePeriod?: string | null;
   }>;
-  isatDates?: string[]; // Saturdays of approved iSAT requests, 'YYYY-MM-DD'
-  holidayDates?: string[]; // company holidays of the month, 'YYYY-MM-DD'
+  holidayDates?: string[]; // company holidays of the month, 'YYYY-MM-DD' (the holiday OT rate)
   kpi: KpiInput | null;
 }
 
@@ -83,9 +67,7 @@ export interface MonthRows {
   type: any | null;
   level: any | null;
   benefits: any[];
-  timesheets: any[];
   requests: any[];
-  isatDates?: Array<string | Date>;
   holidays?: Array<string | Date>;
   annualLeaveUsed?: number | string; // approved annual leave days in day_status since the balance date, up to the month end
   kpi: any | null;
@@ -162,22 +144,6 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       dependants: Math.max(0, Math.floor(Number(staffRow.dependants) || 0)),
       kpiCap
     },
-    timesheets: rows.timesheets.map(r => ({
-      workDate: dateText(r.work_date),
-      shiftType: r.shift_type,
-      shiftStartTime: r.shift_start_time,
-      shiftEndTime: r.shift_end_time,
-      shiftAllowancePct: Number(r.shift_allowance_pct),
-      actualCheckIn: r.actual_check_in instanceof Date ? r.actual_check_in.toISOString() : r.actual_check_in,
-      actualCheckOut: r.actual_check_out instanceof Date ? r.actual_check_out.toISOString() : r.actual_check_out,
-      workHours: Number(r.work_hours),
-      otHours: Number(r.ot_hours),
-      lateMinutes: Number(r.late_minutes),
-      earlyMinutes: Number(r.early_minutes),
-      status: r.status,
-      dayStatus: r.day_status,
-      scheduleType: r.schedule_type ?? undefined
-    })),
     requests: rows.requests.map(r => ({
       id: r.id,
       type: r.type,
@@ -195,7 +161,6 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       advanceAmount: numberOrNull(r.advance_amount),
       advancePeriod: r.advance_period
     })),
-    isatDates: (rows.isatDates ?? []).map(dateText),
     holidayDates: (rows.holidays ?? []).map(dateText),
     kpi: kpiRow
       ? {
@@ -247,6 +212,17 @@ export interface CarryForward {
   exceptUsernames: string[];
   exceptEmployeeIds: string[];
 }
+
+/** A run just stored: what `beforeCommit` gets to write the audit row in the run's own transaction. */
+export interface SavedRun {
+  id: number;
+  runNo: number;
+  previousRunNo: number | null; // the month's highest run number before this one; null for the first run
+  slips: number; // payslips in the run, carried ones included
+}
+
+/** The stored KPI of a person and month (points x 100, kpi_proposed in đồng); null columns are not entered yet. */
+export type KpiScoreRow = Required<KpiScorePatch>;
 
 const ENGINE_VERSION = 'v2-rules-2026-11';
 
@@ -317,6 +293,12 @@ export class PayrollRepository {
       .selectFrom('staff')
       .select(['uuid', 'username', 'name'])
       .where('locked_at', 'is', null)
+      .where(eb =>
+        eb.or([
+          eb('payroll_subject', '=', 1),
+          eb.and([eb('payroll_subject', 'is', null), eb('role', '<>', 'admin')])
+        ])
+      )
       .execute();
 
     return rows.map(r => ({
@@ -369,25 +351,11 @@ export class PayrollRepository {
 
     const { typeRow, levelRow, benefits } = await this.positionInEffect(staffRow, month);
 
-    // Timesheet entries
+    // The day rows (timesheet_entries, iSAT included) are read by the service through AttendanceDaysService.
     const [y, m] = month.split('-').map(Number);
     const lastDay = new Date(y, m, 0).getDate();
     const startDate = `${month}-01`;
     const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
-    const timesheetRows = await this.qb
-      .selectFrom('timesheet_entries')
-      .leftJoin('work_schedules', join =>
-        join
-          .onRef('work_schedules.employee_id', '=', 'timesheet_entries.employee_id')
-          .onRef('work_schedules.work_date', '=', 'timesheet_entries.work_date')
-      )
-      .selectAll('timesheet_entries')
-      .select('work_schedules.schedule_type as schedule_type')
-      .where('timesheet_entries.employee_id', '=', staffRow.uuid || employeeId)
-      .where('timesheet_entries.work_date', '>=', startDate)
-      .where('timesheet_entries.work_date', '<=', endDate)
-      .orderBy('timesheet_entries.work_date', 'asc')
-      .execute();
 
     // Requests (filtered by target month; DATE columns are compared against the month's first and last day)
     const requestRows = await this.qb
@@ -403,19 +371,6 @@ export class PayrollRepository {
           eb.and([eb('explanation_date', '>=', startDate), eb('explanation_date', '<=', endDate)])
         ])
       )
-      .execute();
-
-    // Saturdays of approved iSAT requests in the month (the DATE column is converted to text in mapMonthRows)
-    const isatRows = await this.qb
-      .selectFrom('isat_registrations')
-      .innerJoin('system_requests', 'system_requests.id', 'isat_registrations.request_id')
-      .select('isat_registrations.saturday as saturday')
-      .where('system_requests.employee_id', '=', staffRow.uuid || employeeId)
-      .where('system_requests.type', '=', 'ISAT')
-      .where('system_requests.status', '=', 'APPROVED')
-      .where('isat_registrations.saturday', '>=', startDate)
-      .where('isat_registrations.saturday', '<=', endDate)
-      .orderBy('isat_registrations.saturday', 'asc')
       .execute();
 
     // Company holidays in the month (the DATE column is converted to text in mapMonthRows)
@@ -453,9 +408,7 @@ export class PayrollRepository {
       type: typeRow ?? null,
       level: levelRow ?? null,
       benefits,
-      timesheets: timesheetRows,
       requests: requestRows,
-      isatDates: isatRows.map(r => r.saturday),
       holidays: holidayRows.map(r => r.holiday_date),
       annualLeaveUsed: annualLeaveUsed?.n ?? 0,
       kpi: kpiRow ?? null
@@ -465,6 +418,10 @@ export class PayrollRepository {
   // The payslips of the month's current draft run that a partial run keeps: everyone except the people it recalculated
   // (exceptUsernames) and every target of the call (exceptEmployeeIds, uuid or username), so a target that failed
   // does not keep its old payslip.
+  // Lần chạy nháp trước bị khoá FOR NO KEY UPDATE (đúng mức khoá mà câu 'superseded' sau đó vẫn lấy, chỉ lấy sớm hơn)
+  // trước khi đọc phiếu để chép: một giao dịch duyệt đơn đang giữ lần chạy đó FOR SHARE (đã đưa phiếu về nháp, chưa
+  // commit, xem resetDecision) thì câu này đợi nó xong; các câu sau đọc dữ liệu đã commit mới nhất, nên phiếu được chép
+  // là phiếu đã về nháp, không phải bản đã duyệt cũ.
   private async carriedPayslips(
     trx: Transaction<DB>,
     month: string,
@@ -477,6 +434,7 @@ export class PayrollRepository {
       .where('status', '=', 'draft')
       .orderBy('run_no', 'desc')
       .limit(1)
+      .forNoKeyUpdate()
       .executeTakeFirst();
     if (!previous) return [];
 
@@ -498,14 +456,16 @@ export class PayrollRepository {
   // Stores a new draft run for the month (run_no + 1) and supersedes the month's earlier drafts. A month with a
   // final run is closed. With carryForward (a partial run) the payslips of the previous draft run that the call did
   // not recalculate are copied unchanged into the new run. Without payslips nothing is stored and the result is null.
-  // `settings` is what the run was computed with (see runParams).
+  // `settings` is what the run was computed with (see runParams). `beforeCommit` runs last in the run's transaction
+  // (the audit row): when it throws, the run is not stored.
   async savePayrollRunAndSlips(
     month: string,
     actor: string,
     payslips: EmployeePayslip[],
     errorCount = 0,
     carryForward?: CarryForward,
-    settings?: RunSettings | null
+    settings?: RunSettings | null,
+    beforeCommit?: (trx: Transaction<DB>, run: SavedRun) => Promise<void>
   ): Promise<number | null> {
     const now = new Date().toISOString();
 
@@ -525,7 +485,8 @@ export class PayrollRepository {
         .select(eb => eb.fn.max('run_no').as('max_run_no'))
         .where('month', '=', month)
         .executeTakeFirst();
-      const runNo = Number(latest?.max_run_no ?? 0) + 1;
+      const previousRunNo = Number(latest?.max_run_no ?? 0);
+      const runNo = previousRunNo + 1;
 
       const carried = carryForward ? await this.carriedPayslips(trx, month, carryForward) : [];
 
@@ -561,7 +522,14 @@ export class PayrollRepository {
         await trx.insertInto('payslips').values({ ...copy, run_id: run.id }).execute();
       }
 
-      return Number(run.id);
+      const saved: SavedRun = {
+        id: Number(run.id),
+        runNo,
+        previousRunNo: previousRunNo > 0 ? previousRunNo : null,
+        slips: payslips.length + carried.length
+      };
+      if (beforeCommit) await beforeCommit(trx, saved);
+      return saved.id;
     });
   }
 
@@ -586,15 +554,17 @@ export class PayrollRepository {
   }
 
   // Ghi quyết định của Admin lên phiếu của người đó trong lần chạy hiện tại; kỳ đã chốt thì không đổi được.
-  // Trả phiếu sau khi ghi, null khi tháng chưa có lần chạy hoặc người đó không có phiếu.
+  // Trả phiếu sau khi ghi, null khi tháng chưa có lần chạy hoặc người đó không có phiếu. Có `trx` thì chạy trên đó.
   async decidePayslip(
     month: string,
     username: string,
     status: 'approved' | 'rejected',
     actor: string,
-    note?: string | null
+    note?: string | null,
+    trx?: Transaction<DB>
   ): Promise<PayslipRecord | null> {
-    const run = await this.qb
+    const q = trx ?? this.qb;
+    const run = await q
       .selectFrom('payroll_runs')
       .select(['id', 'status'])
       .where('month', '=', month)
@@ -604,7 +574,7 @@ export class PayrollRepository {
     if (!run) return null;
     if (run.status === 'final') throw new PayrollFinalizedError('Kỳ lương đã chốt, không duyệt lại được phiếu');
 
-    const row = await this.qb
+    const row = await q
       .updateTable('payslips')
       .set(eb => ({
         status,
@@ -618,6 +588,87 @@ export class PayrollRepository {
       .returningAll()
       .executeTakeFirst();
     return row ? readPayslipRow(row) : null;
+  }
+
+  // Quyết định đang có trên phiếu của người đó trong lần chạy hiện tại (để ghi nhật ký `before`), khoá dòng phiếu tới
+  // hết `trx`; null khi tháng chưa có lần chạy hoặc người đó không có phiếu.
+  async decisionOf(
+    trx: Transaction<DB>,
+    month: string,
+    username: string
+  ): Promise<{ status: string; note: string | null } | null> {
+    const row = await trx
+      .selectFrom('payslips as p')
+      .innerJoin('payroll_runs as r', 'r.id', 'p.run_id')
+      .select(['p.status', 'p.note'])
+      .where('r.month', '=', month)
+      .where('r.status', '<>', 'superseded')
+      .where('p.username', '=', username)
+      .orderBy('r.run_no', 'desc')
+      .limit(1)
+      .forUpdate('p')
+      .executeTakeFirst();
+    return row ? { status: row.status, note: row.note ?? null } : null;
+  }
+
+  // Đưa phiếu của người đó (uuid hoặc username) trong lần chạy nháp mới nhất về 'draft', xoá quyết định. Phiếu đã ở
+  // 'draft' (hay 'error', trigger không cho đổi) thì không ghi gì, rev giữ nguyên. Trả true khi có phiếu được đưa về;
+  // false khi không có lần chạy nháp, không có phiếu, hoặc phiếu đã ở nháp.
+  // Có `trx` (giao dịch duyệt đơn, đang giữ khoá chia sẻ `period:<tháng>`) thì mọi câu chạy trên `trx`, và lần chạy
+  // nháp được giữ FOR SHARE tới hết giao dịch: lần lưu của một lần tính lương (savePayrollRunAndSlips) phải đợi giao
+  // dịch này xong mới thay được lần chạy đó, nên câu sửa phiếu không vấp trigger payslips_frozen_update, và phiếu được
+  // chép sang lần chạy mới là phiếu đã về nháp.
+  async resetDecision(month: string, employeeId: string, trx?: Transaction<DB>): Promise<boolean> {
+    const q = trx ?? this.qb;
+    const runId = trx ? await this.holdDraftRun(trx, month) : await this.newestDraftRunId(q, month);
+    if (runId === null) return false;
+    const staff = await q
+      .selectFrom('staff')
+      .select('username')
+      .where(eb => eb.or([eb('uuid', '=', employeeId), eb('username', '=', employeeId)]))
+      .executeTakeFirst();
+    if (!staff) return false;
+
+    const row = await q
+      .updateTable('payslips')
+      .set(eb => ({ status: 'draft', decided_by: null, decided_at: null, note: null, rev: eb('rev', '+', 1) }))
+      .where('run_id', '=', runId)
+      .where('username', '=', staff.username)
+      .where('status', 'not in', ['draft', 'error'])
+      .returning('id')
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
+  private async newestDraftRunId(q: Kysely<DB>, month: string): Promise<number | null> {
+    const run = await q
+      .selectFrom('payroll_runs')
+      .select('id')
+      .where('month', '=', month)
+      .where('status', '=', 'draft')
+      .orderBy('run_no', 'desc')
+      .executeTakeFirst();
+    return run ? Number(run.id) : null;
+  }
+
+  // Lần chạy nháp mới nhất của tháng, khoá FOR SHARE trên `trx`. Đang chờ khoá mà một lần tính lương vừa thay lần chạy
+  // đó (đã 'superseded') thì câu khoá không trả dòng nào; đọc lại lần nháp mới (READ COMMITTED: mỗi câu thấy dữ liệu đã
+  // commit mới nhất) rồi khoá lại. Mỗi lần thử hụt cần một lần tính lương commit xen vào (tính lương xếp hàng theo khoá
+  // `payroll_<tháng>`), nên ba lần là đủ; hụt cả ba thì coi như không có lần chạy nháp.
+  private async holdDraftRun(trx: Transaction<DB>, month: string): Promise<number | null> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const newest = await this.newestDraftRunId(trx, month);
+      if (newest === null) return null;
+      const held = await trx
+        .selectFrom('payroll_runs')
+        .select('id')
+        .where('id', '=', newest)
+        .where('status', '=', 'draft')
+        .forShare()
+        .executeTakeFirst();
+      if (held) return Number(held.id);
+    }
+    return null;
   }
 
   async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {
@@ -653,9 +704,36 @@ export class PayrollRepository {
     return resolveKpiCap(levelRow ?? null, benefits);
   }
 
-  async saveKpiScore(username: string, month: string, patch: KpiScorePatch, actor: string): Promise<void> {
+  // KPI đã lưu của người đó trong tháng, khoá dòng tới hết `trx`; null khi chưa có dòng.
+  async kpiScoreOf(trx: Transaction<DB>, username: string, month: string): Promise<KpiScoreRow | null> {
+    const row = await trx
+      .selectFrom('kpi_scores')
+      .select(['wework', 'user_score', 'peer', 'manager', 'self_score', 'kpi_proposed'])
+      .where('username', '=', username)
+      .where('month', '=', month)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!row) return null;
+    const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
+    return {
+      wework: num(row.wework),
+      user_score: num(row.user_score),
+      peer: num(row.peer),
+      manager: num(row.manager),
+      self_score: num(row.self_score),
+      kpi_proposed: num(row.kpi_proposed)
+    };
+  }
+
+  async saveKpiScore(
+    username: string,
+    month: string,
+    patch: KpiScorePatch,
+    actor: string,
+    trx?: Transaction<DB>
+  ): Promise<void> {
     const now = new Date().toISOString();
-    await this.qb
+    await (trx ?? this.qb)
       .insertInto('kpi_scores')
       .values({
         username,

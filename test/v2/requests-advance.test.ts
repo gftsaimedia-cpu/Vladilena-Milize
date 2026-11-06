@@ -115,7 +115,7 @@ describe('Tạm ứng do server tính (spec 2.5)', () => {
   });
 
   it('missing payroll refused', async () => {
-    const bare = new RequestsService(ctx.repo, ctx.att, undefined, ctx.holidays, ctx.days, ctx.periods);
+    const bare = new RequestsService(ctx.repo, ctx.att, undefined, ctx.holidays, ctx.days, ctx.gate);
     bare.now = () => new Date(ON_16TH);
     await assert.rejects(bare.createAdvanceRequest(BODY as any, SELF), { message: 'Chưa tính được số tiền tạm ứng' });
   });

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Ô số của Cài đặt (khung .fi): gõ số thật. money = hàng nghìn ngăn bằng dấu chấm; dim = xám khi bằng 0.
-// integer = chỉ số nguyên (không nhận dấu phẩy); max = lần gõ làm số vượt max bị bỏ, ô giữ chữ trước đó.
+// integer = chỉ số nguyên (không nhận dấu phẩy); max = lần gõ làm số vượt max bị bỏ, ô giữ chữ trước đó (cả ô tiền).
+// decimals = số chữ số tối đa sau dấu phẩy (mặc định không giới hạn); lần gõ thừa chữ số bị bỏ như max.
 // money luôn dừng ở số nguyên an toàn lớn nhất (9.007.199.254.740.991).
 //   <FieldNum v-model="row.value" unit="%" :max="100" /> · <FieldNum v-model="x" money /> · <FieldNum v-model="d" integer />
 import { computed, ref } from 'vue';
@@ -16,7 +17,8 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   label: { type: String, default: '' },
   max: { type: Number, default: null },
-  integer: { type: Boolean, default: false }
+  integer: { type: Boolean, default: false },
+  decimals: { type: Number, default: null }
 });
 const emit = defineEmits(['update:modelValue']);
 
@@ -31,8 +33,8 @@ function onInput(e?) {
   if (props.money) {
     const digits = e.target.value.replace(/\D/g, '');
     const n = digits === '' ? null : Number(digits);
-    // Quá số nguyên an toàn thì JS làm tròn sai và máy chủ không nhận: bỏ lần gõ đó, ô giữ số trước.
-    if (n != null && !Number.isSafeInteger(n)) {
+    // Quá max, hoặc quá số nguyên an toàn (JS làm tròn sai, máy chủ không nhận): bỏ lần gõ đó, ô giữ số trước.
+    if (n != null && (!Number.isSafeInteger(n) || (props.max != null && n > props.max))) {
       e.target.value = shown.value;
       return;
     }
@@ -44,6 +46,10 @@ function onInput(e?) {
   const raw = e.target.value.replace(props.integer ? /\D/g : /[^\d,]/g, '');
   const cut =
     raw.indexOf(',') < 0 ? raw : raw.slice(0, raw.indexOf(',') + 1) + raw.slice(raw.indexOf(',') + 1).replace(/,/g, '');
+  if (props.decimals != null && cut.indexOf(',') >= 0 && cut.length - cut.indexOf(',') - 1 > props.decimals) {
+    e.target.value = before;
+    return;
+  }
   // Chưa có chữ số nào (ô trống hoặc chỉ gõ dấu phẩy) thì chưa phải một số: coi như ô trống.
   const n = /\d/.test(cut) ? Number(cut.replace(',', '.')) : null;
   if (props.max != null && n != null && n > props.max) {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseFilters, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseFilters, Inject, HttpCode } from '@nestjs/common';
 import type { Request } from 'express';
 import {
   ApiExceptionFilter,
@@ -9,6 +9,8 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from '../../common';
+import { isValidDateText } from '../../common/date-text';
+import { RequestIdPipe } from '../requests/request-id.pipe';
 import { PunchRefusedError } from '../attendance/attendance.errors';
 import { AttendanceService } from '../attendance/attendance.service';
 import { EmployeesService } from '../employees/employees.service';
@@ -16,7 +18,7 @@ import { PayrollService } from '../payroll/payroll.service';
 import { RequestsService, type CreatedRequestDTO, type FilingKind } from '../requests/requests.service';
 import { ExplanationsService } from '../requests/explanations.service';
 import { payDateOf, SettingsReader, TypeWeekMissingError, type WorkWeek } from '../settings';
-import { SystemService } from '../system';
+import { PeriodsService } from '../periods';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
 import { daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, stepsOf, vnToday, weekOf } from './domain';
@@ -80,7 +82,7 @@ export class MeController {
     @Inject(RequestsService) private readonly requests: RequestsService,
     @Inject(PayrollService) private readonly payroll: PayrollService,
     @Inject(EmployeesService) private readonly employees: EmployeesService,
-    @Inject(SystemService) private readonly system: SystemService,
+    @Inject(PeriodsService) private readonly periods: PeriodsService,
     @Inject(ExplanationsService) private readonly explanations: ExplanationsService,
     @Inject(SettingsReader) private readonly settings: SettingsReader
   ) {}
@@ -149,10 +151,12 @@ export class MeController {
     const weeks = await this.weeksOf(me, week);
     const days = week.map(d => daySummaryOf(by.get(d) as any, d, date, weeks.get(d.slice(0, 7))?.weekdays));
     const [zone, workday] = await Promise.all([this.settings.zone(), this.attendance.workdayOf(me.uuid, date)]);
-    const alert = days.filter(d => d.kind === 'todo' && d.date < date).pop() ?? null;
+    // Ngày đã gửi giải trình (đang chờ duyệt) thì không nhắc nữa; chưa giải trình hoặc bị từ chối vẫn nhắc.
+    const alert = days.filter(d => d.kind === 'todo' && d.date < date && d.explanationStatus !== 'pending').pop() ?? null;
     return {
       date,
-      shift: ts ? { type: ts.shiftType, start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
+      // Ngày không có ca (nghỉ, lễ, ngoài tuần làm) thì ca là null, không phải một đối tượng toàn null.
+      shift: ts?.shiftType ? { type: ts.shiftType, start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
       punches: { in: days.find(d => d.date === date)?.in ?? null, out: days.find(d => d.date === date)?.out ?? null },
       workedMinutes: Math.round(((ts?.metrics as any)?.workHours || 0) * 60),
       week: days,
@@ -194,7 +198,7 @@ export class MeController {
     const m = needMonthIn(month, range);
     const [rows, period, workWeek] = await Promise.all([
       this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${m}-01`, endDate: monthEnd(m) }),
-      this.system.getPeriod(m),
+      this.periods.getPeriod(m),
       this.weekOrNull(me.uuid, m),
     ]);
     const view = monthOf(rows as any, m, vnToday(), period?.status ?? null, workWeek?.weekdays);
@@ -205,7 +209,7 @@ export class MeController {
   @Get('attendance/:date')
   async attendanceDay(@Req() req: Request, @Param('date') date: string): Promise<unknown> {
     const me = who(req);
-    if (!DATE.test(date || '')) throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
+    if (!DATE.test(date || '') || !isValidDateText(date)) throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
     // Cài đặt chỉ có từ 2000-01 (tháng gieo), hỏi tuần làm trước đó sẽ thành lỗi 500.
     if (date < '2000-01-01') throw new BadRequestError('Ngày phải từ 01/01/2000 trở đi', { code: 'INVALID_DATE' });
     const [ts, workWeek] = await Promise.all([this.attendance.getTimesheet(me.uuid, date), this.weekOrNull(me.uuid, date.slice(0, 7))]);
@@ -213,7 +217,7 @@ export class MeController {
     const explained = await this.explanations.dayView(me.username, date).catch(() => ({ explanation: null, due: null }));
     return {
       ...daySummaryOf((ts ?? undefined) as any, date, vnToday(), workWeek?.weekdays),
-      shift: ts ? { start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
+      shift: ts?.shiftType ? { start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
       ...explained,
     };
   }
@@ -234,7 +238,7 @@ export class MeController {
 
   @Authenticated()
   @Get('requests/:id')
-  async getRequest(@Req() req: Request, @Param('id') id: string): Promise<unknown> {
+  async getRequest(@Req() req: Request, @Param('id', RequestIdPipe) id: string): Promise<unknown> {
     const me = who(req);
     const request = await this.requests.getById(id);
     if (!request || (request.employeeId !== me.username && request.employeeId !== me.uuid)) {
@@ -257,6 +261,7 @@ export class MeController {
   // Xem trước đơn sắp nộp: luôn 200; lỗi nghiệp vụ nằm trong `ok: false`. iSAT không có xem trước.
   @Authenticated()
   @Post('requests/:kind/preview')
+  @HttpCode(200)
   async previewRequest(@Req() req: Request, @Param('kind') kind: string, @Body() body: any): Promise<unknown> {
     const me = who(req);
     if (!kind || kind === 'isat' || !Object.prototype.hasOwnProperty.call(CREATE, kind)) {
@@ -283,7 +288,7 @@ export class MeController {
 
   @Authenticated()
   @Patch('requests/:id/cancel')
-  async cancelRequest(@Req() req: Request, @Param('id') id: string, @Body() body: { reason?: string }): Promise<unknown> {
+  async cancelRequest(@Req() req: Request, @Param('id', RequestIdPipe) id: string, @Body() body: { reason?: string }): Promise<unknown> {
     const me = who(req);
     try {
       const request = await this.requests.cancelRequest(id, me.username, body?.reason);
@@ -291,6 +296,13 @@ export class MeController {
     } catch (err: any) {
       if (err instanceof HttpError) throw err;
       if (/not found/i.test(err?.message || '')) throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
+      // Đơn của người khác trả 404 như GET /me/requests/:id, không lộ rằng đơn đó tồn tại (hợp đồng API §3.4).
+      const existing = await Promise.resolve()
+        .then(() => this.requests.getById(id))
+        .catch(() => null);
+      if (existing?.employeeId && existing.employeeId !== me.username && existing.employeeId !== me.uuid) {
+        throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
+      }
       throw new ConflictError(err?.message || 'Không huỷ được đơn này', { code: 'REQUEST_NOT_CANCELLABLE' });
     }
   }

@@ -1,8 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
-import type { Kysely } from 'kysely';
+import type { Kysely, Selectable } from 'kysely';
 import { DEFAULT_SHIFT } from '../../common/shift-catalog';
 import { KYSELY_DB, type DB } from '../../database';
 import { PunchEvent, DailyTimesheet, WorkSchedule } from './domain';
+import { isValidDateText } from '../../common/date-text';
 
 export interface TimesheetFilter {
   employeeId?: string;
@@ -11,9 +12,65 @@ export interface TimesheetFilter {
   status?: string;
 }
 
+type TimesheetEntry = Selectable<DB['timesheet_entries']>;
+
+function instantText(value: Date | string | null): string | null {
+  if (!value) return null;
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+/** Dòng timesheet_entries thành DailyTimesheet (đọc đủ cột dòng ngày). */
+function timesheetFromEntry(row: TimesheetEntry): DailyTimesheet {
+  return DailyTimesheet.fromRow({
+    id: row.id,
+    employee_id: row.employee_id,
+    work_date: row.work_date,
+    shift_type: row.shift_type,
+    shift_start_time: row.shift_start_time,
+    shift_end_time: row.shift_end_time,
+    shift_allowance_pct: row.shift_allowance_pct,
+    actual_check_in: instantText(row.actual_check_in),
+    actual_check_out: instantText(row.actual_check_out),
+    work_hours: Number(row.work_hours ?? 0),
+    work_units: Number(row.work_units ?? 0),
+    ot_hours: Number(row.ot_hours ?? 0),
+    late_minutes: Number(row.late_minutes ?? 0),
+    early_minutes: Number(row.early_minutes ?? 0),
+    status: row.status,
+    is_locked: Boolean(row.is_locked),
+    check_in_status: row.check_in_status,
+    check_out_status: row.check_out_status,
+    day_status: row.day_status,
+    leave_type: row.leave_type,
+    source_request_id: row.source_request_id,
+    cases_json: row.cases_json,
+    explanation_status: row.explanation_status,
+    explanation_request_id: row.explanation_request_id,
+    pay_units: row.pay_units,
+    deduction_minutes: row.deduction_minutes,
+    counts_as_workday: row.counts_as_workday,
+    counts_as_day_off: row.counts_as_day_off,
+    makeup_minutes: row.makeup_minutes
+  });
+}
+
 @Injectable()
 export class AttendanceRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
+
+  /** Tên đăng nhập và tên hiển thị của nhân sự theo uuid (cho sự kiện realtime); không có thì null. */
+  async findIdentity(employeeId: string): Promise<{ username: string; name: string } | null> {
+    const row = await this.qb.selectFrom('staff').select(['username', 'name']).where('uuid', '=', employeeId).executeTakeFirst();
+    return row ? { username: row.username, name: row.name } : null;
+  }
+
+  /** Ngày vào làm / nghỉ việc ('YYYY-MM-DD' hoặc null) của nhân sự theo uuid; null nếu không có người đó. */
+  async findEmployment(employeeId: string): Promise<{ startDate: string | null; resignedOn: string | null } | null> {
+    const row = await this.qb.selectFrom('staff').select(['start_date', 'resigned_on']).where('uuid', '=', employeeId).executeTakeFirst();
+    if (!row) return null;
+    const text = (v: string | null) => (v && isValidDateText(v.trim()) ? v.trim() : null);
+    return { startDate: text(row.start_date), resignedOn: text(row.resigned_on) };
+  }
 
   /** Bản chạy mọi truy vấn trên `trx` (giao dịch đang mở của người gọi) thay vì pool. */
   withTransaction(trx: Kysely<DB>): AttendanceRepository {
@@ -74,76 +131,6 @@ export class AttendanceRepository {
   }
 
   /**
-   * Lưu hoặc cập nhật bảng công nhật vào bảng timesheet_entries on conflict (employee_id, work_date)
-   */
-  async saveTimesheet(timesheet: DailyTimesheet): Promise<void> {
-    const row = timesheet.toRow();
-    const now = new Date();
-    await this.qb
-      .insertInto('timesheet_entries')
-      .values({
-        id: row.id,
-        employee_id: row.employee_id,
-        work_date: row.work_date,
-        shift_type: row.shift_type,
-        shift_start_time: row.shift_start_time,
-        shift_end_time: row.shift_end_time,
-        shift_allowance_pct: row.shift_allowance_pct,
-        actual_check_in: row.actual_check_in ? new Date(row.actual_check_in) : null,
-        actual_check_out: row.actual_check_out ? new Date(row.actual_check_out) : null,
-        work_hours: row.work_hours,
-        work_units: row.work_units,
-        ot_hours: row.ot_hours,
-        late_minutes: row.late_minutes,
-        early_minutes: row.early_minutes,
-        status: row.status,
-        is_locked: row.is_locked,
-        check_in_status: row.check_in_status,
-        check_out_status: row.check_out_status,
-        day_status: row.day_status,
-        created_at: now,
-        updated_at: now
-      })
-      .onConflict(oc =>
-        oc.columns(['employee_id', 'work_date']).doUpdateSet(eb => ({
-          shift_type: eb.ref('excluded.shift_type'),
-          shift_start_time: eb.ref('excluded.shift_start_time'),
-          shift_end_time: eb.ref('excluded.shift_end_time'),
-          shift_allowance_pct: eb.ref('excluded.shift_allowance_pct'),
-          actual_check_in: eb.ref('excluded.actual_check_in'),
-          actual_check_out: eb.ref('excluded.actual_check_out'),
-          work_hours: eb.ref('excluded.work_hours'),
-          work_units: eb.ref('excluded.work_units'),
-          ot_hours: eb.ref('excluded.ot_hours'),
-          late_minutes: eb.ref('excluded.late_minutes'),
-          early_minutes: eb.ref('excluded.early_minutes'),
-          status: eb.ref('excluded.status'),
-          is_locked: eb.ref('excluded.is_locked'),
-          check_in_status: eb.ref('excluded.check_in_status'),
-          check_out_status: eb.ref('excluded.check_out_status'),
-          day_status: eb.ref('excluded.day_status'),
-          updated_at: now
-        }))
-      )
-      .execute();
-  }
-
-  /**
-   * Cập nhật trạng thái ngày công (day_status) cho timesheet_entries
-   */
-  async updateDayStatus(employeeId: string, workDate: string, dayStatus: string): Promise<void> {
-    await this.qb
-      .updateTable('timesheet_entries')
-      .set({
-        day_status: dayStatus as any,
-        updated_at: new Date()
-      })
-      .where('employee_id', '=', employeeId)
-      .where('work_date', '=', workDate)
-      .execute();
-  }
-
-  /**
    * Tìm bảng công nhật theo mã nhân viên và ngày công
    */
   async findTimesheet(employeeId: string, workDate: string): Promise<DailyTimesheet | null> {
@@ -155,35 +142,7 @@ export class AttendanceRepository {
       .executeTakeFirst();
 
     if (!row) return null;
-    return DailyTimesheet.fromRow({
-      id: row.id,
-      employee_id: row.employee_id,
-      work_date: row.work_date,
-      shift_type: row.shift_type,
-      shift_start_time: row.shift_start_time,
-      shift_end_time: row.shift_end_time,
-      shift_allowance_pct: Number(row.shift_allowance_pct),
-      actual_check_in: row.actual_check_in
-        ? row.actual_check_in instanceof Date
-          ? row.actual_check_in.toISOString()
-          : String(row.actual_check_in)
-        : null,
-      actual_check_out: row.actual_check_out
-        ? row.actual_check_out instanceof Date
-          ? row.actual_check_out.toISOString()
-          : String(row.actual_check_out)
-        : null,
-      work_hours: Number(row.work_hours ?? 0),
-      work_units: Number(row.work_units ?? 0),
-      ot_hours: Number(row.ot_hours ?? 0),
-      late_minutes: Number(row.late_minutes ?? 0),
-      early_minutes: Number(row.early_minutes ?? 0),
-      status: row.status,
-      is_locked: Boolean(row.is_locked),
-      check_in_status: row.check_in_status,
-      check_out_status: row.check_out_status,
-      day_status: row.day_status
-    });
+    return timesheetFromEntry(row);
   }
 
   /**
@@ -197,35 +156,7 @@ export class AttendanceRepository {
       .executeTakeFirst();
 
     if (!row) return null;
-    return DailyTimesheet.fromRow({
-      id: row.id,
-      employee_id: row.employee_id,
-      work_date: row.work_date,
-      shift_type: row.shift_type,
-      shift_start_time: row.shift_start_time,
-      shift_end_time: row.shift_end_time,
-      shift_allowance_pct: Number(row.shift_allowance_pct),
-      actual_check_in: row.actual_check_in
-        ? row.actual_check_in instanceof Date
-          ? row.actual_check_in.toISOString()
-          : String(row.actual_check_in)
-        : null,
-      actual_check_out: row.actual_check_out
-        ? row.actual_check_out instanceof Date
-          ? row.actual_check_out.toISOString()
-          : String(row.actual_check_out)
-        : null,
-      work_hours: Number(row.work_hours ?? 0),
-      work_units: Number(row.work_units ?? 0),
-      ot_hours: Number(row.ot_hours ?? 0),
-      late_minutes: Number(row.late_minutes ?? 0),
-      early_minutes: Number(row.early_minutes ?? 0),
-      status: row.status,
-      is_locked: Boolean(row.is_locked),
-      check_in_status: row.check_in_status,
-      check_out_status: row.check_out_status,
-      day_status: row.day_status
-    });
+    return timesheetFromEntry(row);
   }
 
   /**
@@ -249,37 +180,7 @@ export class AttendanceRepository {
 
     const rows = await query.orderBy('work_date', 'asc').orderBy('employee_id', 'asc').execute();
 
-    return rows.map(row =>
-      DailyTimesheet.fromRow({
-        id: row.id,
-        employee_id: row.employee_id,
-        work_date: row.work_date,
-        shift_type: row.shift_type,
-        shift_start_time: row.shift_start_time,
-        shift_end_time: row.shift_end_time,
-        shift_allowance_pct: Number(row.shift_allowance_pct),
-        actual_check_in: row.actual_check_in
-          ? row.actual_check_in instanceof Date
-            ? row.actual_check_in.toISOString()
-            : String(row.actual_check_in)
-          : null,
-        actual_check_out: row.actual_check_out
-          ? row.actual_check_out instanceof Date
-            ? row.actual_check_out.toISOString()
-            : String(row.actual_check_out)
-          : null,
-        work_hours: Number(row.work_hours ?? 0),
-        work_units: Number(row.work_units ?? 0),
-        ot_hours: Number(row.ot_hours ?? 0),
-        late_minutes: Number(row.late_minutes ?? 0),
-        early_minutes: Number(row.early_minutes ?? 0),
-        status: row.status,
-        is_locked: Boolean(row.is_locked),
-        check_in_status: row.check_in_status,
-        check_out_status: row.check_out_status,
-        day_status: row.day_status
-      })
-    );
+    return rows.map(timesheetFromEntry);
   }
 
   /**

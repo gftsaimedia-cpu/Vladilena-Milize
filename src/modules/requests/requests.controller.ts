@@ -1,5 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject, Optional } from '@nestjs/common';
-import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
+import { RequestIdPipe } from './request-id.pipe';
+import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
+import { AuditEntryError } from '../audit';
 import { RequestsService } from './requests.service';
 import { ExplanationsService, type DueItem } from './explanations.service';
 import { createdBody, dayConflictHttp } from './request-http';
@@ -182,7 +184,8 @@ export class RequestsController {
     }
   }
 
-  // Admin nhắc nhân viên giải trình một ngày; người nhắc là Admin đang đăng nhập
+  // Admin nhắc nhân viên giải trình một ngày; người nhắc là Admin đang đăng nhập. Kỳ đã phê duyệt hay đã trả → 409
+  // PERIOD_LOCKED giữ nguyên; lý do khác → 400.
   @RequireCap('requests.review')
   @Post('explanations-due/remind')
   async remindExplanation(@Body() body: any, @CurrentUser() user: UserSession): Promise<{ reminded: true; remindedAt: string }> {
@@ -192,6 +195,7 @@ export class RequestsController {
       const { remindedAt } = await this.explanationsService().remind(employeeId, date, user.username);
       return { reminded: true, remindedAt };
     } catch (err: any) {
+      if (err instanceof HttpError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
@@ -216,7 +220,7 @@ export class RequestsController {
 
   @RequireCap('requests.review')
   @Get(':id')
-  async getRequest(@Param('id') id: string): Promise<unknown> {
+  async getRequest(@Param('id', RequestIdPipe) id: string): Promise<unknown> {
     const request = await this.service.getById(id);
     if (!request) {
       throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
@@ -227,15 +231,18 @@ export class RequestsController {
   @RequireCap('requests.review')
   @Patch(':id/review')
   async reviewRequest(
-    @Param('id') id: string,
+    @Param('id', RequestIdPipe) id: string,
     @Body() body: { action: 'APPROVE' | 'REJECT'; note?: string },
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
     try {
       const reviewerId = user.username;
-      const request = await this.service.reviewRequest(id, reviewerId, body.action, body.note);
-      return { updated: true, request };
+      // Duyệt đơn của tháng đã tính lương thì phiếu của người nộp được tính lại sau khi lưu; kết quả nằm ở `recalculated`.
+      const { request, recalculated } = await this.service.reviewAndRecalculate(id, reviewerId, body.action, body.note);
+      return { updated: true, request, recalculated };
     } catch (err: any) {
+      // Lỗi ghi nhật ký là lỗi lập trình (spec audit-log mục 4): để filter trả 500.
+      if (err instanceof AuditEntryError) throw err;
       const conflict = dayConflictHttp(err, 409);
       if (conflict) throw conflict;
       if (err.message?.includes('not found')) {
@@ -248,15 +255,16 @@ export class RequestsController {
   @RequireCap('requests.review')
   @Patch(':id/cancel')
   async cancelRequest(
-    @Param('id') id: string,
+    @Param('id', RequestIdPipe) id: string,
     @Body() body: { reason?: string; employeeId?: string },
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const request = await this.service.cancelRequest(id, employeeId, body.reason);
+      const request = await this.service.cancelRequest(id, employeeId, body.reason, user.username);
       return { updated: true, request };
     } catch (err: any) {
+      if (err instanceof AuditEntryError) throw err;
       if (err.message?.includes('not found')) {
         throw new NotFoundError(err.message, { code: 'REQUEST_NOT_FOUND' });
       }

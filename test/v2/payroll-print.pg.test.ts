@@ -6,8 +6,14 @@ import { Client } from 'pg';
 import type { Kysely } from 'kysely';
 import { createKysely, createPgPool } from '../../src/database/kysely';
 import type { DB } from '../../src/database/schema';
+import { TransactionCoordinator } from '../../src/database/transaction';
+import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
+import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
+import { SettingsAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
 import { PayrollRepository } from '../../src/modules/payroll/payroll.repository';
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
+import { SettingsReader } from '../../src/modules/settings/settings-reader';
+import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 
 // Cần PostgreSQL thật. PG_TEST_URL là kết nối điều khiển (vai trò được CREATE/DROP DATABASE): test tự tạo một DB tạm,
 // chạy lược đồ trong đó rồi xoá ở cuối. Không đụng DB nào khác.
@@ -21,6 +27,16 @@ const MIGRATIONS = readdirSync(MIGRATIONS_DIR)
 const MONTH = '2026-10';
 const UUID = 'pp-uuid-1';
 const USERNAME = 'pp-user';
+
+/** Một lần chấm theo giờ Việt Nam; bảng lương đọc nó qua dòng ngày công (AttendanceDaysService). */
+async function punch(client: Client, employeeId: string, date: string, time: string, type: 'IN' | 'OUT') {
+  await client.query(
+    `INSERT INTO punch_events (id, employee_id, punched_at, work_date, type, latitude, longitude,
+       accuracy_meters, distance_meters, is_within_office, created_at)
+     VALUES (gen_random_uuid(), $1, $2, $3, $4, 0, 0, 1, 1, true, now())`,
+    [employeeId, `${date}T${time}:00+07:00`, date, type]
+  );
+}
 
 test('Phiếu lương A4 trên PostgreSQL', async t => {
   if (!CONTROL_URL) {
@@ -49,19 +65,13 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
     }
 
     // ===== Seed =====
-    // Một nhân sự nv bậc 1, hợp đồng dài hạn, một ngày công NORMAL. Các task sau thêm seed vào đây.
+    // Một nhân sự nv bậc 1, hợp đồng dài hạn. Ngày 01/10 không chấm (dòng ngày ABSENT). Các task sau thêm seed vào đây.
     const now = new Date().toISOString();
     await client.query(
       `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid,
          leave_balance, leave_balance_on, contract_status)
        VALUES ($1, 'Nhân viên in phiếu', 'nv', 1, 'x', $2, 'long', $3, 12, '2026-10-01', 'probation')`,
       [USERNAME, now, UUID]
-    );
-    await client.query(
-      `INSERT INTO timesheet_entries (id, employee_id, work_date, shift_type, shift_start_time, shift_end_time,
-         shift_allowance_pct, work_hours, status, day_status, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, '2026-10-01', 'NORMAL', '08:00', '17:00', 0, 8, 'PRESENT', 'VALID', now(), now())`,
-      [UUID]
     );
     // Phép năm: số dư 12 tính từ 2026-10-01; ba ngày phép năm đã duyệt (20/10, 21/10, 05/11) và một đơn đang chờ (27/10).
     // Hai đơn đã duyệt không được trừ vào số dư: phép năm ngày 30/09 (trước ngày chốt số dư) và nghỉ có lương việc riêng 15/10 (không phải phép năm).
@@ -87,13 +97,7 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
     }
 
     // Giờ thật: ngày 07/10 chỉ có giờ vào 08:12 (giờ Việt Nam), giờ ra thiếu được lấp bằng đơn giải trình đã duyệt 19:20.
-    await client.query(
-      `INSERT INTO timesheet_entries (id, employee_id, work_date, shift_type, shift_start_time, shift_end_time,
-         shift_allowance_pct, work_hours, actual_check_in, actual_check_out, status, day_status, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, '2026-10-07', 'NORMAL', '08:00', '17:00', 0, 8, '2026-10-07 08:12:00+07', NULL,
-         'PRESENT', 'VALID', now(), now())`,
-      [UUID]
-    );
+    await punch(client, UUID, '2026-10-07', '08:12', 'IN');
     await client.query(
       `INSERT INTO system_requests (id, employee_id, title, type, reason, status, explanation_date, actual_check_in,
          actual_check_out, created_at, updated_at)
@@ -104,13 +108,8 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
 
     // OT theo luật 04/11: thứ Bảy 10/10 là ngày lễ công ty (x3); vào 08:00, ra 20:30 (giờ Việt Nam), khung OT đã duyệt 18:00-20:00.
     await client.query(`INSERT INTO company_holidays (holiday_date, name) VALUES ('2026-10-10', 'Lễ thử')`);
-    await client.query(
-      `INSERT INTO timesheet_entries (id, employee_id, work_date, shift_type, shift_start_time, shift_end_time,
-         shift_allowance_pct, work_hours, actual_check_in, actual_check_out, status, day_status, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, '2026-10-10', 'NORMAL', '08:00', '17:00', 0, 8, '2026-10-10 08:00:00+07',
-         '2026-10-10 20:30:00+07', 'PRESENT', 'VALID', now(), now())`,
-      [UUID]
-    );
+    await punch(client, UUID, '2026-10-10', '08:00', 'IN');
+    await punch(client, UUID, '2026-10-10', '20:30', 'OUT');
     await client.query(
       `INSERT INTO system_requests (id, employee_id, title, type, reason, status, ot_date, ot_start_time, ot_end_time,
          ot_hours, created_at, updated_at)
@@ -121,7 +120,15 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
 
     db = createKysely(createPgPool(tempUrl.toString()));
     const repo = new PayrollRepository(db);
-    const service = new PayrollService(repo);
+    const coordinator = new TransactionCoordinator(db);
+    const days = new AttendanceDaysService(
+      new AttendanceDaysRepository(db),
+      new SettingsAttendanceSettings(new SettingsReader(new SettingsRepository(db))),
+      coordinator
+    );
+    const service = new PayrollService(repo, undefined, days, coordinator);
+    // Tính ngày 01/11: mọi ngày tháng 10 đã tới mốc xét.
+    service.now = () => new Date('2026-11-01T03:00:00Z');
 
     const slip = await service.generateMonthlyPayslip(UUID, MONTH);
     await repo.savePayrollRunAndSlips(MONTH, 'tester', [slip]);
@@ -145,11 +152,13 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
       assert.equal(line?.checkIn, '08:12');
       assert.equal(line?.checkOut, '19:20');
       assert.equal(line?.inOutText, '08:12–19:20');
+      assert.equal(slip.dailyLines.find(l => l.date === '2026-10-01')?.kind, 'ABSENT');
       assert.equal(slip.dailyLines.find(l => l.date === '2026-10-01')?.inOutText, '—–—');
     });
 
     await t.test('OT ngày lễ tính x3 trên dòng ngày từ khung đã duyệt và giờ có mặt thật', async () => {
       const line = slip.dailyLines.find(l => l.date === '2026-10-10');
+      assert.equal(line?.kind, 'HOLIDAY');
       assert.equal(line?.otHours, 2);
       assert.equal(line?.otPay, 173_077);
       assert.equal(slip.ot30Hours, 2);

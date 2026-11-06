@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// Thanh ba tab của Phân quyền (Vai trò · Tài khoản · Xử lý yêu cầu) + liên kết Nhật ký. Mỗi tab là một địa chỉ riêng.
+// Thanh tab của Phân quyền (Vai trò · Tài khoản) + liên kết Nhật ký. Mỗi tab là một địa chỉ riêng.
+// Không có tab Xử lý yêu cầu: BE v2 chưa có API cho phần này (bảng v1 /settings/params đã bỏ).
 import { useLoad } from '@/composables/useLoad';
 import { getPermSummary } from '@/services/admin-settings';
 import { PATHS } from '../nav';
 
-defineProps({ active: { type: String, required: true } }); // vai-tro | tai-khoan | xu-ly
+defineProps({ active: { type: String, required: true } }); // vai-tro | tai-khoan
 const { data } = useLoad(() => getPermSummary());
 </script>
 
@@ -16,7 +17,6 @@ const { data } = useLoad(() => getPermSummary());
     <RouterLink :to="PATHS.taiKhoan" class="tab" :class="{ on: active === 'tai-khoan' }">
       Tài khoản <small v-if="data">{{ data.accounts }}</small>
     </RouterLink>
-    <RouterLink :to="PATHS.xuLyYeuCau" class="tab" :class="{ on: active === 'xu-ly' }">Xử lý yêu cầu</RouterLink>
     <span class="r"><RouterLink :to="PATHS.nhatKy" class="link">Nhật ký</RouterLink></span>
   </div>
 </template>

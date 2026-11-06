@@ -178,14 +178,15 @@ test('the correction request is gone', () => {
 // Duyệt đơn nghỉ có làm bù (chỉ ghi ngày nghỉ) nằm ở requests-makeup.test.ts.
 test('approving OT writes no schedule', async () => {
   // Duyệt OT kiểm lại ngày (§4.2), nên cần đủ hồ sơ, lịch lễ và day_status: dùng service dựng sẵn.
-  const { service, repo, att } = makeService();
+  const { service, repo, att, attendanceDays } = makeService();
   const request = nvOtRequest('2026-11-12', '18:00', '22:00');
   await repo.save(request);
 
   const ot = await service.reviewRequest(request.id, 'admin', 'APPROVE');
   assert.equal(ot.status, 'APPROVED');
   assert.equal(att.schedules.size, 0);
-  assert.equal(att.dayStatuses.size, 0);
+  // OT không ghi lịch nhưng ghi lại dòng ngày công của ngày OT (T2).
+  assert.deepEqual(attendanceDays.calls.map(c => c.dates), [['2026-11-12']]);
 });
 
 // Duyệt đơn đổi ca (ghi mọi ngày làm việc trong khoảng) nằm ở requests-shift-change.test.ts.

@@ -1,25 +1,13 @@
 // Chấm công giả: lưới 28 ngày của 11 nhân viên, dựng mỗi lần gọi từ ghi nhận gốc + các việc còn chờ trong mock/inbox.ts.
 // Xử lý một việc chỉ làm ô trở về ghi nhận gốc; không đổi công, trễ, OT hay lương (spec mục 1.3 và 4.2).
-import { dm, dmy, dowShort, initials, weekdayName } from '@/utils/format';
+import { dm, dowShort, initials, weekdayName } from '@/utils/format';
 import { MOCK_MONTH, MOCK_TODAY } from './clock';
 import { pendingInbox, type InboxItem } from './inbox';
 
-export type CellKind = 'work' | 'late' | 'leave' | 'absent' | 'todo' | 'off' | 'fu' | 'nocheck';
-export type GroupKey = 'work' | 'late' | 'leave' | 'absent' | 'todo';
+import type { Cell, CellKind, DayCellDTO, DayHeadDTO, PendingDTO, PersonDTO, TileDTO, WeekDTO } from '../builders/api/attendance';
+export type { CellKind, GroupKey } from '../builders/api/attendance';
 
-export type Cell = {
-  date: string;
-  kind: CellKind; // sau lớp "cần xử lý"
-  base: CellKind; // ghi nhận gốc
-  text: string;
-  in: string | null;
-  out: string | null;
-  live: boolean; // đang làm: có giờ vào, chưa có giờ ra
-  itemId: string | null;
-  label: string;
-  aria: string;
-};
-
+// Người trong danh sách giả (id = tên đăng nhập). Giá trị tĩnh của kỳ 10; không có logic nghiệp vụ.
 export type Person = {
   id: string;
   name: string;
@@ -35,38 +23,9 @@ export type Person = {
   avgIn: string;
   avgOut: string;
   sums: { late: number; ot: number };
-  // Số tĩnh của kỳ 10, dùng chung với bảng lương; không tính lại sau khi xử lý việc (spec R8). Tổng = 27.
+  // Số tĩnh của kỳ 10, dùng chung với bảng lương. Tổng = 27.
   period: { worked: number; leave: number; isat: number; pending: number; unpaid: number };
 };
-
-export type AttendanceDay = {
-  iso: string;
-  dow: string;
-  dm: string;
-  scheduled: boolean;
-  today: boolean;
-  monday: boolean;
-  periodStart: boolean;
-};
-
-export type AttendanceRow = { person: Person; cells: Cell[] };
-export type Tile = {
-  key: 'todo' | 'present' | 'late' | 'leave' | 'absent' | 'ot';
-  label: string;
-  value: string;
-  note: string;
-};
-export type PendingDay = { item: InboxItem; person: Person; date: string };
-export type AttendanceView = {
-  month: string;
-  subtitle: string;
-  tiles: Tile[];
-  days: AttendanceDay[];
-  rows: AttendanceRow[];
-  pending: PendingDay[];
-  total: number;
-};
-export type DayDetail = { person: Person; date: string; title: string; sub: string; cell: Cell; item: InboxItem | null };
 
 export const SHIFT = 'HC 08:00–17:00';
 export const GRID_FROM = '2026-10-12';
@@ -261,72 +220,121 @@ export function cellOf(personId: string, date: string): Cell | null {
   return buildCell(person, date, overlayOf(pendingInbox()));
 }
 
-// ---- Màn hình ----
+// ---- DTO giả: cùng dạng với GET /api/v2/attendance/week và /attendance/employees/:username ----
 
-function tilesOf(items: InboxItem[]): Tile[] {
-  const withDays = items.filter(i => i.days.length > 0);
-  const forgot = withDays.filter(i => i.group === 'att').length;
-  const count = (group: InboxItem['group']) => items.filter(i => i.group === group).length;
-  return [
-    {
-      key: 'todo',
-      label: 'Cần xử lý',
-      value: String(withDays.length),
-      note: `${forgot} quên chấm · ${withDays.length - forgot} yêu cầu chờ duyệt`
-    },
-    { key: 'present', label: 'Có mặt hôm nay', value: `113 / ${TOTAL_STAFF}`, note: '15 người chưa Check-in' },
-    { key: 'late', label: 'Đi muộn hôm nay', value: '7', note: 'trung bình 14 phút' },
-    { key: 'leave', label: 'Nghỉ có phép', value: '6', note: `${count('leave')} đơn chờ duyệt` },
-    { key: 'absent', label: 'Vắng không phép', value: '1', note: 'trong tháng 10' },
-    { key: 'ot', label: 'Làm thêm tháng này', value: '126 giờ', note: `${count('ot')} yêu cầu chờ duyệt` }
-  ];
-}
+const foldText = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
+const isoDow = (iso: string) => dowShort(iso);
 
-/** Màn Chấm công của một tháng; null khi tháng đó không có dữ liệu giả. */
-export function attendanceView(month: string): AttendanceView | null {
-  if (month !== MOCK_MONTH) return null;
-  const items = pendingInbox();
-  const overlay = overlayOf(items);
-  const days: AttendanceDay[] = Array.from({ length: GRID_DAYS }, (_, k) => {
-    const iso = addDays(GRID_FROM, k);
-    return {
-      iso,
-      dow: dowShort(iso),
-      dm: dm(iso),
-      scheduled: isScheduled(iso),
-      today: iso === MOCK_TODAY,
-      monday: dowShort(iso) === 'T2',
-      periodStart: iso.endsWith('-01')
-    };
-  });
-  // Xếp theo ngày đầu của việc; cùng ngày giữ thứ tự chuông (sort ổn định).
-  const pending: PendingDay[] = items
-    .filter(item => item.days.length > 0)
-    .map(item => ({ item, person: personOf(item.personId) as Person, date: item.days[0] }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+/** Ô sang dạng DTO (thêm thứ, ngày, hôm nay; mock không có phút trễ / trường hợp). */
+export function cellDto(cell: Cell): DayCellDTO {
   return {
-    month,
-    subtitle: `Kỳ công 01–31/10/2026 · hôm nay ${weekdayName(MOCK_TODAY)} ${dm(MOCK_TODAY)}`,
-    tiles: tilesOf(items),
-    days,
-    rows: ROSTER.map(person => ({ person, cells: days.map(d => buildCell(person, d.iso, overlay)) })),
-    pending,
-    total: TOTAL_STAFF
+    date: cell.date,
+    dow: isoDow(cell.date),
+    day: String(Number(cell.date.slice(8, 10))),
+    today: cell.date === MOCK_TODAY,
+    kind: cell.kind,
+    base: cell.base,
+    text: cell.text,
+    in: cell.in,
+    out: cell.out,
+    live: cell.live,
+    lateMinutes: 0,
+    explanationStatus: 'none',
+    cases: [],
+    itemId: cell.itemId,
+    label: cell.label,
+    aria: cell.aria
   };
 }
 
-/** Hộp chi tiết một ngày của một người; null khi người hoặc ngày không có dữ liệu. */
-export function dayDetail(personId: string, date: string): DayDetail | null {
-  const person = personOf(personId);
-  if (!person || !inData(date)) return null;
-  const items = pendingInbox();
-  const cell = buildCell(person, date, overlayOf(items));
+export function personDto(p: Person): PersonDTO {
+  const [mm, yyyy] = p.joined.split('/');
   return {
-    person,
-    date,
-    title: `${person.name} · ${weekdayName(date)} ${dmy(date)}`,
-    sub: `${person.dept} · ${person.title} · Ca ${SHIFT}`,
-    cell,
-    item: items.find(i => i.id === cell.itemId) ?? null
+    username: p.id,
+    name: p.name,
+    initials: p.initials,
+    group: p.dept,
+    title: p.title,
+    code: p.code,
+    startDate: `${yyyy}-${mm}-01`,
+    contract: p.contract,
+    position: { type: 'nv', level: 1, jobTitle: p.title },
+    shift: { type: 'NORMAL', startTime: '08:00', endTime: '17:00', allowancePct: 0, isOvernight: false },
+    shiftText: p.shift,
+    leaveLeftDays: Number(p.leaveLeft.split(' ')[0]),
+    joinedMonth: `${yyyy}-${mm}`
+  };
+}
+
+/** Lưới 28 ngày của mọi người, đã lọc theo tên (`q`) và nhóm (`group`); null khi tháng không có dữ liệu giả. */
+export function weekDto({ month, q = '', group = '' }: { month: string; q?: string; group?: string }): WeekDTO | null {
+  if (month !== MOCK_MONTH) return null;
+  const items = pendingInbox();
+  const overlay = overlayOf(items);
+  const days: DayHeadDTO[] = Array.from({ length: GRID_DAYS }, (_, k) => {
+    const iso = addDays(GRID_FROM, k);
+    return { iso, dow: dowShort(iso), dm: dm(iso), scheduled: isScheduled(iso), today: iso === MOCK_TODAY, monday: dowShort(iso) === 'T2', periodStart: iso.endsWith('-01') };
+  });
+  const needle = foldText(q.trim());
+  const shown = ROSTER.filter(
+    p => (!needle || foldText(p.name).includes(needle) || foldText(p.id).includes(needle)) && (!group || p.dept === group)
+  );
+  const rows = shown.map(person => {
+    const cells = days.map(d => cellDto(buildCell(person, d.iso, overlay)));
+    const { joinedMonth: _omit, ...who } = personDto(person); // lưới tuần không mang joinedMonth (chỉ hồ sơ có)
+    return {
+      ...who,
+      days: cells,
+      totals: { workDays: person.period.worked, lateMinutes: person.sums.late, otHours: person.sums.ot },
+      needsAction: cells.filter(c => c.kind === 'todo').length
+    };
+  });
+  const ids = new Set(shown.map(p => p.id));
+  const pending: PendingDTO[] = items
+    .filter(item => item.days.length > 0 && ids.has(item.personId))
+    .map(item => {
+      const p = personOf(item.personId) as Person;
+      return {
+        id: item.id,
+        kind: item.action === 'remind' ? 'explanation-due' : item.group,
+        group: item.group,
+        groupLabel: item.groupLabel,
+        action: item.action,
+        username: p.id,
+        name: p.name,
+        initials: p.initials,
+        title: p.title,
+        what: item.what,
+        when: item.when,
+        days: item.days,
+        age: item.age,
+        date: item.days[0]
+      };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const forgot = pending.filter(i => i.group === 'att').length;
+  const count = (g: string) => items.filter(i => i.group === g).length;
+  const tiles: TileDTO[] = [
+    { key: 'todo', label: 'Cần xử lý', value: pending.length, note: `${forgot} chưa giải trình · ${pending.length - forgot} yêu cầu chờ duyệt` },
+    { key: 'present', label: 'Có mặt hôm nay', value: 113, of: TOTAL_STAFF, note: '15 người chưa Check-in' },
+    { key: 'late', label: 'Đi muộn hôm nay', value: 7, note: 'trung bình 14 phút' },
+    { key: 'leave', label: 'Nghỉ có phép', value: 6, note: `${count('leave')} đơn chờ duyệt` },
+    { key: 'absent', label: 'Vắng không phép', value: 1, note: 'trong tháng 10' },
+    { key: 'ot', label: 'Làm thêm tháng này', value: 126, unit: 'giờ', note: `${count('ot')} yêu cầu chờ duyệt` }
+  ];
+  const byDept = new Map<string, number>();
+  for (const p of ROSTER) byDept.set(p.dept, (byDept.get(p.dept) ?? 0) + 1);
+  return {
+    today: MOCK_TODAY,
+    month,
+    periodState: 'open',
+    subtitle: `Kỳ công 01–31/10/2026 · hôm nay ${weekdayName(MOCK_TODAY)} ${dm(MOCK_TODAY)}`,
+    tiles,
+    days,
+    groups: [...byDept].map(([key, n]) => ({ key, count: n })).sort((a, b) => a.key.localeCompare(b.key, 'vi')),
+    rows,
+    pending,
+    total: TOTAL_STAFF,
+    matched: rows.length
   };
 }

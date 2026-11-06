@@ -1,7 +1,8 @@
-// Dữ liệu Tổng quan giả, đúng dạng màn cần. Cùng bộ số cho mọi tháng; chỉ các nhãn có tên tháng đổi theo `month`.
-// Danh sách "Việc cần duyệt" lấy từ mock/inbox (các việc `decide`, dùng chung với chuông).
-import { billions, vnd } from '@/utils/format';
-import { MOCK_MONTH } from './clock';
+// Dữ liệu Tổng quan giả: CÙNG dạng với GET /api/v2/overview (OverviewDTO, khoá đúng web/tests/fixtures/api/overview.json),
+// chỉ là số giả. Cùng bộ số cho mọi tháng; ngày kỳ và nhãn đổi theo `month`. Máy chủ giả tính hết, builders/api/overview.ts chỉ ánh xạ.
+// Danh sách "Việc cần duyệt" lấy từ mock/inbox (dùng chung với chuông); mock trả đủ danh sách, máy chủ thật chỉ trả 8 việc đầu.
+import { INBOX_GROUPS } from '@/constants/labels';
+import { MOCK_MONTH, MOCK_TODAY } from './clock';
 import { pendingInbox, type InboxItem } from './inbox';
 import { payrollView, type PayrollStatus } from './payroll';
 
@@ -11,8 +12,7 @@ export type PayrollRow = {
   id: string;
   name: string;
   initials: string;
-  title: string;
-  dept: string;
+  title: string | null;
   days: string;
   base: string;
   allowance: string;
@@ -31,6 +31,9 @@ export type OverviewKpi = {
   hero?: boolean;
 };
 
+export type ApprovalGroup = { key: string; label: string; count: number };
+
+/** Dạng màn cần (builders/api/overview.ts ánh xạ từ OverviewDTO). */
 export type OverviewView = {
   month: string;
   headline: { blocking: number; closeOn: string; daysLeft: number };
@@ -51,99 +54,204 @@ export type OverviewView = {
     netShare: number;
     slips: { done: number; pending: number; draft: number; rejected: number; total: number };
   };
-  approvals: InboxItem[];
+  approvals: { total: number; groups: ApprovalGroup[]; items: InboxItem[] };
   payroll: { title: string; updatedAt: string; total: number; rows: PayrollRow[] };
 };
 
-const pad = (n: number) => String(n).padStart(2, '0');
+/** Phản hồi GET /api/v2/overview (BE tính hết). */
+export type OverviewDTO = {
+  today: string;
+  month: string;
+  kpis: {
+    headcount: number;
+    presentToday: number;
+    notCheckedIn: number;
+    pendingRequests: number;
+    payrollNet: number;
+    payrollGross: number;
+  };
+  headline: { blocking: number; closeOn: string; daysLeft: number };
+  attendance: {
+    today: Record<'work' | 'late' | 'leave' | 'absent' | 'todo' | 'off' | 'future' | 'outside' | 'extra', number>;
+    notCheckedIn: number;
+    present: number;
+    total: number;
+    todayRate: number;
+    days: { date: string; dow: string; dm: string; today: boolean; present: number; total: number; rate: number }[];
+  };
+  payroll: {
+    status: string;
+    lines: { username: string; name: string; net: number; status: PayrollStatus }[];
+    rows: {
+      username: string;
+      name: string;
+      initials: string;
+      title: string | null;
+      actualDays: number;
+      standardDays: number;
+      base: number;
+      allowance: number;
+      net: number;
+      status: PayrollStatus;
+    }[];
+    total: number;
+    updatedAt: string;
+    gross: number;
+    insurance: number;
+    tax: number;
+    advance: number;
+    deductions: number;
+    net: number;
+    netShare: number;
+    counts: { all: number; done: number; pending: number; draft: number; rejected: number };
+    previous: { gross: number; net: number; grossDeltaPct: number } | null;
+  };
+  period: {
+    month: string;
+    state: string;
+    label: string;
+    from: string;
+    to: string;
+    closeOn: string;
+    payday: string;
+    daysLeft: number;
+  };
+  approvals: {
+    total: number;
+    decide: number;
+    remind: number;
+    groups: ApprovalGroup[];
+    items: {
+      id: string;
+      kind: string;
+      group: InboxItem['group'];
+      groupLabel: string;
+      action: 'decide' | 'remind';
+      username: string;
+      name: string;
+      initials: string;
+      title: string | null;
+      what: string;
+      when: string;
+      days: string[];
+      age: string;
+    }[];
+  };
+};
 
-export function overviewView(month: string): OverviewView {
+const pad = (n: number) => String(n).padStart(2, '0');
+const KIND: Record<InboxItem['group'], string> = { att: 'explanation-due', leave: 'leave', ot: 'overtime', exp: 'explanation', adv: 'advance' };
+
+// Năm ngày làm việc trước hôm nay (bỏ Chủ nhật) cộng hôm nay.
+const DAYS: [string, string, number][] = [
+  ['2026-10-22', 'T5', 94],
+  ['2026-10-23', 'T6', 91],
+  ['2026-10-24', 'T7', 78],
+  ['2026-10-26', 'T2', 96],
+  ['2026-10-27', 'T3', 93],
+  [MOCK_TODAY, 'Hôm nay', 88]
+];
+
+export function overviewDto(month: string): OverviewDTO {
   const year = Number(month.slice(0, 4));
   const m = Number(month.slice(5, 7));
-  const mm = pad(m);
   const last = new Date(Date.UTC(year, m, 0)).getUTCDate();
   const nextYear = m === 12 ? year + 1 : year;
-  // Thẻ Việc cần duyệt hiện đủ danh sách "Cần duyệt" của chuông; chỉ số "Yêu cầu chờ duyệt" chỉ đếm việc cần quyết định.
-  const approvals = pendingInbox();
-  const toDecide = approvals.filter(item => item.action === 'decide');
+  const items = pendingInbox();
+  const decide = items.filter(i => i.action === 'decide').length;
   const board = payrollView(MOCK_MONTH);
   if (board.empty) throw new Error('Bảng lương giả của tháng hiện tại phải có dữ liệu.');
   const { counts, totals } = board;
 
   return {
+    today: MOCK_TODAY,
     month,
-    headline: { blocking: 4, closeOn: `${last}/${mm}`, daysLeft: 3 },
-    kpis: [
-      {
-        key: 'payroll',
-        label: `Quỹ lương tháng ${m}`,
-        value: billions(totals.gross),
-        unit: 'tỷ ₫',
-        delta: { dir: 'up', text: '3,2%', good: true },
-        note: 'so với tháng trước',
-        hero: true
-      },
-      {
-        key: 'staff',
-        label: 'Nhân sự đang làm',
-        value: '128',
-        delta: { dir: 'up', text: '4 người', good: true },
-        note: 'so với tháng trước'
-      },
-      { key: 'present', label: 'Có mặt hôm nay', value: '113', of: '128', note: '15 người chưa chấm công vào' },
-      {
-        key: 'requests',
-        label: 'Yêu cầu chờ duyệt',
-        value: String(toDecide.length),
-        delta: { dir: 'down', text: '3', good: true },
-        note: 'so với tháng trước'
-      }
-    ],
+    kpis: {
+      headcount: 128,
+      presentToday: 113,
+      notCheckedIn: 15,
+      pendingRequests: decide,
+      payrollNet: totals.net,
+      payrollGross: totals.gross
+    },
+    headline: { blocking: items.length, closeOn: `${month}-${last}`, daysLeft: 3 },
     attendance: {
-      todayRate: 88,
+      today: { work: 105, late: 8, leave: 0, absent: 0, todo: 0, off: 0, future: 0, outside: 0, extra: 0 },
+      notCheckedIn: 15,
       present: 113,
       total: 128,
-      days: [
-        { dow: 'T5', date: '22/10', rate: 94, today: false },
-        { dow: 'T6', date: '23/10', rate: 91, today: false },
-        { dow: 'T7', date: '24/10', rate: 78, today: false },
-        { dow: 'T2', date: '26/10', rate: 96, today: false },
-        { dow: 'T3', date: '27/10', rate: 93, today: false },
-        { dow: 'Hôm nay', date: '28/10', rate: 88, today: true }
-      ]
+      todayRate: 88,
+      days: DAYS.map(([date, dow, rate]) => ({
+        date,
+        dow,
+        dm: `${date.slice(8, 10)}/${date.slice(5, 7)}`,
+        today: date === MOCK_TODAY,
+        present: Math.round((128 * rate) / 100),
+        total: 128,
+        rate
+      }))
     },
-    period: {
-      title: `Kỳ lương tháng ${m}`,
-      statusLabel: 'Chờ duyệt',
-      range: `01/${mm} – ${last}/${mm}/${year}`,
-      payday: `05/${pad(m === 12 ? 1 : m + 1)}/${nextYear}`,
-      net: `${billions(totals.net)} tỷ ₫`,
-      deductions: `${billions(totals.deductions)} tỷ ₫`,
-      netShare: totals.netShare,
-      slips: {
-        done: counts.done,
-        pending: counts.pending,
-        draft: counts.draft,
-        rejected: counts.rejected,
-        total: counts.all
-      }
-    },
-    approvals,
     payroll: {
-      title: `Bảng lương tháng ${m}`,
-      updatedAt: '09:40',
-      total: counts.all,
+      status: 'calculated',
+      lines: [...board.lines]
+        .sort((a, b) => b.net - a.net)
+        .slice(0, 5)
+        .map(l => ({ username: l.id, name: l.name, net: l.net, status: l.status })),
       rows: board.lines.slice(0, 6).map(l => ({
-        id: l.id,
+        username: l.id,
         name: l.name,
         initials: l.initials,
         title: l.title,
-        dept: l.dept,
-        days: `${l.days} / ${l.standard}`,
-        base: vnd(l.base),
-        allowance: vnd(l.allowance),
-        net: vnd(l.net),
+        actualDays: l.days,
+        standardDays: l.standard,
+        base: l.base,
+        allowance: l.allowance,
+        net: l.net,
         status: l.status
+      })),
+      total: counts.all,
+      updatedAt: '09:40',
+      gross: totals.gross,
+      insurance: totals.insurance,
+      tax: totals.tax,
+      advance: totals.advance,
+      deductions: totals.deductions,
+      net: totals.net,
+      netShare: totals.netShare,
+      counts,
+      previous: { gross: Math.round(totals.gross / 1.032), net: Math.round(totals.net / 1.032), grossDeltaPct: 3.2 }
+    },
+    period: {
+      month,
+      state: 'calculated',
+      label: 'Chờ duyệt',
+      from: `${month}-01`,
+      to: `${month}-${last}`,
+      closeOn: `${month}-${last}`,
+      payday: `${nextYear}-${pad(m === 12 ? 1 : m + 1)}-05`,
+      daysLeft: 3
+    },
+    approvals: {
+      total: items.length,
+      decide,
+      remind: items.length - decide,
+      groups: INBOX_GROUPS.map(g => ({ key: g.key, label: g.label, count: items.filter(i => i.group === g.key).length })).filter(
+        g => g.count
+      ),
+      items: items.map(i => ({
+        id: i.id,
+        kind: KIND[i.group],
+        group: i.group,
+        groupLabel: i.groupLabel,
+        action: i.action,
+        username: i.personId,
+        name: i.name,
+        initials: i.initials,
+        title: i.role,
+        what: i.what,
+        when: i.when,
+        days: i.days,
+        age: i.age
       }))
     }
   };

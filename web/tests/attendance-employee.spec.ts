@@ -7,7 +7,6 @@ let calls: string[] = [];
 
 const mainOf = (page: Page) => page.getByRole('main');
 const timelineOf = (page: Page) => page.getByRole('list', { name: 'Dòng thời gian' });
-const foldOf = (page: Page, label: string) => page.getByRole('button', { name: label });
 const dialogOf = (page: Page) => page.getByRole('dialog');
 const bellOf = (page: Page) => page.locator('.topbar .bell');
 
@@ -30,10 +29,11 @@ test('profile shows the employee, the month and the pending day', async ({ page 
   await expect(page.getByRole('heading', { name: 'Lê Hoàng Nam' })).toBeVisible();
   await expect(page.getByText('Mã GFT-0142 · vào làm 03/2024')).toBeVisible();
   await expect(page.getByText('3 / 11', { exact: true })).toBeVisible();
-  await expect(page.getByText('1 ngày cần xử lý · 27/10 thiếu giờ ra, chờ duyệt giải trình')).toBeVisible();
+  await expect(page.getByText('1 ngày cần xử lý · Thiếu giờ ra · 27/10')).toBeVisible();
 
   const stats = page.getByRole('region', { name: 'Chỉ số tháng 10' });
-  await expect(stats).toContainText('25 / 26');
+  await expect(stats).toContainText('Ngày đi làm');
+  await expect(stats).toContainText('trong tháng 10');
   await expect(stats.getByRole('article')).toHaveCount(4);
   await expect(page.locator('nav[aria-label="Điều hướng"] a[aria-current="page"]')).toContainText('Chấm công');
   expect(calls).toEqual([]);
@@ -65,25 +65,17 @@ test('stepping onto the last person hands focus to the other button', async ({ p
   await expect(page.getByRole('button', { name: 'Nhân viên trước' })).toBeFocused();
 });
 
-test('history folds plain work days and opens them', async ({ page }) => {
+test('history lists every day newest first with the status from the backend', async ({ page }) => {
+  // BE trả dayHistory từng ngày (không gộp chuỗi ngày đi làm như bản FE tự tính trước đây).
   await page.goto(NAM);
   const list = timelineOf(page);
-  await expect(list.getByRole('listitem')).toHaveCount(8);
-
-  const fold = foldOf(page, '9 ngày đi làm · 13/10 – 22/10');
-  await expect(fold).toHaveAttribute('aria-expanded', 'false');
-  await fold.click();
-  await expect(fold).toHaveAttribute('aria-expanded', 'true');
-  await expect(list.getByRole('listitem')).toHaveCount(17);
+  await expect(list.getByRole('listitem')).toHaveCount(24);
+  await expect(list.getByRole('listitem').first()).toContainText('Thứ Tư 28/10');
   await expect(list.getByText('Thứ Bảy 17/10')).toBeVisible();
-
   await expect(list.getByText('Thứ Ba 27/10')).toBeVisible();
-  await expect(list.getByText('Trễ 12 phút · chưa có giờ ra')).toBeVisible();
-  await expect(list.getByText('Chờ duyệt giải trình')).toBeVisible();
-
-  await fold.click();
-  await expect(fold).toHaveAttribute('aria-expanded', 'false');
-  await expect(list.getByRole('listitem')).toHaveCount(8);
+  await expect(list.getByText('08:12–?')).toBeVisible();
+  await expect(list.getByText('Cần xử lý', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /ngày đi làm/ })).toHaveCount(0);
 });
 
 test('exceptions filter and the hours table', async ({ page }) => {
@@ -106,7 +98,7 @@ test('exceptions filter and the hours table', async ({ page }) => {
   await expect(table.getByRole('columnheader')).toHaveText(['Ngày', 'Vào', 'Ra', 'Trạng thái']);
   await expect(table.locator('tbody tr')).toHaveCount(2);
   await expect(table.locator('tbody tr').first()).toContainText('08:12');
-  await expect(table.locator('tbody tr').first()).toContainText('Chờ duyệt giải trình');
+  await expect(table.locator('tbody tr').first()).toContainText('Cần xử lý');
 });
 
 test('week names, the bell and the day dialog open the profile', async ({ page }) => {
@@ -175,7 +167,7 @@ test('with no strip day left to return to, focus falls back to the history tab',
 
 test('the callout opens the first pending day', async ({ page }) => {
   await page.goto('/admin/cham-cong/nhan-vien/nguyen-thu-ha');
-  await expect(page.getByText('2 ngày cần xử lý · 29/10 phép năm, chờ duyệt đơn nghỉ')).toBeVisible();
+  await expect(page.getByText(/^2 ngày cần xử lý · .+ · 29\/10$/)).toBeVisible();
   await page.getByRole('button', { name: 'Xem ngày' }).click();
   await expect(dialogOf(page)).toHaveAccessibleName('Nguyễn Thu Hà · Thứ Năm 29/10/2026');
 });

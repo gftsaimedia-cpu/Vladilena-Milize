@@ -26,11 +26,6 @@ export function advanceDayOpen(today: string): boolean {
   return day === '16' || day === '17';
 }
 
-/** Kỳ đã có dòng và không còn 'open' thì đã đóng. */
-export function isClosedPeriod(row: { status: string } | null): boolean {
-  return row !== null && row.status !== 'open';
-}
-
 export interface HourOption {
   start: number;
   ends: Array<{ end: number; minutes: number }>;

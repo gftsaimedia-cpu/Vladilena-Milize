@@ -19,6 +19,14 @@ describe('presence: real check-in and check-out of a day', () => {
     assert.equal(p.end?.toISOString(), '2026-10-07T10:05:00.000Z');
   });
 
+  // A day row carries its punches as Date instants (timestamptz), a missing side as null.
+  it('reads the punches of a day row given as Date instants and keeps a null punch empty', () => {
+    const p = presenceOf('2026-10-05', new Date('2026-10-05T01:00:00.000Z'), null);
+    assert.deepEqual([p.checkIn, p.checkOut], ['08:00', null]);
+    assert.equal(p.start?.toISOString(), '2026-10-05T01:00:00.000Z');
+    assert.equal(p.end, null);
+  });
+
   it('leaves a missing punch empty', () => {
     const p = presenceOf('2026-10-07', '2026-10-07T01:12:00.000Z', null);
     assert.equal(inOutText(p), '08:12–—');

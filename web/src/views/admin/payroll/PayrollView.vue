@@ -3,6 +3,7 @@
 // Lọc trạng thái, phòng ban và chữ tìm thuộc về màn, không ghi lên đường dẫn.
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import PeriodActions from '@/components/shell/PeriodActions.vue';
 import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -19,6 +20,7 @@ import PayToolbar from './parts/PayToolbar.vue';
 import PayslipDrawer from './payslip/PayslipDrawer.vue';
 
 const period = usePeriodStore();
+const route = useRoute();
 const { data: loaded, reload } = useLoad(
   () => getPayroll(period.month),
   () => period.month
@@ -26,8 +28,9 @@ const { data: loaded, reload } = useLoad(
 const data = computed(() => loaded.value as PayrollScreen | null);
 const board = computed(() => (data.value && !data.value.empty ? data.value : null));
 
-// Tính (lại) lương cả kỳ trên máy chủ thật; người tính lỗi (thiếu cấu hình bậc…) báo thành một thông báo.
-const canCalculate = !__MOCK__;
+// Tính (lại) lương cả kỳ (bản mockup trả ngay); người tính lỗi (thiếu cấu hình bậc…) báo thành một thông báo.
+// Kỳ đã phê duyệt hoặc đã trả thì không tính lại được (BE trả PAYROLL_FINALIZED), nên ẩn nút.
+const canCalculate = computed(() => !['approved', 'paid'].includes(period.view?.status ?? ''));
 const calculating = ref(false);
 async function calculate() {
   if (calculating.value) return;
@@ -77,8 +80,24 @@ const exportCsv = () =>
   downloadCsv(`bang-luong-${board.value!.month}.csv`, payrollCsv(picked.value.length ? picked.value : shown.value));
 const missingKpi = computed(() => shown.value.some(l => l.kpiMissing.length));
 
+// Phân trang phía máy khách: PAGE_SIZE phiếu một trang, trên kết quả đã lọc/tìm/sắp xếp. Đổi bộ lọc, chữ tìm hay tháng thì về trang 1.
+// ?dong=N đổi số phiếu một trang (để thử và demo; mockup chỉ có 10 phiếu).
+const PAGE_SIZE = computed(() => {
+  const n = Number(route.query.dong);
+  return Number.isInteger(n) && n >= 1 && n <= 100 ? n : 10;
+});
+const page = ref(1);
+const pages = computed(() => Math.max(1, Math.ceil(shown.value.length / PAGE_SIZE.value)));
+const pageLines = computed(() => shown.value.slice((page.value - 1) * PAGE_SIZE.value, page.value * PAGE_SIZE.value));
+watch([filter, query, dept, () => period.month, PAGE_SIZE], () => (page.value = 1));
+watch(pages, n => {
+  if (page.value > n) page.value = n;
+});
+const range = computed(() =>
+  shown.value.length ? `${(page.value - 1) * PAGE_SIZE.value + 1}–${(page.value - 1) * PAGE_SIZE.value + pageLines.value.length}` : '0'
+);
+
 // Phiếu đang mở nằm trên đường dẫn (?phieu=<mã nhân viên>). Mã không có phiếu thì bỏ khỏi đường dẫn, không báo lỗi.
-const route = useRoute();
 const slipId = computed(() => (typeof route.query.phieu === 'string' ? route.query.phieu : ''));
 const withSlip = (id: string) => {
   const rest = Object.fromEntries(Object.entries(route.query).filter(([key]) => key !== 'phieu'));
@@ -153,6 +172,7 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
   const next = await decidePayslip(period.month, id, decision, note);
   if (next && next.id === slipId.value) slip.value = next;
   await reload();
+  period.refresh(); // số phiếu chưa duyệt đổi thì nút Phê duyệt kỳ mở / khoá theo
 };
 </script>
 
@@ -177,9 +197,10 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
         >
           <Icon name="print" />In tất cả
         </button>
-        <button v-if="canCalculate" type="button" class="btn pri" :disabled="calculating" @click="calculate">
-          {{ calculating ? 'Đang tính…' : board ? 'Tính lại lương' : 'Tính lương' }}
+        <button v-if="canCalculate" type="button" class="btn" :disabled="calculating" @click="calculate">
+          <Icon name="clock" />{{ calculating ? 'Đang tính…' : board ? 'Tính lại' : 'Tính lương' }}
         </button>
+        <PeriodActions only="approve" />
       </div>
     </div>
 
@@ -202,11 +223,19 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
           :selected-count="picked.length"
           @export="exportCsv"
         />
-        <PayTable ref="payTable" v-model:selected="selected" :lines="shown" :month="monthNo(board.month)" :open-id="slipId" />
+        <PayTable ref="payTable" v-model:selected="selected" :lines="pageLines" :totals="board.totals" :month="monthNo(board.month)" :open-id="slipId" />
         <div class="foot">
-          <span>Kéo ngang để xem các khoản · bấm tên để mở phiếu lương</span>
+          <span class="hint"><Icon name="drag" :size="14" />Kéo ngang để xem các khoản · bấm tên để mở phiếu lương</span>
           <span v-if="missingKpi" class="pl-legend"><i aria-hidden="true" />Thiếu điểm KPI, cột thiếu tính 0 điểm</span>
-          <span class="count">Hiển thị {{ shown.length }} trong {{ board.counts[filter] }} phiếu</span>
+          <span class="count">Hiển thị {{ range }} trong {{ board.counts[filter] }} phiếu</span>
+          <span class="pl-pager">
+            <button type="button" class="pl-pg" aria-label="Trang trước" :disabled="page <= 1" @click="page--">
+              <Icon name="chevl" :size="16" />
+            </button>
+            <button type="button" class="pl-pg" aria-label="Trang sau" :disabled="page >= pages" @click="page++">
+              <Icon name="chevr" :size="16" />
+            </button>
+          </span>
         </div>
       </section>
     </template>
@@ -276,7 +305,35 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
   border-radius: 50%;
   background: var(--status-pending);
 }
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .count {
   margin-left: auto;
+}
+.pl-pager {
+  display: inline-flex;
+  gap: 4px;
+}
+.pl-pg {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--control);
+  border-radius: var(--r-ctl);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.pl-pg:disabled {
+  color: #9e9e9e;
+  cursor: default;
+}
+.pl-pg:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 </style>

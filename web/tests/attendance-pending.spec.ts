@@ -50,7 +50,7 @@ test('the toolbar keeps only the tabs and the two filters on this tab', async ({
   await page.goto(PENDING);
   await expect(rowsOf(page)).toHaveCount(11);
   await expect(page.getByRole('textbox', { name: 'Lọc theo tên' })).toBeVisible();
-  await expect(page.getByRole('combobox', { name: 'Phòng ban' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Nhóm' })).toBeVisible();
   for (const name of ['Tuần trước', 'Tuần sau', 'Hôm nay']) await expect(page.getByRole('button', { name })).toHaveCount(0);
   await expect(page.getByRole('group', { name: 'Chú giải' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Excel|Xuất/ })).toHaveCount(0);
@@ -145,7 +145,8 @@ test('an attendance item shows Nhắc giải trình and no approve buttons', asy
   const pane = paneOf(page);
   await expect(pane).toContainText('Chấm công');
   await expect(pane.getByRole('button', { name: 'Nhắc giải trình' })).toBeVisible();
-  await expect(pane.getByRole('button', { name: 'Khai thay giờ vào' })).toBeVisible();
+  // Đã bỏ "Khai thay giờ" (người dùng chốt 05/11): chuông và khung này chỉ còn "Nhắc giải trình".
+  await expect(pane.getByRole('button', { name: /Khai thay/ })).toHaveCount(0);
   await expect(pane.getByRole('button', { name: 'Duyệt', exact: true })).toHaveCount(0);
   await expect(pane.getByRole('link', { name: 'Mở hồ sơ chấm công' })).toBeVisible();
 });
@@ -179,18 +180,47 @@ test('the name filter keeps a selection that is still visible and otherwise pick
   await expect(paneOf(page).getByRole('heading', { name: 'Đỗ Mai Linh', level: 3 })).toBeVisible();
 });
 
-test('finishing every item leaves the empty line, an empty pane and focus on the tab', async ({ page }) => {
+// Nhắc giải trình không xử lý xong việc (người dùng chốt 05/11): việc ở lại tới khi nhân viên gửi giải trình, như ở chuông.
+test('Nhắc giải trình keeps the item selected, shows when it was sent and turns into Nhắc lại', async ({ page }) => {
   await page.goto(PENDING);
   await expect(rowsOf(page)).toHaveCount(11);
-  for (let left = 11; left > 0; left--) {
-    await expect(rowsOf(page)).toHaveCount(left);
-    await paneOf(page).getByRole('button', { name: /^(Duyệt|Nhắc giải trình)$/ }).click();
-    await expect(rowsOf(page)).toHaveCount(left - 1);
+  await rowOf(page, 'Lý Thanh Tâm').click();
+  await paneOf(page).getByRole('button', { name: 'Nhắc giải trình', exact: true }).click();
+
+  await expect(page.getByText('Đã nhắc Lý Thanh Tâm giải trình.')).toBeVisible();
+  await expect(rowsOf(page)).toHaveCount(11);
+  await expect(rowOf(page, 'Lý Thanh Tâm')).toHaveAttribute('aria-current', 'true');
+  await expect(paneOf(page)).toContainText('Lý Thanh Tâm');
+  await expect(paneOf(page).getByText('Đã nhắc: 09:40 28/10', { exact: true })).toBeVisible();
+  await expect(paneOf(page).getByRole('button', { name: 'Nhắc lại', exact: true })).toBeFocused();
+});
+
+test('approving every request leaves only the attendance items, each with Nhắc giải trình', async ({ page }) => {
+  await page.goto(PENDING);
+  await expect(rowsOf(page)).toHaveCount(11);
+  // Mỗi vòng: tìm dòng còn nút Duyệt, duyệt nó, danh sách bớt một dòng; hết dòng có Duyệt thì dừng.
+  for (;;) {
+    const n = await rowsOf(page).count();
+    let approved = false;
+    for (let i = 0; i < n && !approved; i++) {
+      await rowsOf(page).nth(i).click();
+      const approve = paneOf(page).getByRole('button', { name: 'Duyệt', exact: true });
+      if (await approve.count()) {
+        await approve.click();
+        await expect(rowsOf(page)).toHaveCount(n - 1);
+        approved = true;
+      }
+    }
+    if (!approved) break;
   }
-  await expect(listOf(page)).toContainText('Không còn việc nào cần xử lý.');
-  await expect(paneOf(page)).toHaveText('');
-  await expect(pendingTab(page)).toContainText('0');
-  await expect(pendingTab(page)).toBeFocused();
+  const left = await rowsOf(page).count();
+  expect(left).toBeGreaterThan(0);
+  for (let i = 0; i < left; i++) {
+    await rowsOf(page).nth(i).click();
+    await expect(paneOf(page)).toContainText('Chấm công');
+    await expect(paneOf(page).getByRole('button', { name: 'Nhắc giải trình', exact: true })).toBeVisible();
+  }
+  await expect(listOf(page)).not.toContainText('Không còn việc nào cần xử lý.');
 });
 
 test('below 900px only the list stays and a row opens the day dialog as before', async ({ page }) => {

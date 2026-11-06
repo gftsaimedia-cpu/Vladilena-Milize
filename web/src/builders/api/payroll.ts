@@ -1,6 +1,6 @@
-// Màn Bảng lương từ GET /api/v2/payroll/:month (phiếu đã tính của lần chạy nháp hoặc chốt). Tiền do BE tính; ở đây chỉ
-// gom và đếm. BE chưa có phòng ban, ngày trả lương, so sánh tháng trước: các ô đó để trống.
-import type { DayKind, Payslip, PayrollLine, PayrollScreen, PayrollStatus, SlipCounts } from '../../mock/payroll';
+// Màn Bảng lương từ GET /api/v2/payroll/:month (phiếu đã tính của lần chạy nháp hoặc chốt). Tiền, tổng cả kỳ và các
+// tỉ lệ áp dụng do BE tính; ở đây chỉ ánh xạ và đếm. BE chưa có phòng ban, ngày trả lương, so sánh tháng trước: các ô đó để trống.
+import type { DayKind, Payslip, PayrollLine, PayrollScreen, PayrollStatus, SlipCounts, SlipRates } from '../../mock/payroll';
 import type { KpiPart } from '../../mock/payroll-calc';
 import { KPI_LABELS, employeeTypeLabel, employmentStatusLabel } from '../../constants/labels';
 import { initials } from '../../utils/format';
@@ -74,17 +74,27 @@ function lineOf(r: PayslipRecordDTO): PayrollLine {
   };
 }
 
-export function payrollScreenFromPayslips(items: PayslipRecordDTO[], month: string): PayrollScreen {
+// `totals` của GET /payroll/:month: cộng sẵn cả kỳ (mọi phiếu của lần chạy hiện tại, không theo bộ lọc của màn).
+export type PayrollTotalsDTO = {
+  baseSalaryActual: number;
+  kpiActualPay: number;
+  allowance: number;
+  otPay: number;
+  lateDeduction: number;
+  gross: number;
+  insurance: number;
+  tax: number;
+  advance: number;
+  deductions: number;
+  net: number;
+  netShare: number;
+};
+
+export function payrollScreenFromPayslips(items: PayslipRecordDTO[], month: string, totals: PayrollTotalsDTO): PayrollScreen {
   if (!items.length) return { month, empty: true };
   const lines = items.map(lineOf).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   const count = (s: PayrollStatus) => lines.filter(l => l.status === s).length;
   const counts: SlipCounts = { all: lines.length, draft: count('draft'), pending: count('pending'), done: count('done'), rejected: count('rejected') };
-  const sum = (k: 'gross' | 'insurance' | 'tax' | 'advance' | 'net') => lines.reduce((a, l) => a + (Number(l[k]) || 0), 0);
-  const gross = sum('gross');
-  const insurance = sum('insurance');
-  const tax = sum('tax');
-  const advance = sum('advance');
-  const net = sum('net');
   const [y, m] = month.split('-').map(Number);
   const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
   return {
@@ -96,7 +106,20 @@ export function payrollScreenFromPayslips(items: PayslipRecordDTO[], month: stri
     lines,
     counts,
     depts: [],
-    totals: { gross, insurance, tax, advance, deductions: insurance + tax + advance, net, netShare: gross ? Math.round((net / gross) * 100) : 0 }
+    totals: {
+      gross: totals.gross,
+      insurance: totals.insurance,
+      tax: totals.tax,
+      advance: totals.advance,
+      deductions: totals.deductions,
+      net: totals.net,
+      netShare: totals.netShare,
+      workPay: totals.baseSalaryActual,
+      kpiPay: totals.kpiActualPay,
+      allowance: totals.allowance,
+      ot: totals.otPay,
+      lateCut: totals.lateDeduction
+    }
   };
 }
 
@@ -113,6 +136,10 @@ export type PayslipDetailDTO = PayslipRecordDTO['details'] & {
   holidayPay: number;
   leaveSettlementPay: number;
   isatPay: number;
+  workPay?: number; // thiếu ở phiếu lưu trước khi BE thêm: lấy tiền ngày công
+  lateMinutes?: number; // thiếu ở phiếu lưu trước khi BE thêm
+  rates?: SlipRates; // như trên
+  calendar?: { date: string; kind: 'work' | 'leave' | 'isat' | 'unpaid' | 'rest' | 'future' }[]; // như trên
   ot15Hours: number;
   ot20Hours: number;
   ot30Hours: number;
@@ -140,30 +167,15 @@ export type PayslipDetailDTO = PayslipRecordDTO['details'] & {
   netIncome: number;
   dependants: number;
   remainingAnnualLeaveDays: number | null;
-  dailyLines: { date: string; shiftCode: string; workHours: number }[];
 };
 
-const DAY_OF_SHIFT: Record<string, DayKind> = { LEAVE: 'leave', ISAT: 'isat', UNPAID: 'unpaid' };
-
-// Một ô mỗi ngày của tháng: theo dòng công của ngày đó; Chủ nhật không có dòng là "sunday"; sau hôm nay là "future";
-// ngày thường đã qua mà không có dòng công là "unpaid".
-function calendarOf(month: string, lines: PayslipDetailDTO['dailyLines'], today: string): DayKind[] {
-  const [y, m] = month.split('-').map(Number);
-  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  const byDate = new Map(lines.map(l => [l.date, l]));
-  const out: DayKind[] = [];
-  for (let d = 1; d <= last; d++) {
-    const date = `${month}-${String(d).padStart(2, '0')}`;
-    const line = byDate.get(date);
-    if (line) out.push(DAY_OF_SHIFT[line.shiftCode] ?? (line.workHours > 0 ? 'work' : 'unpaid'));
-    else if (new Date(`${date}T00:00:00Z`).getUTCDay() === 0) out.push('sunday');
-    else out.push(date > today ? 'future' : 'unpaid');
-  }
-  return out;
-}
+// Ô ngày của dải chấm công: BE gán loại cho từng ngày của tháng (calendar). 'rest' (ngày nghỉ tuần) là ô Chủ nhật của dải.
+// Phiếu lưu trước khi BE có calendar: không có dải.
+const DAY_KIND: Record<string, DayKind> = { work: 'work', leave: 'leave', isat: 'isat', unpaid: 'unpaid', rest: 'sunday', future: 'future' };
+const calendarOf = (days: PayslipDetailDTO['calendar']): DayKind[] => (days ?? []).map(d => DAY_KIND[d.kind] ?? 'unpaid');
 
 /** Phiếu lương của ngăn kéo từ phiếu đã lưu (GET /payroll/:month/:username). Mọi số tiền lấy nguyên của BE. */
-export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetailDTO }, today: string): Payslip {
+export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetailDTO }): Payslip {
   const d = r.details;
   const line = lineOf(r);
   const parts = Object.keys(KPI_LABELS) as KpiPart[];
@@ -174,7 +186,6 @@ export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetail
     { label: 'Off Paid (ca đêm)', rule: d.offPaidNightPolicy, actual: d.offPaidNightActual },
     { label: 'Thưởng ca đêm', rule: d.nightAllowancePolicy, actual: d.nightAllowanceActual }
   ];
-  const leavePay = d.paidLeavePay + d.holidayPay + d.leaveSettlementPay;
   return {
     id: line.id,
     name: line.name,
@@ -193,19 +204,22 @@ export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetail
     dependants: d.dependants,
     days: {
       work: d.actualWorkDays,
-      leave: d.paidLeaveDays + d.holidayPaidDays,
+      leave: d.paidLeaveDays,
       isat: d.isatDays,
       pending: 0,
       unpaid: d.unpaidLeaveDays,
       standard: d.standardWorkdays
     },
-    calendar: calendarOf(d.month, d.dailyLines || [], today),
+    calendar: calendarOf(d.calendar),
     pendingDates: [],
-    leavePay,
+    leavePay: d.paidLeavePay,
     isatPay: d.isatPay,
+    settlementPay: d.leaveSettlementPay,
+    holiday: { days: d.holidayPaidDays, pay: d.holidayPay },
     allowances,
     ot: { hours: [d.ot15Hours, d.ot20Hours, d.ot30Hours], pay: d.otPayTotal },
-    late: { minutes: [], hours: d.lateEarlyHours, cut: line.lateCut },
+    late: { minutes: d.lateMinutes ?? 0, hours: d.lateEarlyHours, cut: line.lateCut },
+    rates: d.rates ?? null,
     exempt: d.taxExemptIncome,
     advance: d.advanceDeduction,
     leaveLeft: d.remainingAnnualLeaveDays ?? null,
@@ -217,7 +231,7 @@ export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetail
     },
     calc: {
       baseActual: d.baseSalaryActual,
-      workPay: d.baseSalaryActual + leavePay + d.isatPay,
+      workPay: d.workPay ?? d.baseSalaryActual,
       kpiPercent: d.kpiTotalScorePct,
       kpiMissing: d.kpiApplicable ? parts.filter(p => d.kpiScores?.[p] == null) : [],
       kpiPay: d.kpiActualPay,

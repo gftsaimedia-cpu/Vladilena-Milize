@@ -3,12 +3,13 @@ import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 import type { Kysely } from 'kysely';
 import type { DB } from '../../src/database';
+import type { AttendanceDayRecord } from '../../src/modules/attendance/attendance-days.repository';
 import { EmployeePayslip, measureOvertime, otLinePayByRate, vnInstant } from '../../src/modules/payroll/domain';
 import { PayrollRepository, type EmployeeMonthlyRawData } from '../../src/modules/payroll/payroll.repository';
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import type { SettingsSnapshot, WorkWeek } from '../../src/modules/settings';
 import { createScriptedKysely } from './helpers/scripted-kysely';
-import { SEED_RATES, nvMonthData } from './payroll-fixtures';
+import { type MonthFixture, SEED_RATES, dayRow, fixtureDays, nvMonthData, payslipLine, punched } from './payroll-fixtures';
 
 // The settings as seeded in migrations/postgres/schema.sql (the confirmed rules, diligence lost from 3 absence days).
 const SEED: SettingsSnapshot = {
@@ -72,7 +73,7 @@ class FakeReader {
 
 class MonthRepository extends PayrollRepository {
   constructor(
-    private readonly months: Record<string, EmployeeMonthlyRawData>,
+    readonly months: Record<string, MonthFixture>,
     db: Kysely<DB> = {} as Kysely<DB>
   ) {
     super(db);
@@ -87,35 +88,19 @@ class MonthRepository extends PayrollRepository {
   }
 }
 
-const payslipOf = (data: EmployeeMonthlyRawData, month: string, reader: FakeReader) =>
-  new PayrollService(new MonthRepository({ [data.staff.uuid]: data }), reader).generateMonthlyPayslip(data.staff.uuid, month);
+// The service on that repository; the day rows of a person are the `days` of their month.
+const serviceOf = (repo: MonthRepository, reader?: FakeReader) =>
+  new PayrollService(repo, reader, fixtureDays(() => Object.values(repo.months)));
 
-type Timesheet = EmployeeMonthlyRawData['timesheets'][number];
-
-// One attendance line; `presence` is the real check-in and check-out on the Vietnam clock.
-const timesheet = (workDate: string, shiftType = 'NORMAL', presence?: [string, string]): Timesheet => ({
-  workDate,
-  shiftType,
-  shiftStartTime: '08:00',
-  shiftEndTime: '17:00',
-  shiftAllowancePct: 0,
-  actualCheckIn: presence ? vnInstant(workDate, presence[0]).toISOString() : null,
-  actualCheckOut: presence ? vnInstant(workDate, presence[1]).toISOString() : null,
-  workHours: shiftType === 'NORMAL' ? 8 : 0,
-  otHours: 0,
-  lateMinutes: 0,
-  earlyMinutes: 0,
-  status: shiftType === 'LEAVE' ? 'ON_LEAVE' : 'PRESENT',
-  dayStatus: 'VALID',
-  scheduleType: 'REGULAR'
-});
+const payslipOf = (data: MonthFixture, month: string, reader: FakeReader) =>
+  serviceOf(new MonthRepository({ [data.staff.uuid]: data }), reader).generateMonthlyPayslip(data.staff.uuid, month);
 
 const weekdayOf = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay();
 const DECEMBER = Array.from({ length: 31 }, (_, i) => `2026-12-${String(i + 1).padStart(2, '0')}`);
 const DECEMBER_MON_FRI = DECEMBER.filter(date => weekdayOf(date) >= 1 && weekdayOf(date) <= 5);
 
 // Bình: nv level 2 (6,500,000) on a long contract, no KPI; `standardWorkdays` is the type's 26.
-const binh = (timesheets: Timesheet[]): EmployeeMonthlyRawData => ({
+const binh = (days: AttendanceDayRecord[]): MonthFixture => ({
   staff: {
     uuid: 'u-binh',
     username: 'nv-binh',
@@ -136,17 +121,17 @@ const binh = (timesheets: Timesheet[]): EmployeeMonthlyRawData => ({
     dependants: 0,
     kpiCap: { applicable: false, kpiMax: null }
   },
-  timesheets,
+  days: days.map(row => ({ ...row, employeeId: 'u-binh' })),
   requests: [],
   kpi: null
 });
 
-// nvMonthData of 2026-10 with its 20 NORMAL days and `leaveDays` LEAVE days (24, 26, 27 Oct...; 25 is a Sunday).
-const nvWithLeave = (leaveDays: number): EmployeeMonthlyRawData => {
+// nvMonthData of 2026-10 with its 20 PRESENT days and `leaveDays` LEAVE_PAID days (24, 26, 27 Oct...; 25 is a Sunday).
+const nvWithLeave = (leaveDays: number): MonthFixture => {
   const data = nvMonthData();
-  const normal = data.timesheets.filter(ts => ts.shiftType === 'NORMAL');
+  const present = data.days.filter(row => row.status === 'PRESENT');
   const leave = ['2026-10-24', '2026-10-26', '2026-10-27', '2026-10-28'].slice(0, leaveDays);
-  return { ...data, timesheets: [...normal, ...leave.map(date => timesheet(date, 'LEAVE'))] };
+  return { ...data, days: [...present, ...leave.map(date => dayRow('LEAVE_PAID', date))] };
 };
 
 const withSettings = (patch: Partial<SettingsSnapshot>): SettingsSnapshot => ({ ...SEED, ...patch });
@@ -170,7 +155,7 @@ describe('Payroll reads the settings of the month', () => {
     assert.equal(DECEMBER_MON_FRI.length, 23);
     const reader = new FakeReader(SEED, { 'u-binh': MON_FRI });
 
-    const slip = await payslipOf(binh(DECEMBER_MON_FRI.map(date => timesheet(date))), '2026-12', reader);
+    const slip = await payslipOf(binh(DECEMBER_MON_FRI.map(date => dayRow('PRESENT', date))), '2026-12', reader);
 
     assert.ok(reader.calls.includes('workWeekOf u-binh 2026-12'));
     assert.equal(slip.standardWorkdays, 22);
@@ -190,23 +175,6 @@ describe('Payroll reads the settings of the month', () => {
   });
 
   it('keeps diligence below 5 absence days when no threshold is given (the old pure rule)', () => {
-    const line = (date: string, shiftCode: string) => ({
-      date,
-      dayOfWeekText: '',
-      shiftCode,
-      shiftLabel: shiftCode,
-      inOutText: '',
-      workHours: 8,
-      daySalary: 0,
-      flexAllowancePay: 0,
-      nightAllowancePay: 0,
-      offPaidPay: 0,
-      otHours: 0,
-      otPay: 0,
-      deductionHours: 0,
-      deductionAmount: 0,
-      dailyTotal: 0
-    });
     const slip = (leaveDays: number, diligenceLostFromDays?: number) =>
       new EmployeePayslip({
         employeeId: 'p',
@@ -219,8 +187,8 @@ describe('Payroll reads the settings of the month', () => {
         allowanceRates: SEED_RATES.nv,
         diligenceLostFromDays,
         dailyLines: [
-          ...Array.from({ length: 20 }, () => line('2026-10-01', 'NORMAL')),
-          ...Array.from({ length: leaveDays }, () => line('2026-10-24', 'LEAVE'))
+          ...Array.from({ length: 20 }, () => payslipLine('PRESENT', { date: '2026-10-01' })),
+          ...Array.from({ length: leaveDays }, () => payslipLine('LEAVE_PAID', { date: '2026-10-24' }))
         ]
       });
     assert.equal(slip(4).attendanceAllowanceActual, 1_153_846);
@@ -274,21 +242,27 @@ describe('Payroll reads the settings of the month', () => {
     assert.equal(await tax({ shortContractPct: 20, shortContractThreshold: 12_000_000 }, short()), 0);
   });
 
-  it('pays a holiday only when it falls on a day of the person’s week', async () => {
-    // Friday 25/12 and Saturday 12/12 are holiday lines; the other 22 weekdays are worked.
-    const lines = [
-      ...DECEMBER_MON_FRI.filter(date => date !== '2026-12-25').map(date => timesheet(date)),
-      timesheet('2026-12-25', 'HOLIDAY'),
-      timesheet('2026-12-12', 'HOLIDAY')
-    ];
+  // Which holiday falls on a day of the person's week is decided when the day row is built (HOLIDAY, or REST off the
+  // week): payroll-attendance-days.pg.test.ts runs that on PostgreSQL. Here the payslip pays the rows it is given.
+  it('pays a HOLIDAY row from its pay units and gives a holiday on a rest day (a REST row) no line', async () => {
+    // Friday 25/12 and Saturday 12/12 are holidays; the other 22 weekdays are worked.
+    const worked = DECEMBER_MON_FRI.filter(date => date !== '2026-12-25').map(date => dayRow('PRESENT', date));
 
-    const monFri = await payslipOf(binh(lines), '2026-12', new FakeReader(SEED, { 'u-binh': MON_FRI }));
+    const monFri = await payslipOf(
+      binh([...worked, dayRow('HOLIDAY', '2026-12-25'), dayRow('REST', '2026-12-12')]),
+      '2026-12',
+      new FakeReader(SEED, { 'u-binh': MON_FRI })
+    );
     assert.equal(monFri.holidayPaidDays, 1);
     assert.equal(monFri.holidayPay, 295_455);
-    assert.equal(monFri.dailyLines.find(line => line.date === '2026-12-12')?.daySalary, 0);
+    assert.equal(monFri.dailyLines.find(line => line.date === '2026-12-12'), undefined);
     assert.equal(monFri.dailyLines.find(line => line.date === '2026-12-25')?.daySalary, 295_455);
 
-    const monSat = await payslipOf(binh(lines), '2026-12', new FakeReader());
+    const monSat = await payslipOf(
+      binh([...worked, dayRow('HOLIDAY', '2026-12-25'), dayRow('HOLIDAY', '2026-12-12')]),
+      '2026-12',
+      new FakeReader()
+    );
     assert.equal(monSat.holidayPaidDays, 2);
     assert.equal(monSat.holidayPay, 500_000);
     assert.equal(monSat.dailyLines.find(line => line.date === '2026-12-12')?.daySalary, 250_000);
@@ -333,13 +307,13 @@ describe('OT rates from the settings', () => {
   });
 
   // nvMonthData with real presence 08:00-20:30 on Wednesday 07/10 and Saturday 03/10 and the given OT windows.
-  const nvWithOt = (windows: Array<ReturnType<typeof window>>): EmployeeMonthlyRawData => {
+  const nvWithOt = (windows: Array<ReturnType<typeof window>>): MonthFixture => {
     const data = nvMonthData();
     const present = new Set(['2026-10-03', '2026-10-07']);
     return {
       ...data,
-      timesheets: data.timesheets.map(ts =>
-        present.has(ts.workDate) ? timesheet(ts.workDate, 'NORMAL', ['08:00', '20:30']) : ts
+      days: data.days.map(row =>
+        present.has(row.workDate) ? { ...row, ...punched(row.workDate, '08:00', '20:30') } : row
       ),
       requests: [
         ...windows.map((w, i) => ({
@@ -404,7 +378,7 @@ describe('Payroll run stores the settings it used', () => {
       ua: nvMonthData({ staff: { uuid: 'ua', username: 'alice' } }),
       ub: nvMonthData({ staff: { uuid: 'ub', username: 'bob' } })
     };
-    const result = await new PayrollService(new MonthRepository(months, db), reader).calculatePeriodPayslips(
+    const result = await serviceOf(new MonthRepository(months, db), reader).calculatePeriodPayslips(
       '2026-10',
       undefined,
       'admin'
