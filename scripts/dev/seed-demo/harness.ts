@@ -23,13 +23,16 @@ export interface Api {
 
 const RealDate = Date;
 let frozen: number | null = null;
+let offset: number | null = null; // đồng hồ chạy: giờ thật + offset
+const current = (): number | null => (frozen !== null ? frozen : offset !== null ? RealDate.now() + offset : null);
 class FakeDate extends RealDate {
   constructor(...args: any[]) {
-    if (args.length === 0 && frozen !== null) super(frozen);
+    const now = current();
+    if (args.length === 0 && now !== null) super(now);
     else super(...(args as []));
   }
   static now(): number {
-    return frozen ?? RealDate.now();
+    return current() ?? RealDate.now();
   }
 }
 
@@ -38,10 +41,20 @@ export function setClock(iso: string): void {
   const ms = new RealDate(iso).getTime();
   if (Number.isNaN(ms)) throw new Error(`Thời điểm không hợp lệ: ${iso}`);
   frozen = ms;
+  offset = null;
+  (globalThis as any).Date = FakeDate;
+}
+/** Đồng hồ giả vẫn chạy: từ thời điểm `iso` trở đi giờ trôi theo giờ thật. */
+export function setRunningClock(iso: string): void {
+  const ms = new RealDate(iso).getTime();
+  if (Number.isNaN(ms)) throw new Error(`Thời điểm không hợp lệ: ${iso}`);
+  frozen = null;
+  offset = ms - RealDate.now();
   (globalThis as any).Date = FakeDate;
 }
 export function restoreClock(): void {
   frozen = null;
+  offset = null;
   (globalThis as any).Date = RealDate;
 }
 
@@ -61,7 +74,7 @@ export class Demo {
     const target = new URL(this.url);
     const dbName = target.pathname.slice(1);
     if (!/^[a-z0-9_]+$/.test(dbName)) throw new Error('Tên DB demo chỉ gồm a-z, 0-9, _');
-    if (!/^(localhost|127\.0\.0\.1)$/.test(target.hostname)) throw new Error('DB demo chỉ được nằm trên máy này');
+    if (!/^(localhost|127\.0\.0\.1|host\.docker\.internal)$/.test(target.hostname)) throw new Error('DB demo chỉ được nằm trên máy này');
     const control = new URL(this.url);
     control.pathname = '/postgres';
     const admin = new Client({ connectionString: control.toString() });
