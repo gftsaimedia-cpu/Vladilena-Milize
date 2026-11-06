@@ -120,12 +120,18 @@ describe('Attendance punches against settings', () => {
     await svc.recordPunch({ employeeId: u('binh'), type: 'IN', workDate: '2026-12-12', latitude: 10.7769, longitude: 106.7009 }, { checkZone: true });
   });
 
-  it('an existing schedule makes the day a workday; a shiftConfig no longer does (P5)', async () => {
+  it('an approved non-REGULAR schedule (shift change, makeup, OT) makes the day a workday; a shiftConfig does not (P5)', async () => {
     weekdays = [1, 2, 3, 4, 5];
-    await repo.saveSchedule(WorkSchedule.create({ employeeId: u('lich'), workDate: '2026-12-12', shiftType: 'NORMAL', plannedStartTime: '08:00', plannedEndTime: '17:00' }));
-    assert.equal(await svc.workdayOf(u('lich'), '2026-12-12'), true);
-    await svc.recordPunch({ employeeId: u('lich'), type: 'IN', workDate: '2026-12-12' });
-    assert.equal(repo.punches.length, 1);
+    const types = ['SHIFT_CHANGE', 'MAKE_UP', 'OVERTIME'] as const;
+    for (const scheduleType of types) {
+      const id = u(`lich-${scheduleType}`);
+      await repo.saveSchedule(
+        WorkSchedule.create({ employeeId: id, workDate: '2026-12-12', shiftType: 'NORMAL', plannedStartTime: '08:00', plannedEndTime: '17:00', scheduleType })
+      );
+      assert.equal(await svc.workdayOf(id, '2026-12-12'), true, scheduleType); // thứ Bảy ngoài tuần T2–T6
+      await svc.recordPunch({ employeeId: id, type: 'IN', workDate: '2026-12-12' });
+    }
+    assert.equal(repo.punches.length, types.length);
     // `shiftConfig` đã bỏ khỏi RecordPunchInput (P5): gửi kèm cũng không mở ngày nghỉ và không tạo lịch.
     await refused(
       svc.recordPunch({
@@ -136,7 +142,28 @@ describe('Attendance punches against settings', () => {
       } as any),
       'NOT_A_WORKDAY'
     );
-    assert.equal(repo.schedules.size, 1);
+    assert.equal(repo.schedules.size, types.length);
+  });
+
+  it('a legacy REGULAR schedule row is not a workday: the week comes from the settings only (FP4)', async () => {
+    weekdays = [1, 2, 3, 4, 5];
+    const sunday = '2026-12-13';
+    const saturday = '2026-12-12';
+    for (const date of [saturday, sunday]) {
+      await repo.saveSchedule(WorkSchedule.create({ employeeId: u('cu'), workDate: date, shiftType: 'NORMAL', plannedStartTime: '08:00', plannedEndTime: '17:00' })); // REGULAR, PLANNED
+    }
+    assert.equal(await svc.workdayOf(u('cu'), sunday), false);
+    assert.equal(await svc.workdayOf(u('cu'), saturday), false); // ngoài tuần T2–T6 của cài đặt
+    await refused(svc.recordPunch({ employeeId: u('cu'), type: 'IN', workDate: sunday }), 'NOT_A_WORKDAY');
+    assert.equal(repo.punches.length, 0);
+    // Trong tuần làm thì vẫn là ngày làm, do cài đặt.
+    await repo.saveSchedule(WorkSchedule.create({ employeeId: u('cu'), workDate: '2026-12-11', shiftType: 'NORMAL', plannedStartTime: '08:00', plannedEndTime: '17:00' }));
+    assert.equal(await svc.workdayOf(u('cu'), '2026-12-11'), true);
+    // Đơn đã duyệt vẫn mở ngày ngoài tuần dù có dòng REGULAR.
+    repo.approved.add(`${u('cu')}:${sunday}`);
+    assert.equal(await svc.workdayOf(u('cu'), sunday), true);
+    await svc.recordPunch({ employeeId: u('cu'), type: 'IN', workDate: sunday });
+    assert.equal(repo.punches.length, 1);
   });
 
   it('a day with approved leave (ON_LEAVE schedule) is not a workday', async () => {

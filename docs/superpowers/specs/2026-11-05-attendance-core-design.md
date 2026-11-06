@@ -400,7 +400,7 @@ Chỉ chạy test. Không chạy typecheck hay prettier, theo quy định của 
 | R15 | `ot_hours` luôn 0. | OT do payslip-print đo từ khung. | FE nào đang đọc `ot_hours` sẽ thấy 0. |
 | R16 | Job bảo đảm dòng cho tháng hiện tại và tháng trước. Tháng cũ hơn có dòng khi tính lương tháng đó hoặc khi Admin gọi tính lại tháng. | Đủ cho `/me` (lùi tới tháng vào làm) sau lần tính lương đầu, mà không phải quét mọi tháng mỗi giờ. | `/me` xem một tháng cũ chưa từng tính lương sẽ thấy các ngày trống. |
 
-## 13. Ví dụ đầu–cuối (tháng 11/2026, Bình nv bậc 1)
+## 13. Ví dụ đầu–cuối (tháng 11/2026, Bình và Chi, nv bậc 1)
 
 | Ngày | Sự việc | Dòng | Tiền ngày |
 |---|---|---|---|
@@ -410,9 +410,18 @@ Chỉ chạy test. Không chạy typecheck hay prettier, theo quy định của 
 | T5 05/11 | không chấm | `ABSENT`, ngày nghỉ | 0 |
 | T3 10/11 | nghỉ có bù, bù 18–22 ngày 12/11 và 16/11, làm đủ | `LEAVE_MAKEUP` | 0 |
 | T5 12/11 | 08:00–22:00, khung bù 18–22 | `PRESENT`, `makeup_minutes` 240 | 230.769 + 115.385 |
-| CN 15/11 | OT 08–12 đã duyệt, 08:00–12:00 | `EXTRA` | 0 (OT 230.769 do payslip-print) |
 | T2 16/11 | 08:00–22:00, khung bù 18–22 | `PRESENT`, `makeup_minutes` 240 | 230.769 + 115.385 |
 | T4 18/11 | Phép năm đã duyệt | `LEAVE_PAID`, ngày nghỉ | 230.769 |
+
+Bình không có OT trong tháng này: luật nộp đơn không cho một tháng vừa có đơn nghỉ có làm bù vừa có đơn OT (D5), nên phiếu của Bình không có tiền OT.
+
+Chi (cùng loại `nv` bậc 1: 6.000.000, 26 công chuẩn, tuần T2–T7) có OT, không có đơn nghỉ:
+
+| Ngày | Sự việc | Dòng | Tiền ngày |
+|---|---|---|---|
+| CN 15/11 | OT 08–12 đã duyệt, 08:00–12:00 | `EXTRA` | 0 (OT 230.769 do payslip-print) |
+
+Tiền OT của Chi: Chủ nhật là ngày cuối tuần, hệ số của cài đặt là x2 (`weekend_rate`). 6.000.000 × 4 × 2 ÷ (26 × 8) = 48.000.000 ÷ 208 = 230.769,23, làm tròn một lần = **230.769** (D1). Trên phiếu là `ot20Pay` = `otPayTotal` = 230.769.
 
 Ngày nghỉ cho chuyên cần: 05/11 và 18/11 → 2. Nghỉ có bù đã bù đủ → không đếm. Ngày 04/11 không đếm (L17). Với ngưỡng 3 thì Bình giữ chuyên cần.
 

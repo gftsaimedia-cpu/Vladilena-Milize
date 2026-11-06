@@ -48,6 +48,10 @@ class FakeAttendanceRepository extends AttendanceRepository {
     return this.schedules.get(`${employeeId}:${workDate}`) ?? null;
   }
 
+  override async findEmployment(): Promise<{ startDate: string | null; resignedOn: string | null } | null> {
+    return { startDate: '2026-01-01', resignedOn: null }; // đã vào làm trước mọi ngày của test, chưa nghỉ việc
+  }
+
   override async ensureDefaultSchedule(employeeId: string, workDate: string): Promise<WorkSchedule> {
     const def = WorkSchedule.create({
       employeeId,

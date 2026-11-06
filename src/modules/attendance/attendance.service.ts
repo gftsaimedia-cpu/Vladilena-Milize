@@ -75,13 +75,16 @@ export class AttendanceService {
   }
 
   /**
-   * Ngày `date` có phải ngày làm của người này không: đã có lịch, thứ thuộc tuần làm của tháng đó,
-   * hoặc có đơn đã duyệt (tăng ca, đổi ca, làm bù); lịch nghỉ đã duyệt (ON_LEAVE) thì luôn không phải. Không có cài đặt thì coi mọi ngày là ngày làm.
+   * Ngày `date` có phải ngày làm của người này không: có lịch đã duyệt không phải REGULAR (đổi ca, làm bù, tăng ca),
+   * thứ thuộc tuần làm của tháng đó, hoặc có đơn đã duyệt (tăng ca, đổi ca, làm bù); lịch nghỉ đã duyệt (ON_LEAVE)
+   * thì luôn không phải. Dòng REGULAR cũ không còn mở ngày làm: tuần làm chỉ lấy từ cài đặt, như `buildDay`.
+   * Không có cài đặt thì coi mọi ngày là ngày làm.
    */
   async workdayOf(employeeId: string, date: string): Promise<boolean> {
     if (!this.settings) return true;
     const schedule = await this.repo.findSchedule(employeeId, date);
-    if (schedule) return schedule.status !== 'ON_LEAVE'; // lịch nghỉ phép đã duyệt không phải ngày làm
+    if (schedule && schedule.status === 'ON_LEAVE') return false; // lịch nghỉ phép đã duyệt không phải ngày làm
+    if (schedule && schedule.scheduleType !== 'REGULAR') return true;
     return await this.workdayWithoutSchedule(this.settings, this.repo, employeeId, date);
   }
 
@@ -171,10 +174,11 @@ export class AttendanceService {
         throw new Error('Bảng công ngày đã bị khóa cho kỳ lương, không thể tính toán lại');
       }
 
-      // 3. Kiểm theo cài đặt: ngày làm (chỉ lần vào vào ngày chưa có lịch), rồi vùng chấm công (khi `checkZone`).
+      // 3. Kiểm theo cài đặt: ngày làm (chỉ lần vào, ngày chưa có lịch hoặc chỉ có dòng REGULAR cũ), rồi vùng chấm công (khi `checkZone`).
       let distanceM = 0;
       if (this.settings) {
-        if (!schedule && input.type === 'IN') {
+        // Dòng REGULAR cũ không mở ngày làm (FP4): chỉ lịch đổi ca, làm bù, tăng ca mới qua cổng này mà không cần tuần làm.
+        if ((!schedule || schedule.scheduleType === 'REGULAR') && input.type === 'IN') {
           if (!(await this.workdayWithoutSchedule(this.settings, repo, input.employeeId, workDate, trx))) {
             throw new PunchRefusedError('NOT_A_WORKDAY', 'Hôm nay không phải ngày làm của bạn');
           }
