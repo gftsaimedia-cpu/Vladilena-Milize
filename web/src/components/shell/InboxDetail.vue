@@ -53,6 +53,7 @@ async function act(verb: DecisionVerb) {
           Từ chối
         </button>
         <button
+          v-if="!item.approveBlock"
           type="button"
           class="btn pri"
           :disabled="busy"

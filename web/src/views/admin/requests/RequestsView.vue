@@ -171,7 +171,8 @@ async function onDecide(d: { verb: 'approve' | 'reject'; note?: string }) {
 const sel = useSelectMode<'approve'>();
 const result = ref('');
 const approving = ref(false);
-const pendShown = computed(() => shown.value.filter(r => r.status === 'pend').map(r => r.id));
+// Đơn chờ mà máy chủ không cho duyệt (approveBlock) không vào Duyệt nhiều đơn.
+const pendShown = computed(() => shown.value.filter(r => r.status === 'pend' && !r.approveBlock).map(r => r.id));
 const chosen = computed(() => sel.pickedIn(pendShown.value));
 function startBulk() {
   result.value = '';

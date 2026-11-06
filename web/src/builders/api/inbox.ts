@@ -36,6 +36,8 @@ export type RequestDTO = {
   halfShiftWork?: { start: string; end: string } | null;
   halfShiftLeave?: { start: string; end: string } | null;
   owedMinutes?: number | null;
+  /** Vì sao BE không cho duyệt đơn này (vd. ngày nghỉ giữa ca đã thành ngày lễ); có thì chỉ còn Từ chối. Đề xuất cho BE. */
+  approveBlock?: string | null;
   dates?: string[];
 };
 
@@ -103,6 +105,23 @@ function bodyOf(r: RequestDTO): Body {
         sub: days.length > 1 ? `${longDay(days[0])} – ${longDay(days[days.length - 1])}` : days[0] ? longDay(days[0]) : '',
         facts: [['Hình thức', kind], ['Lý do', quote(r.reason)]],
         days
+      };
+    }
+    case 'HALF_SHIFT_LEAVE': {
+      const day = r.halfShiftDate || '';
+      const span = (t?: { start: string; end: string } | null) => (t ? `${t.start}–${t.end}` : '—');
+      return {
+        what: 'Nghỉ giữa ca',
+        when: day ? dm(day) : '',
+        head: r.halfShiftWork ? `Nghỉ giữa ca · làm ${span(r.halfShiftWork)}` : 'Nghỉ giữa ca',
+        sub: day ? longDay(day) : '',
+        facts: [
+          ['Làm', span(r.halfShiftWork)],
+          ['Nghỉ', span(r.halfShiftLeave)],
+          ['Cần bù', r.owedMinutes ? `${String(Math.round((r.owedMinutes / 60) * 10) / 10).replace('.', ',')} giờ` : '—'],
+          ['Lý do', quote(r.reason)]
+        ],
+        days: day ? [day] : []
       };
     }
     case 'ISAT': {
@@ -175,7 +194,8 @@ export function inboxFromRequests(requests: RequestDTO[], people: Map<string, Pe
         initials: initials(name),
         role: person?.title || '—',
         age: ageText(r.createdAt, now),
-        ...bodyOf(r)
+        ...bodyOf(r),
+        ...(r.approveBlock ? { approveBlock: r.approveBlock } : {})
       };
     });
 }

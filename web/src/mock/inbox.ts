@@ -30,6 +30,10 @@ export type InboxItem = {
   remindedAt?: string;
   /** Tin mới chưa đọc (chấm xanh trên chuông). Máy chủ thật chưa có trạng thái đọc nên không đặt. */
   unread?: boolean;
+  /**
+   * Vì sao đơn không duyệt được, câu của BE (vd. ngày nghỉ giữa ca đã thành ngày lễ): có thì màn chỉ để Từ chối và hiện câu này.
+   */
+  approveBlock?: string;
 };
 
 /** Một dòng nhãn – giá trị của thẻ chi tiết; `note` là dòng phụ xám dưới giá trị. */
@@ -373,10 +377,17 @@ const SEED: Seed[] = [
 
 const LABELS = Object.fromEntries(INBOX_GROUPS.map(g => [g.key, g.label])) as Record<InboxGroup, string>;
 
-let list: InboxItem[] = SEED.map(seed => {
-  const [name, role] = PEOPLE[seed.personId];
-  return { ...seed, groupLabel: LABELS[seed.group], name, initials: initials(name), role };
-});
+// Móc cho test (chỉ dữ liệu giả): đặt window.__mockInboxExtra = [việc đầy đủ…] trước khi app chạy thì các việc đó nằm cuối
+// danh sách chờ, để test thêm một loại đơn mà không đổi các đếm của dữ liệu gốc.
+const EXTRA = (globalThis as { __mockInboxExtra?: InboxItem[] }).__mockInboxExtra ?? [];
+
+let list: InboxItem[] = [
+  ...SEED.map(seed => {
+    const [name, role] = PEOPLE[seed.personId];
+    return { ...seed, groupLabel: LABELS[seed.group], name, initials: initials(name), role };
+  }),
+  ...structuredClone(EXTRA)
+];
 
 /** Bản sao các việc còn chờ, giữ thứ tự gốc ib-c1 … ib-a2. */
 export function pendingInbox(): InboxItem[] {
@@ -393,7 +404,8 @@ let decided: DecidedItem[] = [];
  */
 export function resolveInboxItem(id: string, verb: 'approve' | 'reject' = 'approve', note?: string): InboxItem | null {
   const hit = list.find(item => item.id === id);
-  if (!hit) return null;
+  // Đơn BE chặn duyệt (approveBlock) chỉ từ chối được; màn không đưa nút Duyệt nên đây chỉ là lưới an toàn.
+  if (!hit || (verb === 'approve' && hit.approveBlock)) return null;
   list = list.filter(item => item.id !== id);
   const at = new Date(Date.parse(MOCK_NOW) + (decided.length + 1) * 1000).toISOString();
   decided.push({ item: structuredClone(hit), verb, note: note?.trim() || undefined, at });

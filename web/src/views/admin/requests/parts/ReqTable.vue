@@ -48,7 +48,7 @@ const emit = defineEmits<{
           :key="r.id"
           :class="{
             on: r.id === openId || (selecting && picked.has(r.id)),
-            off: selecting && r.status !== 'pend'
+            off: selecting && (r.status !== 'pend' || !!r.approveBlock)
           }"
           :data-req="r.id"
         >
@@ -56,8 +56,8 @@ const emit = defineEmits<{
             <SelectCheck
               :state="picked.has(r.id) ? 'true' : 'false'"
               :label="`Chọn đơn của ${r.name}`"
-              :disabled="r.status !== 'pend'"
-              why="Đơn đã xử lý, không chọn được"
+              :disabled="r.status !== 'pend' || !!r.approveBlock"
+              :why="r.status === 'pend' && r.approveBlock ? r.approveBlock : 'Đơn đã xử lý, không chọn được'"
               @toggle="emit('toggle', r.id)"
             />
           </td>
@@ -86,6 +86,7 @@ const emit = defineEmits<{
                 Từ chối
               </button>
               <button
+                v-if="!r.approveBlock"
                 type="button"
                 class="rq-sb1"
                 :aria-label="`Duyệt yêu cầu của ${r.name}`"

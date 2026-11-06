@@ -6,7 +6,7 @@ import type { Fact, InboxItem } from '../../mock/inbox';
 import { dm, initials } from '../../utils/format';
 import { inboxFromRequests, type PersonInfo, type RequestDTO } from './inbox';
 
-export type ReqKind = 'leave' | 'makeup' | 'shift' | 'ot' | 'adv' | 'exp';
+export type ReqKind = 'leave' | 'makeup' | 'half' | 'shift' | 'ot' | 'adv' | 'exp';
 export type ReqStatus = 'pend' | 'ok' | 'rej' | 'cancel';
 
 export type ReqRow = {
@@ -32,12 +32,15 @@ export type ReqRow = {
   head: string;
   sub: string;
   facts: Fact[];
+  /** Vì sao BE không cho duyệt (câu của BE); có thì đơn chờ chỉ còn Từ chối và không chọn được để duyệt nhiều. */
+  approveBlock?: string;
 };
 
-export const KIND_ORDER: ReqKind[] = ['leave', 'makeup', 'shift', 'ot', 'adv', 'exp'];
+export const KIND_ORDER: ReqKind[] = ['leave', 'makeup', 'half', 'shift', 'ot', 'adv', 'exp'];
 export const KIND_LABEL: Record<ReqKind, string> = {
   leave: 'Đơn nghỉ',
   makeup: 'Nghỉ có làm bù',
+  half: 'Nghỉ giữa ca',
   shift: 'Đổi ca',
   ot: 'Làm thêm giờ',
   adv: 'Tạm ứng',
@@ -91,11 +94,13 @@ export function rowFromInbox(item: InboxItem, kind: ReqKind, sentAt: string, sta
     head: item.head,
     sub: item.sub,
     // Giờ gửi đã có ở dòng người gửi của ngăn chi tiết: bỏ dòng "Gửi lúc" của chuông cho khỏi lặp.
-    facts: item.facts.filter(([label]) => label !== 'Gửi lúc')
+    facts: item.facts.filter(([label]) => label !== 'Gửi lúc'),
+    ...(item.approveBlock ? { approveBlock: item.approveBlock } : {})
   };
 }
 
 export function kindOfInbox(item: InboxItem): ReqKind {
+  if (item.group === 'leave' && item.what === KIND_LABEL.half) return 'half';
   if (item.group === 'ot') return /bù/i.test(item.what) ? 'makeup' : 'ot';
   if (item.group === 'exp' || item.group === 'att') return 'exp';
   return item.group;
@@ -105,6 +110,7 @@ const KIND_OF: Record<RequestDTO['type'], ReqKind> = {
   LEAVE: 'leave',
   ISAT: 'leave',
   LEAVE_WITH_MAKEUP: 'makeup',
+  HALF_SHIFT_LEAVE: 'half',
   SHIFT_CHANGE: 'shift',
   OVERTIME: 'ot',
   ADVANCE: 'adv',

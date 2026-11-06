@@ -54,7 +54,7 @@ function reject() {
   emit('decide', { verb: 'reject', note: note.value.trim() });
 }
 function approve() {
-  if (props.busy) return;
+  if (props.busy || props.row.approveBlock) return;
   emit('decide', { verb: 'approve', note: note.value.trim() || undefined });
 }
 </script>
@@ -125,9 +125,10 @@ function approve() {
               : 'Bắt buộc khi từ chối. Nhân viên đọc được ghi chú này.'
           }}
         </div>
+        <p v-if="row.approveBlock" class="rq-blk">{{ row.approveBlock }}</p>
         <div class="rq-btns">
           <button type="button" class="rq-b2" :disabled="empty || busy" @click="reject">Từ chối</button>
-          <button type="button" class="rq-b1" :disabled="busy" @click="approve">Duyệt</button>
+          <button v-if="!row.approveBlock" type="button" class="rq-b1" :disabled="busy" @click="approve">Duyệt</button>
         </div>
       </div>
     </template>
@@ -136,6 +137,12 @@ function approve() {
 
 <!-- Ngăn được Teleport ra <body>; luật scoped vẫn áp vì phần tử nằm trong khuôn của thành phần này. -->
 <style scoped>
+.rq-blk {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--status-rejected);
+}
 .rq-mt {
   font-size: 12px;
   line-height: 16px;
