@@ -112,7 +112,7 @@ export interface AttendanceDay {
 export const MAX_DEDUCTION_MINUTES = 480;
 
 /** Hết thời gian này sau mốc cuối dự kiến thì ngày được xét (spec 4.3). */
-const EVALUATE_AFTER_MS = 30 * 60 * 1000;
+export const EVALUATE_AFTER_MS = 30 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 
