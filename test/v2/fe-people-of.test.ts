@@ -11,7 +11,7 @@ const nam = {
 
 describe('Bảng tra nhân sự cho chuông và đơn từ (peopleOf)', () => {
   const people = peopleOf([nam]);
-  const card = { name: 'Lê Hoàng Nam', title: 'Kinh doanh', type: 'nv', levelName: 'Bậc 2' };
+  const card = { name: 'Lê Hoàng Nam', title: 'Kinh doanh', type: 'nv', levelName: 'Bậc 2', dept: '—', ps: 'ok' };
 
   it('finds a person by uuid, the key new requests are stored under', () => {
     assert.deepEqual(people.get('uuid-nam'), card);
