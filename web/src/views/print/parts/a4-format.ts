@@ -28,19 +28,15 @@ export const actualText = (n: number | null): string | null => (n == null ? null
 /** điểm KPI: chưa có thì "—" */
 export const scoreText = (n: number | null): string => (n == null ? '—' : `${n}%`);
 
-/** tiêu đề trang 1: chỉ phiếu đã duyệt là "chính thức", còn lại "tạm tính" */
-export const titleLine = (s: A4Sheet): string =>
-  `Phiếu lương tháng ${monthShort(s.month)} · ${s.slipStatus === 'done' ? 'chính thức' : 'tạm tính'}`;
+// D11 (06/11): bản in không ghi trạng thái phiếu nào (nháp, chờ duyệt, đã duyệt, bị từ chối, đã trả), kể cả "chính thức" /
+// "tạm tính" ở tiêu đề hay ghi chú tạm tính ở dòng phụ.
 
-/** ô Tình trạng của trang 1: trạng thái phiếu */
-export const slipStateText = (st: A4Sheet['slipStatus']): string =>
-  ({ draft: 'Nháp', pending: 'Chờ duyệt', done: 'Đã duyệt', rejected: 'Bị từ chối' })[st];
+/** tiêu đề trang 1 */
+export const titleLine = (s: A4Sheet): string => `Phiếu lương tháng ${monthShort(s.month)}`;
 
-/** dòng phụ của trang 1; phiếu đã duyệt không còn ghi chú tạm tính (periodNote); ghi chú rỗng thì bỏ cả đoạn */
-export const periodLine = (s: A4Sheet): string => {
-  const note = s.slipStatus === 'done' || !s.periodNote ? '' : ` · ${s.periodNote}`;
-  return `Từ ${dm(s.from)} đến ${dmy(s.to)}${note} · công chuẩn theo quy chế: ${s.stdDays} ngày`;
-};
+/** dòng phụ của trang 1 */
+export const periodLine = (s: A4Sheet): string =>
+  `Từ ${dm(s.from)} đến ${dmy(s.to)} · công chuẩn theo quy chế: ${s.stdDays} ngày`;
 
 /** dòng xám ở đầu trang 2 */
 export const staffLine = (s: A4Sheet): string =>
