@@ -36,10 +36,7 @@ import {
   requestTitle,
   annualLeaveLeftOf,
   dayHourOptions,
-  filingChoices,
-  leaveCounted,
-  shiftChangeable,
-  overtimeHours,
+  filingDayStates,
   FILING_RULES,
   MAKEUP_MINUTES_PER_LEAVE_DAY,
   MONTH_OT_CAP_MINUTES,
@@ -53,7 +50,7 @@ import {
   type FiledBy,
   type NewRequestKind
 } from './domain';
-import type { FilingDayState, FilingKindState, FilingMonthState, RequestContextDTO } from './domain/request-context';
+import type { FilingKindState, FilingMonthState, RequestContextDTO } from './domain/request-context';
 import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
 import { DayStatusRepository } from './day-status.repository';
 import { ExplanationsService } from './explanations.service';
@@ -571,13 +568,7 @@ export class RequestsService {
       };
     });
     const annualLeaveLeft = annualLeaveLeftOfStaff(staff, active);
-    const choices = filingChoices({ days: baseDays, months, annualLeaveLeft });
-    const dayStates: FilingDayState[] = baseDays.map(d => ({
-      ...d,
-      leaveCounted: leaveCounted(d),
-      shiftChangeable: shiftChangeable(d),
-      otHours: overtimeHours(d, months.find(m => m.month === monthOf(d.date)))
-    }));
+    const { days: dayStates, choices } = filingDayStates({ days: baseDays, months, annualLeaveLeft });
 
     return {
       today,

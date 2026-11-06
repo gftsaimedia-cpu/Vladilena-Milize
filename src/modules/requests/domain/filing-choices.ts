@@ -51,6 +51,9 @@ export const FILING_RULES: FilingRules = {
 /** Phần của một ngày mà luật lựa chọn cần. */
 export type DayFacts = Pick<FilingDayState, 'date' | 'workday' | 'claim' | 'hours'>;
 
+/** Một ngày của khoảng nộp trước phần server suy ra (cờ ngày, giờ OT). */
+export type FilingBaseDay = Omit<FilingDayState, 'leaveCounted' | 'shiftChangeable' | 'otHours'>;
+
 const monthOf = (iso: string) => iso.slice(0, 7);
 
 const held = (d: DayFacts) => d.claim?.status === 'LEAVE' || d.claim?.status === 'LEAVE_WITH_MAKEUP';
@@ -163,5 +166,23 @@ export function filingChoices(input: {
     'leave-with-makeup': { ...makeup, slotDates },
     overtime: { dates: open.filter(d => overtimeHours(d, monthInfo(monthOf(d.date))).length > 0).map(d => d.date) },
     'shift-change': ranged(shiftStarts, s => shiftEnds(open.filter(d => d.date >= s)), () => ({}), shiftChangeable)
+  };
+}
+
+/** Phần `days` và `choices` của request-context: mỗi ngày thêm cờ và giờ OT, cùng mọi lựa chọn ngày của các form. */
+export function filingDayStates(input: {
+  days: readonly FilingBaseDay[];
+  months: readonly FilingMonthState[];
+  annualLeaveLeft: number | null;
+}): { days: FilingDayState[]; choices: FilingChoices } {
+  const monthInfo = (month: string) => input.months.find(m => m.month === month);
+  return {
+    days: input.days.map(d => ({
+      ...d,
+      leaveCounted: leaveCounted(d),
+      shiftChangeable: shiftChangeable(d),
+      otHours: overtimeHours(d, monthInfo(monthOf(d.date)))
+    })),
+    choices: filingChoices(input)
   };
 }
