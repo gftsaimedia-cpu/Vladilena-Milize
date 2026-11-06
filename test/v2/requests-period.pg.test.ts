@@ -220,6 +220,100 @@ test('filing leave, OT, shift change, makeup or advance into a locked month is r
   });
 });
 
+/** Chạy mọi ca, mong PERIOD_LOCKED ở từng ca; báo một lần mọi ca sai, mỗi ca kèm lỗi nó ném ra. */
+async function expectLockedFirst(cases: [string, () => Promise<unknown>][], check: (e: any) => boolean): Promise<void> {
+  const wrong: string[] = [];
+  for (const [name, file] of cases) {
+    try {
+      await file();
+      wrong.push(`${name}: accepted`);
+    } catch (error) {
+      try {
+        check(error);
+      } catch {
+        wrong.push(`${name}: ${(error as Error).message}`);
+      }
+    }
+  }
+  assert.deepEqual(wrong, []);
+}
+
+test('a locked month is reported before any rule of the request, for every kind', async t => {
+  await withTempDb(t, 'req_period_first', async (db, client) => {
+    const { service } = await build(db, client);
+    // Vào làm 11/11/2026, nên mọi ngày tháng 10 nằm ngoài thời gian làm việc; advance_on = 0: ngoài diện tạm ứng (D8).
+    await client.query(
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid, start_date, advance_on)
+       VALUES ('pg-new', 'Nhân viên mới', 'nv', 1, 'x', $1, 'long', '0a1b2c3d-0000-4000-8000-000000000003', '2026-11-11', 0)`,
+      [new Date().toISOString()]
+    );
+    await setPeriod(client, 'attendance_locked');
+    const ot = (employeeId: string) => ({
+      employeeId,
+      reason: 'Gấp',
+      otDate: '2026-10-20',
+      startTime: '18:00',
+      endTime: '20:00'
+    });
+    await expectLockedFirst(
+      [
+        // Ví dụ 1 (phiên Kỳ lương): Admin nộp nghỉ Chủ nhật 18/10 — trước đây 400 "Khoảng nghỉ không có ngày làm việc".
+        ['leave on Sunday 18/10', () => service.createLeaveRequest(leave('pg-user', '2026-10-18'))],
+        // Ví dụ 2: người vào làm 11/11 nộp vào tháng 10 — trước đây 409 NOT_EMPLOYED.
+        ['leave before the start date', () => service.createLeaveRequest(leave('pg-new', '2026-10-20'))],
+        ['self-filed leave outside the filing window', () => service.createLeaveRequest(leave('pg-user', '2026-10-20'), { filedBy: 'self' })],
+        ['OT before the start date', () => service.createOvertimeRequest(ot('pg-new'))],
+        [
+          'shift change over Sunday 18/10 only',
+          () =>
+            service.createShiftChangeRequest({
+              employeeId: 'pg-user',
+              reason: 'Việc nhà',
+              startDate: '2026-10-18',
+              endDate: '2026-10-18',
+              shiftType: 'NORMAL',
+              startTime: '10:00'
+            })
+        ],
+        [
+          'makeup with a slot in another month',
+          () =>
+            service.createLeaveWithMakeupRequest({
+              employeeId: 'pg-user',
+              reason: 'Việc nhà',
+              startDate: '2026-10-20',
+              endDate: '2026-10-20',
+              slots: [{ date: '2026-11-03', startTime: '08:00', endTime: '16:00' }]
+            })
+        ],
+        ['advance for staff outside the advance scheme', () => service.createAdvanceRequest({ employeeId: 'pg-new', period: MONTH })]
+      ],
+      lockedIn(MONTH, 'attendance_locked')
+    );
+    // Xem trước đi qua cùng thứ tự.
+    assert.deepEqual(await service.previewRequest('leave', leave('pg-user', '2026-10-18')), {
+      ok: false,
+      message: 'Tháng 10/2026 đã chốt công',
+      code: 'PERIOD_LOCKED',
+      month: MONTH,
+      status: 'attendance_locked'
+    });
+
+    // Giải trình qua cổng `explain`: chỉ khoá khi kỳ đã được phê duyệt.
+    await setPeriod(client, 'approved');
+    await expectLockedFirst(
+      [
+        ['explanation before the start date', () => service.createExplanationRequest(explanation('pg-new', '2026-10-20'))],
+        ['explanation of Sunday 18/10, which needs none', () => service.createExplanationRequest(explanation('pg-user', '2026-10-18'))]
+      ],
+      lockedIn(MONTH, 'approved')
+    );
+
+    assert.equal(await count(client, 'system_requests'), 0);
+    assert.equal(await count(client, 'day_status'), 0);
+  });
+});
+
 test('iSAT for a Saturday of a locked month is refused', async t => {
   await withTempDb(t, 'req_period_isat', async (db, client) => {
     const { service } = await build(db, client);

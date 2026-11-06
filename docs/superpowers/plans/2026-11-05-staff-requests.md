@@ -950,3 +950,8 @@ Ledger thực thi là thư mục nháp và sẽ bị xoá; các quyết định 
 - **S5:** Ruling: `ordersThisMonth` = số đơn tạm ứng chờ duyệt hay đã duyệt của tháng (đúng tập luật "mỗi tháng một đơn" đếm) cộng đơn đang nộp, nên khi form mở được thì là 1; đơn bị từ chối hay đã huỷ không tính. `windowEnd` lấy từ cùng hằng ngày 16–17 với `advanceDayOpen` — nếu sai: FE hiện số thứ tự đơn khác đi.
 - **S6:** bỏ `fitSlots`/`slotHourOptions` không ai dùng trong máy luật mock; builder FE là chỗ duy nhất lọc giờ của dòng khung bù — nếu sai: không có hại gì.
 - **Chưa kiểm:** mock chưa có nhân viên ngoài diện tạm ứng (khoá D8 chỉ có test node và test BE); vẫn chưa chạy FE với BE thật.
+
+**Cổng kỳ trước luật (06/11, điều phối giao sau khi main lên b582131):**
+- **G1:** Ruling: `fileRequest` qua cổng kỳ trước tiên, trên các ngày client gửi (đọc như planner nhưng bỏ giá trị sai dạng, để planner báo sau), trước mọi kiểm tra khác: giờ tròn và khoảng nộp khi nhân viên tự nộp, tìm nhân sự, NOT_EMPLOYED, ADVANCE_NOT_ELIGIBLE, luật ngày trong khoá. Cổng trong khoá vẫn giữ để giữ khoá chia sẻ của tháng tới khi ghi xong — "PERIOD_LOCKED thắng lỗi luật" áp cho mọi lỗi luật, kể cả khoảng nộp của nhân viên — nếu sai (muốn câu "Chỉ chọn ngày từ…" thắng khi nhân viên tự nộp): chuyển `assertSelfFiling` lên trước cổng.
+- **G2:** Ruling: Admin nộp cho mã nhân viên không có, vào tháng đã khoá, nhận PERIOD_LOCKED chứ không phải "không tìm thấy nhân sự", vì cổng không cần biết là ai — nếu sai: tìm nhân sự trước cổng.
+- **G3 (ngoài phạm vi, chưa sửa):** đơn iSAT (`createIsatRequest`, không đi qua `fileRequest`) vẫn kiểm luật trước cổng kỳ. iSAT chỉ nhận Thứ Bảy sắp tới, nên chỉ gặp khi tháng hiện tại đã chốt công.

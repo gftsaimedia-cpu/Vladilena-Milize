@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
 import { BadRequestError, NotEmployedError, assertEmployed } from '../../common';
+import { isValidDateText } from '../../common/date-text';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import {
   SystemRequest,
@@ -235,6 +236,10 @@ const advanceDuplicateMessage = (period: string): string => `Tháng ${monthNumbe
 const advanceNoWorkDaysMessage = (period: string): string => `Chưa có ngày công 01–15/${period.slice(5, 7)}`;
 const ADVANCE_QUOTE_FAILED = 'Chưa tính được số tiền tạm ứng';
 const ADVANCE_NOT_ELIGIBLE = 'Bạn không thuộc diện tạm ứng';
+const ADVANCE_PERIOD_TEXT = /^\d{4}-(0[1-9]|1[0-2])$/;
+/** Tháng tạm ứng của đơn: nhân viên tự nộp luôn là tháng hiện tại; Admin chọn được, mặc định tháng hiện tại. Chưa kiểm dạng. */
+const advancePeriodOf = (input: { period?: string }, opts: FilingContext, today: string): string =>
+  opts.filedBy === 'self' ? today.slice(0, 7) : input.period || today.slice(0, 7);
 
 /** Hồ sơ tắt cờ tạm ứng (`staff.advance_on = 0`, D8): 400 mã `ADVANCE_NOT_ELIGIBLE`. */
 export class AdvanceNotEligibleError extends BadRequestError {
@@ -512,6 +517,38 @@ export class RequestsService {
     await this.periodGate?.hold(trx, requestMonths(this.datesOf(req)), use);
   }
 
+  /**
+   * Các ngày client gửi, đọc như planner của loại đơn sẽ đọc nhưng không báo lỗi: giá trị sai dạng thì bỏ, planner báo sau.
+   * Để cổng kỳ chạy trước mọi luật của đơn (tháng đã khoá thì báo PERIOD_LOCKED, không báo lỗi luật).
+   */
+  private inputDates(kind: FilingKind, input: any, opts: FilingContext): RequestDates {
+    const date = (value: unknown): string | null => (isValidDateText(value) ? value : null);
+    switch (kind) {
+      case 'leave':
+        return { leaveStartDate: date(input?.startDate), leaveEndDate: date(input?.endDate) };
+      case 'leave-with-makeup':
+        return {
+          leaveStartDate: date(input?.startDate),
+          leaveEndDate: date(input?.endDate),
+          makeupDates: Array.isArray(input?.slots)
+            ? input.slots.map((slot: any) => date(slot?.date)).filter((d: string | null): d is string => d !== null)
+            : []
+        };
+      case 'overtime':
+        return { otDate: date(input?.otDate ?? input?.targetDate) };
+      case 'shift-change':
+        return { changeStartDate: date(input?.startDate), changeEndDate: date(input?.endDate) };
+      case 'explanation':
+        return { explanationDate: date(input?.workDate) };
+      case 'advance': {
+        const period = advancePeriodOf(input ?? {}, opts, vietnamToday(this.now()));
+        return { advancePeriod: ADVANCE_PERIOD_TEXT.test(period) ? period : null };
+      }
+      default:
+        return {};
+    }
+  }
+
   /** Số ngày Phép năm còn lại (trước các đơn đang chờ và đã duyệt đã trừ); null nếu loại nhân sự không có tài khoản phép. */
   async annualLeaveLeft(employeeIdOrUsername: string): Promise<number | null> {
     const staff = await this.resolveStaff(employeeIdOrUsername, monthOf(vietnamToday(this.now())));
@@ -695,10 +732,12 @@ export class RequestsService {
   }
 
   /**
-   * Nộp (`save`) hoặc xem trước một đơn. Planner của loại đơn kiểm dữ liệu vào và tìm nhân sự, rồi lập đơn trong khoá
-   * `requests_<uuid>` (§5.6). Đơn lập xong thì qua cổng kỳ ngay trên giao dịch của khoá (cả lúc xem trước): giải trình
-   * qua cổng `explain` (nộp được tới khi kỳ được phê duyệt, D2), loại khác qua cổng `file` (chỉ tháng 'open'), cả nhân
-   * viên tự nộp lẫn Admin nộp thay. Khi `save`, đơn và các ngày đơn giữ được ghi trong cùng khoá, cùng giao dịch.
+   * Nộp (`save`) hoặc xem trước một đơn. Cổng kỳ chạy trước tiên, trên các ngày client gửi: tháng đã khoá thì báo
+   * PERIOD_LOCKED trước mọi luật của đơn (khoảng nộp, thời gian làm việc, ngày làm việc…). Giải trình qua cổng `explain`
+   * (nộp được tới khi kỳ được phê duyệt, D2), loại khác qua cổng `file` (chỉ tháng 'open'), cả nhân viên tự nộp lẫn Admin
+   * nộp thay. Rồi planner của loại đơn kiểm dữ liệu vào và tìm nhân sự, lập đơn trong khoá `requests_<uuid>` (§5.6); đơn
+   * lập xong qua cổng kỳ lần nữa trên giao dịch của khoá (cả lúc xem trước), để giữ khoá chia sẻ của các tháng tới khi
+   * ghi xong. Khi `save`, đơn và các ngày đơn giữ được ghi trong cùng khoá, cùng giao dịch.
    */
   private async fileRequest(
     kind: FilingKind,
@@ -706,10 +745,13 @@ export class RequestsService {
     opts: FilingOptions | undefined,
     save: boolean
   ): Promise<PlannedRequest> {
-    const filing = await this.planFiling(kind, input, { filedBy: opts?.filedBy ?? 'admin' });
+    const context: FilingContext = { filedBy: opts?.filedBy ?? 'admin' };
+    const use: GateUse = kind === 'explanation' ? 'explain' : 'file';
+    await this.periodGate?.hold(undefined, requestMonths(this.inputDates(kind, input, context)), use);
+    const filing = await this.planFiling(kind, input, context);
     return this.underEmployeeLock(filing.staff.employeeId, async (stores, trx) => {
       const planned = await filing.plan(stores);
-      await this.guardPeriods(trx, planned.request, kind === 'explanation' ? 'explain' : 'file');
+      await this.guardPeriods(trx, planned.request, use);
       if (save) {
         await stores.requests.save(planned.request);
         if (planned.claims) {
@@ -1083,8 +1125,8 @@ export class RequestsService {
    */
   private async planAdvance(input: CreateAdvanceInput, opts: FilingContext): Promise<Filing> {
     const today = vietnamToday(this.now());
-    const period = opts.filedBy === 'self' ? today.slice(0, 7) : input.period || today.slice(0, 7);
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) {
+    const period = advancePeriodOf(input, opts, today);
+    if (!ADVANCE_PERIOD_TEXT.test(period)) {
       throw new Error(`period must be a valid YYYY-MM period string, got: ${period}`);
     }
     const staff = await this.resolveStaff(input.employeeId, period);
