@@ -6,6 +6,10 @@
 // bấm dòng mở hộp chi tiết ngày như trước.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import BulkButton from '@/components/select-mode/BulkButton.vue';
+import ResultLine from '@/components/select-mode/ResultLine.vue';
+import SelectBar from '@/components/select-mode/SelectBar.vue';
+import { useSelectMode } from '@/components/select-mode/useSelectMode';
 import BellDetail from '@/components/shell/BellDetail.vue';
 import StaffScopeFilter from '@/components/staff-scope/StaffScopeFilter.vue';
 import { isPst, matchScope, useMineDepts, type StaffPst } from '@/components/staff-scope/staffScope';
@@ -175,6 +179,45 @@ async function onDecided({ id, ok, text, kept }: { id: string; ok: boolean; text
   (row ?? pendingTabEl())?.focus();
 }
 
+// ---- Nhắc giải trình nhiều người (board L3) ----
+// Nút đếm số việc quên chấm công đang hiện (theo bộ lọc), khoá khi bằng 0. Trong chế độ chọn chỉ chọn được các việc đó;
+// chạy thì nhắc lần lượt từng việc qua shell.decide (cùng đường với chuông), việc nhắc ở lại danh sách.
+const sel = useSelectMode<'remind'>();
+const result = ref('');
+const remindIds = computed(() => pending.value.filter(p => p.item.action === 'remind').map(p => p.item.id));
+const chosen = computed(() => sel.pickedIn(remindIds.value));
+const targets = computed(() => pending.value.filter(p => sel.isPicked(p.item.id) && p.item.action === 'remind'));
+function startRemind() {
+  sel.enter('remind');
+  result.value = '';
+}
+const reminding = ref(false);
+async function runRemind() {
+  if (!chosen.value.length || reminding.value) return;
+  reminding.value = true;
+  const items = targets.value.map(p => ({ id: p.item.id, personId: p.person.id }));
+  const people = new Set<string>();
+  try {
+    for (const it of items) {
+      await shell.decide(it.id, 'remind');
+      people.add(it.personId);
+    }
+    result.value = `Đã gửi nhắc giải trình cho ${people.size} người.`;
+    sel.quit();
+  } catch (e) {
+    toast.error(people.size ? `Đã nhắc ${people.size} người, rồi lỗi: ${(e as Error).message}` : (e as Error).message);
+  } finally {
+    reminding.value = false;
+  }
+}
+// Sang tab Tuần thì thoát chế độ chọn và bỏ dòng kết quả.
+watch(view, v => {
+  if (v !== 'pending') {
+    sel.quit();
+    result.value = '';
+  }
+});
+
 /** '113 / 128' → ['113', ' / 128'], '126 giờ' → ['126', ' giờ'], '11' → ['11', '']. */
 function tileMain(value: string) {
   const m = /^([^ ]+)( .+)$/.exec(value);
@@ -250,7 +293,29 @@ function onTabKey(event: KeyboardEvent) {
             />
           </label>
           <StaffScopeFilter :pst="pst" :dept="dept" :depts="depts" @update:pst="setPst" @update:dept="setDept" />
+          <BulkButton
+            v-if="view === 'pending' && !sel.mode.value"
+            icon="send"
+            :count="remindIds.length"
+            :disabled="!remindIds.length"
+            :title="remindIds.length ? undefined : 'Không có việc quên chấm công nào đang hiện'"
+            @click="startRemind"
+          >
+            Nhắc giải trình
+          </BulkButton>
         </div>
+        <SelectBar
+          v-if="sel.mode.value"
+          title="Nhắc giải trình"
+          :count="chosen.length"
+          :total="remindIds.length"
+          unit="người"
+          :go-label="reminding ? 'Đang nhắc…' : chosen.length ? `Nhắc ${chosen.length} người` : 'Chọn ít nhất 1 người'"
+          :go-disabled="!chosen.length || reminding"
+          @quit="sel.quit()"
+          @run="runRemind"
+        />
+        <ResultLine v-else-if="view === 'pending'" :text="result" />
 
         <WeekGrid v-if="view === 'week'" :days="data.days" :rows="rows" :month-no="monthNo" @open-day="openDay" />
         <template v-else>
@@ -260,11 +325,29 @@ function onTabKey(event: KeyboardEvent) {
               :pending="pending"
               :wide="wide"
               :selected-id="shown?.id ?? null"
+              :selecting="!!sel.mode.value"
+              :picked="sel.picked.value"
+              :all-state="sel.stateOf(remindIds)"
               @open-day="openDay"
               @pick="pickItem"
+              @toggle="sel.toggle"
+              @toggle-all="sel.toggleAll(remindIds)"
             />
+            <div v-if="wide && sel.mode.value" class="pd" role="region" aria-label="Người sẽ được nhắc" tabindex="0">
+              <div class="pdi">
+                <div class="pd-grp">Sẽ nhắc giải trình</div>
+                <p v-if="!targets.length" class="pd-none">Chưa chọn ai.</p>
+                <ul v-else class="tg">
+                  <li v-for="p in targets" :key="p.item.id">
+                    <span class="tg-av" aria-hidden="true">{{ p.person.initials }}</span>
+                    <span class="tg-n">{{ p.person.name }}</span>
+                    <span class="tg-w">{{ p.item.what }} · {{ p.item.when }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
             <div
-              v-if="wide"
+              v-else-if="wide"
               class="pd"
               role="region"
               aria-label="Chi tiết việc đang chọn"
@@ -520,6 +603,44 @@ function onTabKey(event: KeyboardEvent) {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+.pd-none {
+  margin: 0;
+  color: var(--muted);
+}
+.tg {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tg li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+}
+.tg-av {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50px;
+  background: var(--status-draft);
+  font-size: 12px;
+  font-weight: 600;
+}
+.tg-n {
+  font-weight: 600;
+}
+.tg-w {
+  margin-left: auto;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
 }
 .pd-grp {
   font-size: 12px;
