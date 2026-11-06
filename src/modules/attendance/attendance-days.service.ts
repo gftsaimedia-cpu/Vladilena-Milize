@@ -47,6 +47,14 @@ export class AttendanceDaysService {
     );
   }
 
+  /**
+   * Các tháng 'YYYY-MM' trong [from, to] mà kỳ lương đã rời `open` (chốt công trở đi): dòng ngày của tháng đó
+   * không được ghi lại thêm bởi các tác vụ tự động (job mỗi giờ, lưu hồ sơ).
+   */
+  async frozenMonths(from: string, to: string): Promise<Set<string>> {
+    return await this.repo.frozenMonths(from, to);
+  }
+
   /** Tính lại cả tháng `month` ('YYYY-MM'). */
   async refreshMonth(employeeId: string, month: string, opts: RefreshOptions = {}): Promise<AttendanceDayRecord[]> {
     return await this.refreshDays(employeeId, datesOfMonth(month), opts);

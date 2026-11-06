@@ -15,6 +15,9 @@ export function weekdayOf(date: string): number {
   return new Date(`${date}T00:00:00Z`).getUTCDay();
 }
 
+/** Tháng hợp lệ dạng 'YYYY-MM' (tháng 01–12). Một nơi duy nhất cho controller và service. */
+export const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 /** Mọi ngày của tháng 'YYYY-MM'. */
 export function datesOfMonth(month: string): string[] {
   const [year, mon] = month.split('-').map(Number);

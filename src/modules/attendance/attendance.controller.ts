@@ -3,8 +3,7 @@ import { ApiExceptionFilter, BadRequestError, CurrentUser, HttpError, NotFoundEr
 import { AuditEntryError } from '../audit';
 import { PunchRefusedError } from './attendance.errors';
 import { AttendanceService, RecordPunchInput } from './attendance.service';
-
-const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+import { MONTH_PATTERN } from './domain/calendar';
 
 /** 'YYYY-MM-DD' là một ngày có thật trên lịch (không nhận 2026-02-30). */
 function isCalendarDate(text: string): boolean {

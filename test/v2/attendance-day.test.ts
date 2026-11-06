@@ -563,3 +563,65 @@ describe('buildDay: cột cũ (spec 6)', () => {
     assert.equal(d.workDate, DATE);
   });
 });
+
+describe('buildDay: lần ra trước giờ vào ca không phải ra sớm (FP5 C1)', () => {
+  const FLEX2 = { type: 'FLEX', start: '13:00', end: '22:00', allowancePct: 10 } as const;
+  const NIGHT1 = { type: 'NIGHT', start: '22:00', end: '07:00', allowancePct: 30 } as const;
+  const payCases = (d: AttendanceDay) => d.cases.filter(c => c.affectsPay);
+
+  it('Flex2 13–22, bù 06–10, chấm 06/10/13/22 → đủ công, bù 240, không mã ảnh hưởng tiền', () => {
+    const d = day({
+      defaultShift: FLEX2,
+      makeupWindows: [{ start: '06:00', end: '10:00' }],
+      punches: [inAt('06:00'), outAt('10:00'), inAt('13:00'), outAt('22:00')]
+    });
+    assert.equal(d.status, 'PRESENT');
+    assert.deepEqual(payCases(d), []);
+    assert.equal(d.payUnits, 1);
+    assert.equal(d.deductionMinutes, 0);
+    assert.equal(d.makeupMinutes, 240);
+  });
+
+  it('Night1 22–07, OT 08–12 cùng ngày, chấm 08/12 rồi 22 và 07 hôm sau → đủ công', () => {
+    const d = day({
+      defaultShift: NIGHT1,
+      otWindows: [{ start: '08:00', end: '12:00' }],
+      punches: [inAt('08:00'), outAt('12:00'), inAt('22:00'), outAt('07:00', NEXT)]
+    });
+    assert.equal(d.status, 'PRESENT');
+    assert.deepEqual(payCases(d), []);
+    assert.equal(d.payUnits, 1);
+  });
+
+  it('Night1 hai đêm liền, OT 08–10 khai theo ngày 10/11: dòng 10/11 vẫn đủ công', () => {
+    const night1 = '2026-11-09';
+    const night2 = '2026-11-10';
+    const first = day({
+      date: night1,
+      defaultShift: NIGHT1,
+      punches: [inAt('22:00', night1), outAt('07:00', night2)]
+    });
+    assert.equal(first.payUnits, 1);
+    const second = day({
+      date: night2,
+      defaultShift: NIGHT1,
+      otWindows: [{ start: '08:00', end: '10:00' }],
+      punches: [inAt('08:00', night2), outAt('10:00', night2), inAt('22:00', night2), outAt('07:00', '2026-11-11')]
+    });
+    assert.equal(second.status, 'PRESENT');
+    assert.deepEqual(payCases(second), []);
+    assert.equal(second.payUnits, 1);
+  });
+
+  it('chỉ chấm khung OT trước ca đêm rồi không vào ca → vẫn ra sớm, không tính công', () => {
+    // Luật hiện hành cho "chỉ chấm trước ca": PRESENT, EARLY_CHECK_OUT 1140 (12:00 → 07:00 hôm sau), payUnits 0.
+    const d = day({
+      defaultShift: NIGHT1,
+      otWindows: [{ start: '08:00', end: '12:00' }],
+      punches: [inAt('08:00'), outAt('12:00')]
+    });
+    assert.equal(d.status, 'PRESENT');
+    assert.deepEqual(payCases(d), [{ code: 'EARLY_CHECK_OUT', minutes: 1140, affectsPay: true }]);
+    assert.equal(d.payUnits, 0);
+  });
+});

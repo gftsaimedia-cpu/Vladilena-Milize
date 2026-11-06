@@ -22,6 +22,7 @@ import {
   datesOfMonth,
   workDateOfPunch,
 } from './domain';
+import { MONTH_PATTERN } from './domain/calendar';
 
 export interface RecordPunchInput {
   employeeId: string;
@@ -42,8 +43,6 @@ export interface RecordPunchResult {
   punch: PunchEventDTO;
   timesheet: DailyTimesheetDTO;
 }
-
-const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 @Injectable()
 export class AttendanceService {
@@ -75,13 +74,16 @@ export class AttendanceService {
   }
 
   /**
-   * Ngày `date` có phải ngày làm của người này không: đã có lịch, thứ thuộc tuần làm của tháng đó,
-   * hoặc có đơn đã duyệt (tăng ca, đổi ca, làm bù); lịch nghỉ đã duyệt (ON_LEAVE) thì luôn không phải. Không có cài đặt thì coi mọi ngày là ngày làm.
+   * Ngày `date` có phải ngày làm của người này không: có lịch đã duyệt không phải REGULAR (đổi ca, làm bù, tăng ca),
+   * thứ thuộc tuần làm của tháng đó, hoặc có đơn đã duyệt (tăng ca, đổi ca, làm bù); lịch nghỉ đã duyệt (ON_LEAVE)
+   * thì luôn không phải. Dòng REGULAR cũ không còn mở ngày làm: tuần làm chỉ lấy từ cài đặt, như `buildDay`.
+   * Không có cài đặt thì coi mọi ngày là ngày làm.
    */
   async workdayOf(employeeId: string, date: string): Promise<boolean> {
     if (!this.settings) return true;
     const schedule = await this.repo.findSchedule(employeeId, date);
-    if (schedule) return schedule.status !== 'ON_LEAVE'; // lịch nghỉ phép đã duyệt không phải ngày làm
+    if (schedule && schedule.status === 'ON_LEAVE') return false; // lịch nghỉ phép đã duyệt không phải ngày làm
+    if (schedule && schedule.scheduleType !== 'REGULAR') return true;
     return await this.workdayWithoutSchedule(this.settings, this.repo, employeeId, date);
   }
 
@@ -171,10 +173,11 @@ export class AttendanceService {
         throw new Error('Bảng công ngày đã bị khóa cho kỳ lương, không thể tính toán lại');
       }
 
-      // 3. Kiểm theo cài đặt: ngày làm (chỉ lần vào vào ngày chưa có lịch), rồi vùng chấm công (khi `checkZone`).
+      // 3. Kiểm theo cài đặt: ngày làm (chỉ lần vào, ngày chưa có lịch hoặc chỉ có dòng REGULAR cũ), rồi vùng chấm công (khi `checkZone`).
       let distanceM = 0;
       if (this.settings) {
-        if (!schedule && input.type === 'IN') {
+        // Dòng REGULAR cũ không mở ngày làm (FP4): chỉ lịch đổi ca, làm bù, tăng ca mới qua cổng này mà không cần tuần làm.
+        if ((!schedule || schedule.scheduleType === 'REGULAR') && input.type === 'IN') {
           if (!(await this.workdayWithoutSchedule(this.settings, repo, input.employeeId, workDate, trx))) {
             throw new PunchRefusedError('NOT_A_WORKDAY', 'Hôm nay không phải ngày làm của bạn');
           }
@@ -302,7 +305,7 @@ export class AttendanceService {
   /** Admin tính lại cả tháng 'YYYY-MM' (T7): trả mọi dòng ngày của tháng theo ngày tăng. */
   async recalculateMonth(employeeId: string, month: string): Promise<DailyTimesheetDTO[]> {
     if (!MONTH_PATTERN.test(month)) {
-      throw new Error(`Tháng không hợp lệ (YYYY-MM): ${month}`);
+      throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
     const dates = datesOfMonth(month);
 
@@ -338,9 +341,5 @@ export class AttendanceService {
   async listTimesheets(filter: TimesheetFilter = {}): Promise<DailyTimesheetDTO[]> {
     const timesheets = await this.repo.listTimesheets(filter);
     return timesheets.map((t) => t.toJSON());
-  }
-
-  async lockTimesheets(employeeId: string, startDate: string, endDate: string): Promise<number> {
-    return await this.repo.lockTimesheets(employeeId, startDate, endDate);
   }
 }

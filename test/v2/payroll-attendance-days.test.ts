@@ -130,17 +130,19 @@ describe('EmployeePayslip counts the day lines by their row fields', () => {
     assert.equal(slipOf([...worked(19), madeUp(480), leave, ...twoOff]).attendanceAllowanceActual, ATTENDANCE_20);
   });
 
-  it('adds the makeup pay of the lines to the gross income (P8)', () => {
+  // D1: the makeup minutes of the month at the hourly rate, rounded once: 6.000.000 x (480 / 60) / 208 = 230.769,23. The
+  // lines show 115.385 each, which summed gave 230.770 before.
+  it('adds the makeup pay of the month to the gross income (P8, D1)', () => {
     const plain = slipOf(worked(20));
     const withMakeup = slipOf([
       ...worked(18),
       payslipLine('PRESENT', { date: '2026-11-12', makeupMinutes: 240, makeupPay: 115_385 }),
       payslipLine('PRESENT', { date: '2026-11-16', makeupMinutes: 240, makeupPay: 115_385 })
     ]);
-    assert.equal(withMakeup.makeupPay, 230_770);
-    assert.equal(withMakeup.toJSON().makeupPay, 230_770);
+    assert.equal(withMakeup.makeupPay, 230_769);
+    assert.equal(withMakeup.toJSON().makeupPay, 230_769);
     assert.equal(withMakeup.actualWorkDays, plain.actualWorkDays);
-    assert.equal(withMakeup.grossIncome, plain.grossIncome + 230_770);
+    assert.equal(withMakeup.grossIncome, plain.grossIncome + 230_769);
   });
 });
 
@@ -368,6 +370,19 @@ describe('PayrollService reads the shared day rows (T6, spec 8.1)', () => {
       { code: 'EXPLANATION_REJECTED', message: '06/11 giải trình bị từ chối', fields: ['2026-11-06'] },
       { code: 'EXPLANATION_PENDING', message: '07/11 chờ giải trình', fields: ['2026-11-07'] }
     ]);
+  });
+
+  it('warns about nothing on an EXTRA or HOLIDAY row, even when it carries cases (FP5 #10)', async () => {
+    const info = [{ code: 'MISSING_CHECK_OUT' as const, minutes: 0, affectsPay: false }];
+    // Defensive: even a case flagged as pay-affecting never asks for an explanation outside PRESENT and ABSENT.
+    const flagged = [{ code: 'EARLY_CHECK_OUT' as const, minutes: 60, affectsPay: true }];
+    const slip = await slipOf([
+      dayRow('EXTRA', '2026-11-08', { cases: info, explanationStatus: 'NONE' }),
+      dayRow('EXTRA', '2026-11-15', { cases: flagged, explanationStatus: 'NONE' }),
+      dayRow('HOLIDAY', '2026-11-09', { cases: info, explanationStatus: 'PENDING' }),
+      dayRow('HOLIDAY', '2026-11-10', { cases: flagged, explanationStatus: 'REJECTED' })
+    ]);
+    assert.deepEqual(slip.warnings.filter(w => w.code.startsWith('EXPLANATION_')), []);
   });
 
   it('measures OT on PRESENT, EXTRA and HOLIDAY rows, not on a leave day with stray punches', async () => {

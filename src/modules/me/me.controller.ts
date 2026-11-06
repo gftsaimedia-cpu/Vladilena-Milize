@@ -21,7 +21,7 @@ import { payDateOf, SettingsReader, TypeWeekMissingError, type WorkWeek } from '
 import { PeriodsService } from '../periods';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
-import { daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, stepsOf, vnToday, weekOf } from './domain';
+import { ALERT_MONTHS_BACK, daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, shiftMonth, stepsOf, vnToday, weekOf } from './domain';
 
 // Nhóm "của tôi": mọi route chỉ cần phiên; danh tính luôn là req.user. Không route nào đọc employeeId / username của
 // client — trường lạ trong body hay query bị bỏ qua. Bảng công dùng uuid, đơn từ và phiếu lương dùng tên đăng nhập.
@@ -110,6 +110,37 @@ export class MeController {
     return monthRangeOf(employee ? employee.toDTO().contract.effectiveFrom : null, vnToday());
   }
 
+  // Các tháng quét ngày còn cần giải trình (D9): từ tháng hiện tại lùi về, dừng trước tháng đầu tiên đã Phê duyệt kỳ hoặc đã
+  // trả lương, không lùi quá tháng vào làm và không quá ALERT_MONTHS_BACK tháng. Mới nhất trước.
+  private async alertMonths(me: Who, today: string): Promise<string[]> {
+    const current = today.slice(0, 7);
+    const earliest = shiftMonth(current, -ALERT_MONTHS_BACK);
+    const { from } = await this.monthRange(me);
+    const floor = from > earliest ? from : earliest;
+    const months: string[] = [];
+    for (let m = current; m >= floor; m = shiftMonth(m, -1)) {
+      const status = (await this.periods.getPeriod(m))?.status;
+      if (status === 'approved' || status === 'paid') break;
+      months.push(m);
+    }
+    return months;
+  }
+
+  // Mọi ngày đã qua còn cần giải trình trong các tháng chưa duyệt, cũ nhất trước. Ngày đã gửi giải trình (đang chờ duyệt)
+  // thì không nhắc nữa; chưa giải trình hoặc bị từ chối vẫn nhắc.
+  private async alertsOf(me: Who, today: string): Promise<Array<{ date: string; kind: 'todo' }>> {
+    const months = await this.alertMonths(me, today);
+    if (months.length === 0) return [];
+    const open = new Set(months);
+    const rows = await this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${months[months.length - 1]}-01`, endDate: today });
+    return rows
+      .filter(r => r.workDate < today && open.has(r.workDate.slice(0, 7)))
+      .map(r => daySummaryOf(r as any, r.workDate, today))
+      .filter(d => d.kind === 'todo' && d.explanationStatus !== 'pending')
+      // `listTimesheets` đã trả theo `work_date` tăng, nên danh sách đã cũ nhất trước.
+      .map(d => ({ date: d.date, kind: 'todo' as const }));
+  }
+
   // Số ngày phép còn lại do server tính từ đơn; lỗi thì giữ nguyên số trong hợp đồng để hồ sơ vẫn mở được.
   private async leaveOf(me: Who, leave: any): Promise<unknown> {
     try {
@@ -151,8 +182,8 @@ export class MeController {
     const weeks = await this.weeksOf(me, week);
     const days = week.map(d => daySummaryOf(by.get(d) as any, d, date, weeks.get(d.slice(0, 7))?.weekdays));
     const [zone, workday] = await Promise.all([this.settings.zone(), this.attendance.workdayOf(me.uuid, date)]);
-    // Ngày đã gửi giải trình (đang chờ duyệt) thì không nhắc nữa; chưa giải trình hoặc bị từ chối vẫn nhắc.
-    const alert = days.filter(d => d.kind === 'todo' && d.date < date && d.explanationStatus !== 'pending').pop() ?? null;
+    // Nhắc việc không được chặn màn chấm công: lỗi khi dựng danh sách thì trả [] như `reminders`.
+    const alerts = await this.alertsOf(me, date).catch(() => []);
     return {
       date,
       // Ngày không có ca (nghỉ, lễ, ngoài tuần làm) thì ca là null, không phải một đối tượng toàn null.
@@ -160,7 +191,9 @@ export class MeController {
       punches: { in: days.find(d => d.date === date)?.in ?? null, out: days.find(d => d.date === date)?.out ?? null },
       workedMinutes: Math.round(((ts?.metrics as any)?.workHours || 0) * 60),
       week: days,
-      alert: alert ? { date: alert.date, kind: 'todo' } : null,
+      // `alert` là ngày gần nhất trong `alerts` (giữ cho app cũ).
+      alert: alerts.length > 0 ? alerts[alerts.length - 1] : null,
+      alerts,
       zone,
       workday,
       reminders: await this.explanations.reminders(me.username).catch(() => []),

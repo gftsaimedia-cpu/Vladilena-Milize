@@ -1,8 +1,9 @@
 import type { AttendanceDayStatus } from '../../attendance/domain/attendance-day';
-import { PayrollAllowancePolicy, type AllowanceRates } from './allowance-rates';
+import { PayrollAllowancePolicy, shiftHoursOf, type AllowanceRates } from './allowance-rates';
 import { calculateInsurance, DEFAULT_INSURANCE_RATES, insurancePctOf, InsuranceDeduction, type InsurancePct } from './insurance';
 import { calculateKpiPay, KPI_WEIGHTS, KpiComponent, KpiPay } from './kpi-pay';
 import { makeupShortfallDays } from './makeup-shortfall';
+import { moneyOf, type MoneyOptions } from './money';
 import { OT_MULTIPLIERS, type OtRates } from './overtime-pay';
 import { calculatePersonalIncomeTax, TaxMethod, type TaxRules } from './personal-income-tax';
 import { PayrollWarning } from './payroll-warning';
@@ -23,6 +24,9 @@ export interface DailyAttendanceLineProps {
   checkIn?: string | null; // 'HH:MM' Vietnam time, null on LEAVE/ISAT/UNPAID lines
   checkOut?: string | null;
   workHours: number; // e.g. 8, 7.75, 7.67, 0
+  // The money of the day below (daySalary ... dailyTotal, makeupPay) is DISPLAY ONLY, each rounded on its own line. The
+  // payslip items and the advance never read it: they are one formula on the quantities (payUnits, workHours, the
+  // minutes, the OT hours), rounded once (D1, D2; see money.ts).
   daySalary: number; // payUnits x base salary / standardWorkdays
   flexAllowancePay: number; // e.g. 46.154
   nightAllowancePay: number; // e.g. 92.308
@@ -30,7 +34,8 @@ export interface DailyAttendanceLineProps {
   otHours: number; // e.g. 2, 3
   otPay: number; // e.g. 115.385, 173.077
   otNote?: string; // e.g. "2 giờ, đến 19:00"
-  deductionHours: number; // the row's deduction minutes / 60, e.g. 0.5
+  deductionHours: number; // the row's deduction minutes / 60 rounded to 2 decimals, display only, e.g. 0.5
+  deductionMinutes: number; // the row's deduction minutes, exact, e.g. 30
   deductionAmount: number; // e.g. 14.423
   // daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay + makeupPay - deductionAmount
   dailyTotal: number;
@@ -40,7 +45,10 @@ export interface DailyAttendanceLineProps {
   countsAsWorkday: boolean;
   countsAsDayOff: boolean; // a day off for the attendance allowance
   makeupMinutes: number; // minutes worked inside the approved makeup windows of the day (L14)
-  makeupPay: number; // makeupMinutes / 60 x hourly rate
+  // Minutes credited against the leave-with-makeup debt (L16): makeupMinutes, or the whole window when a late arrival at it
+  // was explained and approved. Only the chuyên cần shortfall reads it; pay reads makeupMinutes.
+  makeupCreditMinutes: number;
+  makeupPay: number; // makeupMinutes / 60 x hourly rate, display only
 }
 
 /** The rates a payslip was computed with (the month's settings), so a reader prints them instead of hard-coding. */
@@ -71,13 +79,6 @@ export interface OtHoursByRate {
   x30?: number; // company holiday
 }
 
-/** OT money by kind of day, summed from the day lines (each line rounds each kind once). */
-export interface OtPayByRate {
-  x15?: number;
-  x20?: number;
-  x30?: number;
-}
-
 export interface EmployeePayslipProps {
   employeeId: string;
   username?: string; // staff.username; default = employeeId
@@ -94,15 +95,16 @@ export interface EmployeePayslipProps {
   isDormResident?: boolean;
   allowanceRates?: AllowanceRates | null; // the position version in force; missing = none, no allowance
   dailyLines: DailyAttendanceLineProps[];
-  otHoursByRate?: OtHoursByRate;
-  otPayByRate?: OtPayByRate;
+  otHoursByRate?: OtHoursByRate; // exact hours by kind of day; the OT pay of each kind is one formula on them
   otRates?: OtRates; // the rates the OT was paid at; default OT_MULTIPLIERS
   rates?: Omit<PayslipRates, 'otMultipliers'>; // default: the domain defaults; otMultipliers always follow otRates
   calendar?: PayslipDay[]; // one entry per day of the month for the strip; default none
   lateMinutes?: number; // minutes of late check-in beyond the grace, summed over the lines; default 0
-  lateEarlyHours?: number;
-  lateEarlyDeductionAmount?: number;
+  lateEarlyHours?: number; // display only (2 decimals); default the lines' deduction minutes / 60
   diligenceLostFromDays?: number; // the attendance allowance is lost from this many absence days; default 5
+  /** Work minutes of the approved makeup windows that have not ended yet (D10): they count as made up for the diligence
+   * shortfall only, never for pay. Default 0 (a month that is over has none). */
+  plannedMakeupMinutes?: number;
   kpi?: KpiPay; // default: no KPI pay
   insurance?: InsuranceDeduction; // default: nothing deducted
   taxMethod?: TaxMethod; // default 'none'
@@ -240,7 +242,7 @@ export class EmployeePayslip {
   readonly leaveSettlementPay: number;
   readonly isatPay: number;
   readonly holidayPay: number;
-  readonly makeupPay: number; // the makeup minutes of the day lines at the hourly rate (L14)
+  readonly makeupPay: number; // base x (the month's makeup minutes / 60) / (std x 8), rounded once (L14, D1)
   // Pay for the days worked and the paid days off: base + paid leave + settlement + iSAT + holiday (no makeup, OT, allowances).
   readonly workPay: number;
 
@@ -328,11 +330,17 @@ export class EmployeePayslip {
     this.isDormResident = props.isDormResident ?? false;
     this.dailyLines = [...props.dailyLines];
 
-    // Compute day and hour rates
+    // Compute day and hour rates (exact; only the tax exemption and the policy figures use them directly)
     const dayRate = this.baseSalaryPolicy / this.standardWorkdays;
     const hourRate = dayRate / 8;
+    const rates = new PayrollAllowancePolicy(this.employeeType, this.nightAllowancePct, props.allowanceRates);
+    const otRates = props.otRates ?? OT_MULTIPLIERS;
+    // D1: every money item below is one formula on the base salary and an unrounded quantity, rounded once (money.ts).
+    const pay = (quantity: number, opts?: MoneyOptions) =>
+      moneyOf(this.baseSalaryPolicy, this.standardWorkdays, quantity, opts);
 
-    // Attendance counts from the day-row fields of the lines (spec 8.1), never from the shift code.
+    // Attendance counts from the day-row fields of the lines (spec 8.1), never from the shift code. The quantities are
+    // read from the lines; their money (daySalary, flexAllowancePay, ...) is display only and never summed.
     let workDaysCount = 0;
     let flexCount = 0;
     let nightCount = 0;
@@ -343,14 +351,26 @@ export class EmployeePayslip {
     let dayOffCount = 0;
     let makeupLeaveCount = 0;
     let makeupMinutes = 0;
-    let totalDeductionHours = 0;
-    let totalLineOtHours = 0;
+    let makeupCreditMinutes = 0;
+    let deductionMinutes = 0;
+    let flexHours = 0; // Σ min(8, shift hours) of the flex work days (shift hours = workHours - makeup, D13)
+    let nightBreakHours = 0; // Σ the exact night break pay of the night work days, in hours of pay
+    let nightExemptHours = 0; // Σ min(30% of the hours worked, the night allowance in hours) of the night work days
 
     for (const line of this.dailyLines) {
       if (line.countsAsWorkday) {
         workDaysCount++;
-        if (line.shiftCode === 'FLEX') flexCount++;
-        if (line.shiftCode === 'NIGHT') nightCount++;
+        // D13: the makeup minutes of the line are paid x1 on their own; the premiums read the shift hours only.
+        const shiftHours = shiftHoursOf(line.workHours, line.makeupMinutes);
+        if (line.shiftCode === 'FLEX') {
+          flexCount++;
+          flexHours += rates.flexHours(shiftHours);
+        }
+        if (line.shiftCode === 'NIGHT') {
+          nightCount++;
+          nightBreakHours += rates.nightBreakHours(shiftHours, line.deductionMinutes / 60);
+          nightExemptHours += Math.min(shiftHours * 0.3, 8 * rates.nightRate);
+        }
       }
       if (line.countsAsDayOff) dayOffCount++;
       const paid = line.payUnits === 1;
@@ -360,9 +380,8 @@ export class EmployeePayslip {
       else if (line.kind === 'LEAVE_UNPAID') unpaidLeaveCount++;
       else if (line.kind === 'LEAVE_MAKEUP') makeupLeaveCount++;
       makeupMinutes += line.makeupMinutes;
-
-      totalDeductionHours += line.deductionHours ?? 0;
-      totalLineOtHours += line.otHours ?? 0;
+      makeupCreditMinutes += line.makeupCreditMinutes;
+      deductionMinutes += line.deductionMinutes;
     }
 
     this.actualWorkDays = workDaysCount;
@@ -373,35 +392,33 @@ export class EmployeePayslip {
     this.unpaidLeaveDays = unpaidLeaveCount;
     this.holidayPaidDays = holidayCount;
 
-    // Block 1: Base Salary Actual
-    this.baseSalaryActual = Math.round(this.actualWorkDays * dayRate);
+    // Block 1: Base Salary Actual = base x days / std
+    this.baseSalaryActual = pay(this.actualWorkDays);
 
-    // Block 2: Leave & Holiday Pay
-    this.paidLeavePay = Math.round(this.paidLeaveDays * dayRate);
+    // Block 2: Leave & Holiday Pay = base x days / std; makeup = base x (the month's makeup minutes / 60) / (std x 8)
+    this.paidLeavePay = pay(this.paidLeaveDays);
     this.leaveSettlementPay = 0;
-    this.isatPay = Math.round(this.isatDays * dayRate);
-    this.holidayPay = Math.round(this.holidayPaidDays * dayRate);
-    this.makeupPay = this.dailyLines.reduce((sum, line) => sum + line.makeupPay, 0);
+    this.isatPay = pay(this.isatDays);
+    this.holidayPay = pay(this.holidayPaidDays);
+    this.makeupPay = pay(makeupMinutes / 60, { perHour: true });
     this.workPay = this.baseSalaryActual + this.paidLeavePay + this.leaveSettlementPay + this.isatPay + this.holidayPay;
     this.lateMinutes = props.lateMinutes ?? 0;
     this.calendar = [...(props.calendar ?? [])];
 
-    // Block 3: Overtime Pay
+    // Block 3: Overtime Pay. One item per kind of day: base x hours x rate / (std x 8), from the exact hours of that kind
+    // (the lines round their own OT for display only); the total is the sum of the three items.
     this.ot15Hours = props.otHoursByRate?.x15 ?? 0;
     this.ot20Hours = props.otHoursByRate?.x20 ?? 0;
     this.ot30Hours = props.otHoursByRate?.x30 ?? 0;
-    this.totalOtHours = this.ot15Hours + this.ot20Hours + this.ot30Hours || totalLineOtHours;
-
-    // The pay is measured per day (see overtime-pay.ts); the total is the sum of the day lines.
-    this.otPayTotal = this.dailyLines.reduce((sum, line) => sum + line.otPay, 0);
-    this.ot15Pay = props.otPayByRate?.x15 ?? 0;
-    this.ot20Pay = props.otPayByRate?.x20 ?? 0;
-    this.ot30Pay = props.otPayByRate?.x30 ?? 0;
+    this.totalOtHours = this.ot15Hours + this.ot20Hours + this.ot30Hours;
+    this.ot15Pay = pay(this.ot15Hours, { perHour: true, rate: otRates.weekday });
+    this.ot20Pay = pay(this.ot20Hours, { perHour: true, rate: otRates.weekend });
+    this.ot30Pay = pay(this.ot30Hours, { perHour: true, rate: otRates.holiday });
+    this.otPayTotal = this.ot15Pay + this.ot20Pay + this.ot30Pay;
     this.dayRate = Math.round(dayRate);
 
     // Block 4: Allowances
-    // Policy values
-    const rates = new PayrollAllowancePolicy(this.employeeType, this.nightAllowancePct, props.allowanceRates);
+    // Policy values: rounded on their own, shown on their own; the actual values never read them.
     this.attendanceAllowancePolicy = Math.round(this.baseSalaryPolicy * rates.attendanceRate);
     this.travelAllowancePolicy = Math.round(this.baseSalaryPolicy * rates.travelRate);
     this.flexAllowancePolicy = Math.round(this.baseSalaryPolicy * rates.flexRate);
@@ -412,19 +429,20 @@ export class EmployeePayslip {
 
     // Actual values. The allowances follow the work days. The days off for the attendance allowance are the lines that
     // count as one (leave, absence) plus the leave-with-makeup days the month's makeup minutes leave short (L15, L16).
-    const allowanceRatio = this.actualWorkDays / this.standardWorkdays;
-    const absenceDays = dayOffCount + makeupShortfallDays(makeupLeaveCount, makeupMinutes);
+    // D10: the windows still ahead count as worked here, and only here (makeupPay above reads the real minutes). The
+    // minutes made up are the credited ones: a late arrival explained and approved credits the whole window (L16, FP6).
+    const absenceDays =
+      dayOffCount + makeupShortfallDays(makeupLeaveCount, makeupCreditMinutes + (props.plannedMakeupMinutes ?? 0));
     const keepsDiligence = absenceDays < (props.diligenceLostFromDays ?? 5);
+    // rate x base x work days / std
     this.attendanceAllowanceActual =
-      rates.attendanceRate > 0 && keepsDiligence ? Math.round(allowanceRatio * this.attendanceAllowancePolicy) : 0;
-    this.travelAllowanceActual = !this.isDormResident ? Math.round(allowanceRatio * this.travelAllowancePolicy) : 0;
-    this.flexAllowanceActual = rates.isKnownType
-      ? this.dailyLines.reduce((sum, line) => sum + line.flexAllowancePay, 0)
-      : 0;
-    this.offPaidNightActual = rates.isKnownType ? this.dailyLines.reduce((sum, line) => sum + line.offPaidPay, 0) : 0;
-    this.nightAllowanceActual = rates.isKnownType
-      ? this.dailyLines.reduce((sum, line) => sum + line.nightAllowancePay, 0)
-      : 0;
+      rates.attendanceRate > 0 && keepsDiligence ? pay(this.actualWorkDays, { rate: rates.attendanceRate }) : 0;
+    this.travelAllowanceActual = !this.isDormResident ? pay(this.actualWorkDays, { rate: rates.travelRate }) : 0;
+    // flexRate x base x Σ min(8, hours) / (std x 8); nightRate x base x night days / std; the night break pay summed
+    // exact over the night days (capped by each day's exact deduction), then rounded once
+    this.flexAllowanceActual = rates.isKnownType ? pay(flexHours, { perHour: true, rate: rates.flexRate }) : 0;
+    this.offPaidNightActual = rates.isKnownType ? pay(nightBreakHours, { perHour: true }) : 0;
+    this.nightAllowanceActual = rates.isKnownType ? pay(this.nightShiftCount, { rate: rates.nightRate }) : 0;
     this.totalAllowanceActual =
       this.attendanceAllowanceActual +
       this.travelAllowanceActual +
@@ -443,16 +461,10 @@ export class EmployeePayslip {
     this.kpiMaxSalary = kpi.appliedAmount;
     this.kpiActualPay = kpi.amount;
 
-    // Block 6: Late / Early deductions
-    this.lateEarlyHours = props.lateEarlyHours ?? Math.round(totalDeductionHours * 100) / 100;
-    if (props.lateEarlyDeductionAmount !== undefined) {
-      this.lateEarlyDeductionAmount = props.lateEarlyDeductionAmount;
-    } else if (Math.abs(this.lateEarlyHours - 0.58) < 0.005) {
-      // Canonical 35-minute (7/12 h = 0.5833h) deduction at 28.846,15/h = 16.827 VND
-      this.lateEarlyDeductionAmount = -16827;
-    } else {
-      this.lateEarlyDeductionAmount = -Math.round(this.lateEarlyHours * hourRate);
-    }
+    // Block 6: Late / Early deductions: -(base x (the month's deduction minutes / 60) / (std x 8)), e.g. 35 minutes on
+    // 6.000.000 / 26 = -16.827. The hours are shown with 2 decimals only; the money never reads them.
+    this.lateEarlyHours = props.lateEarlyHours ?? Math.round((deductionMinutes / 60) * 100) / 100;
+    this.lateEarlyDeductionAmount = -pay(deductionMinutes / 60, { perHour: true });
 
     // Block 7: Gross to Net deductions
     this.grossIncome =
@@ -469,9 +481,9 @@ export class EmployeePayslip {
 
     // Tax-exempt part of the pay: the OT premium over the normal hourly rate (rate - 1 of each kind of day: by default
     // 150% -> 50%, 200% -> 100%, 300% -> 200%) plus, for each night line, the lower of 30% of the hourly pay for the
-    // hours worked and the night allowance paid that day (a night day without allowance, e.g. one that is not a work
-    // day, exempts nothing).
-    const otRates = props.otRates ?? OT_MULTIPLIERS;
+    // shift hours (D13) and the night allowance of that day (a night day without allowance, e.g. one that is not a work
+    // day, exempts nothing). Each part is summed exact and rounded once; the night part never reads the rounded
+    // allowance of the line (D1).
     this.rates = {
       kpiWeights: props.rates?.kpiWeights ?? KPI_WEIGHTS,
       insurancePct: props.rates?.insurancePct ?? insurancePctOf(DEFAULT_INSURANCE_RATES),
@@ -483,11 +495,7 @@ export class EmployeePayslip {
         this.ot20Hours * hourRate * (otRates.weekend - 1) +
         this.ot30Hours * hourRate * (otRates.holiday - 1)
     );
-    const nightExempt = Math.round(
-      this.dailyLines
-        .filter(line => line.shiftCode.toUpperCase() === 'NIGHT')
-        .reduce((sum, line) => sum + Math.min(line.workHours * hourRate * 0.3, line.nightAllowancePay), 0)
-    );
+    const nightExempt = pay(nightExemptHours, { perHour: true });
     this.taxExemptIncome = otExempt + nightExempt;
 
     const insurance = props.insurance ?? calculateInsurance(0, false);

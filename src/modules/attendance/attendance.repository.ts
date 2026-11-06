@@ -50,7 +50,8 @@ function timesheetFromEntry(row: TimesheetEntry): DailyTimesheet {
     deduction_minutes: row.deduction_minutes,
     counts_as_workday: row.counts_as_workday,
     counts_as_day_off: row.counts_as_day_off,
-    makeup_minutes: row.makeup_minutes
+    makeup_minutes: row.makeup_minutes,
+    makeup_credit_minutes: row.makeup_credit_minutes
   });
 }
 
@@ -181,22 +182,6 @@ export class AttendanceRepository {
     const rows = await query.orderBy('work_date', 'asc').orderBy('employee_id', 'asc').execute();
 
     return rows.map(timesheetFromEntry);
-  }
-
-  /**
-   * Khóa bảng công nhật trong khoảng thời gian để chốt kỳ lương
-   */
-  async lockTimesheets(employeeId: string, startDate: string, endDate: string): Promise<number> {
-    const result = await this.qb
-      .updateTable('timesheet_entries')
-      .set({ is_locked: true, updated_at: new Date() })
-      .where('employee_id', '=', employeeId)
-      .where('work_date', '>=', startDate)
-      .where('work_date', '<=', endDate)
-      .where('is_locked', '=', false)
-      .executeTakeFirst();
-
-    return Number(result.numUpdatedRows ?? 0);
   }
 
   /**
