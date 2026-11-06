@@ -84,8 +84,7 @@ export function staffToday(): string {
 /** Danh sách nhân sự: 4 thẻ chỉ số, tổng số hồ sơ và các dòng. */
 export async function getStaffList(): Promise<StaffListView> {
   if (__MOCK__) return respond(staffListView());
-  const { employees = [] } = await api.get('/employees');
-  return staffListFromEmployees(employees, staffToday());
+  return staffListFromEmployees(await api.get('/employees'));
 }
 
 /** Hồ sơ một người theo id (tên đăng nhập); null nếu không có người này. */
@@ -93,7 +92,7 @@ export async function getStaffProfile(id: string): Promise<StaffProfile | null> 
   if (__MOCK__) return respond(staffProfile(id));
   try {
     const { employee } = await api.get(`/employees/${encodeURIComponent(id)}`);
-    return staffProfileFromEmployee(employee, staffToday());
+    return staffProfileFromEmployee(employee);
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) return null;
     throw e;

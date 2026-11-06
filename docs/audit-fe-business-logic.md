@@ -52,3 +52,9 @@ Mục 1–7, 17, 19, 21, 26, 27 đã chuyển; 2 và 16 giữ phần UX. Trườ
 - 19: `details.deductionTotal` (bản tạm tính của `/me/income` chỉ gồm tạm ứng).
 - 21: `details.calendar` (loại từng ngày do BE quyết); FE không so ngày máy.
 - 12, 25: chưa làm (không chạm cùng file với nhóm lương).
+
+## Tiến độ sau khi hợp nhất với remote (06/11/2026)
+
+- Nhân viên: SSE `/realtime/me`; tổng tiền nghỉ phép (`leavePay`), năm phần KPI, khoá nút chấm công (`POST /me/punches/check`), chữ luật (`rules.shiftGapMinutes`) và bộ chọn giờ bù (`POST /me/requests/leave-with-makeup/plan`) đều do BE tính.
+- Admin: #13 làm lại trên nền remote (`GET /employees` trả `work` từng người và `summary`); công chuẩn của tuần sắp đổi (`upcoming`) và bảng công chuẩn theo số ngày (`standardByDays`) do BE trả; tổng giờ làm thêm trên phiếu lấy từ `totalOtHours` của BE.
+- Còn ở FE và được giữ: kiểm tổng trọng số KPI trước khi lưu và tổng các ô đang nhập ở ngăn Cách tính lương (kiểm nhập liệu, BE kiểm lại khi lưu), tổng số ngày lễ của năm đang xem (đếm các dòng BE đã gửi), vị trí vẽ thanh thời gian ở lịch sử chấm công (hình học).

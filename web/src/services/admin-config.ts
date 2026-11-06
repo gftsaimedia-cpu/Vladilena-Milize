@@ -5,10 +5,9 @@ import { api, qs } from '@/services/http';
 import {
   benefitChanges,
   benefitsViewFromCatalog,
-  headcountFromEmployees,
   type BenefitsView
 } from '@/builders/api/benefits';
-import { catalogRows, currentDate, currentMonth, writePositions } from '@/services/admin-catalog';
+import { catalogRows, currentMonth, writePositions } from '@/services/admin-catalog';
 import { MOCK_HEADCOUNT } from '@/mock/positions';
 import { mockAuditList, mockAuditVerify } from '@/mock/audit';
 import { respond } from '@/mock/respond';
@@ -29,8 +28,8 @@ const state: Record<string, any> = {
 // (GET /employees). Lưu gửi PUT /positions các ô đã sửa, áp dụng từ tháng đã chọn, kèm rev của phiên bản ở tháng đó.
 async function headcount(): Promise<Record<string, number>> {
   if (__MOCK__) return respond(MOCK_HEADCOUNT);
-  const { employees = [] } = await api('GET', '/employees');
-  return headcountFromEmployees(employees, currentDate());
+  const { summary } = await api('GET', '/employees');
+  return summary?.byType ?? {};
 }
 
 export async function getBenefits(): Promise<BenefitsView> {

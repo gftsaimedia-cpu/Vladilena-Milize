@@ -7,7 +7,6 @@ import { monthNo, num } from '@/utils/format';
 const props = defineProps<{ slip: Payslip; month: string }>();
 
 const no = computed(() => monthNo(props.month));
-const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const d = computed(() => props.slip.days);
 const summary = computed(
   () =>
@@ -18,7 +17,7 @@ const stats = computed(() => [
   { label: 'Ngày công', value: num(d.value.work), unit: ` / ${d.value.standard}` },
   { label: 'Phép · iSAT', value: `${d.value.leave} · ${d.value.isat}`, unit: '' },
   { label: 'Chờ giải trình', value: String(d.value.pending), unit: '' },
-  { label: 'Làm thêm', value: num(sum(props.slip.ot.hours)), unit: ' giờ' },
+  { label: 'Làm thêm', value: num(props.slip.ot.total), unit: ' giờ' },
   { label: 'Đi muộn', value: String(props.slip.late.minutes), unit: ' phút' }
 ]);
 const KIND_CLASS: Record<DayKind, string> = {

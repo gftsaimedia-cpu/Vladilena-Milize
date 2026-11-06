@@ -46,7 +46,8 @@ export async function saveKpiScore(month: string, id: string, part: KpiPart, val
 // employeeIds: tính lại riêng các phiếu này (chế độ "Tính lại lương" của bảng); không có thì tính cả kỳ.
 export function calculatePayroll(month: string, employeeIds?: string[]) {
   const body = employeeIds?.length ? { employeeIds } : {};
-  if (!__MOCK__) return api.post(`/payroll/${enc(month)}/calculate`, body);
+  // Tính cả kỳ cho cả công ty có thể lâu hơn 30 giây mặc định: cho 180 giây.
+  if (!__MOCK__) return api('POST', `/payroll/${enc(month)}/calculate`, body, { timeoutMs: 180_000 });
   const view = payrollView(month);
   const count = employeeIds?.length ? employeeIds.length : view.empty ? 0 : view.lines.length;
   return respond({ count, errors: [] as { employeeId: string; message?: string }[] });

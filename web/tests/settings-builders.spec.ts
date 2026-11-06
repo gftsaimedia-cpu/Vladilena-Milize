@@ -8,7 +8,6 @@ import {
   orNoWorkWeek,
   payDatesIn,
   payDayHint,
-  standardWorkdays,
   weekdaysText,
   workWeekLine,
   zoneErrors,
@@ -48,15 +47,16 @@ test('bracket and zone lines', () => {
     .toEqual(['Bán kính 150 m → 200 m, áp dụng ngay']);
 });
 test('work week texts and standard workdays (D5)', () => {
-  expect([1, 2, 3, 4, 5, 6].map(standardWorkdays)).toEqual([4, 9, 13, 17, 22, 26]);
+  // Công chuẩn theo số ngày làm do BE gửi (standardByDays), FE không tự tính.
+  expect([1, 2, 3, 4, 5, 6].map(n => workWeekOf('x', '2026-10').standardByDays[n])).toEqual([4, 9, 13, 17, 22, 26]);
   expect([weekdaysText([1, 2, 3, 4, 5, 6]), weekdaysText([1, 3, 5]), weekdaysText([1, 2, 3, 5, 6])]).toEqual(['T2–T7', 'T2, T4, T6', 'T2–T4, T6, T7']);
   const type = workWeekOf('x', '2026-10');
   expect(workWeekLine(type)).toBe('T2–T7 · công chuẩn 26 · theo loại nhân sự');
-  expect(workWeekLine(type, { month: '2026-12', weekdays: [1, 2, 3, 4, 5] })).toBe('T2–T7 · công chuẩn 26 · theo loại nhân sự; từ 12/2026: T2–T6 · công chuẩn 22');
-  // Tuần sắp tới giống tuần đang áp dụng (vd. hoàn tác tuần riêng về theo loại) thì không nêu.
-  expect(workWeekLine(type, { month: '2026-12', weekdays: null })).toBe('T2–T7 · công chuẩn 26 · theo loại nhân sự');
+  expect(workWeekLine({ ...type, upcoming: { month: '2026-12', weekdays: [1, 2, 3, 4, 5], standardWorkdays: 22 } })).toBe('T2–T7 · công chuẩn 26 · theo loại nhân sự; từ 12/2026: T2–T6 · công chuẩn 22');
+  // Tuần sắp tới giống tuần đang áp dụng thì BE trả upcoming null và dòng không nêu thêm.
+  expect(workWeekLine({ ...type, upcoming: null })).toBe('T2–T7 · công chuẩn 26 · theo loại nhân sự');
   const own = { ...type, source: 'own' as const, from: '2026-10', weekdays: [1, 2, 3, 4, 5], standardWorkdays: 22 };
-  expect(workWeekLine(own, { month: '2026-12', weekdays: [1, 2, 3, 4, 5] })).toBe('T2–T6 · công chuẩn 22 · riêng từ 10/2026');
+  expect(workWeekLine({ ...own, upcoming: null })).toBe('T2–T6 · công chuẩn 22 · riêng từ 10/2026');
 });
 test('pay dates of a calendar year and the pay-day hint', () => {
   expect(payDatesIn(2026, [...payDaysOf(2025).items, ...payDaysOf(2026).items])[0]).toBe('2026-01-10');
@@ -125,7 +125,7 @@ test('empty field, tax rate range, own week line, extra history rows', () => {
   expect(zoneLines({ lat: 10.7769, lng: 106.7009, radiusM: 150 }, { lat: 10.8, lng: 106.7009, radiusM: 150 })).toEqual(['Vĩ độ 10,7769 → 10,8, áp dụng ngay']);
   expect(zoneErrors({ lat: 91, lng: -181, radiusM: 20.5 })).toEqual({ lat: 'Từ -90 đến 90', lng: 'Từ -180 đến 180', radiusM: 'Từ 20 đến 5.000 m' });
   const own = { ...workWeekOf('x', '2026-10'), source: 'own' as const, from: '2026-12', weekdays: [1, 2, 3, 4, 5], standardWorkdays: 22 };
-  expect(workWeekLine(own, { month: '2027-01', weekdays: null })).toBe('T2–T6 · công chuẩn 22 · riêng từ 12/2026; từ 01/2027: theo loại nhân sự');
+  expect(workWeekLine({ ...own, upcoming: { month: '2027-01', weekdays: null, standardWorkdays: null } })).toBe('T2–T6 · công chuẩn 22 · riêng từ 12/2026; từ 01/2027: theo loại nhân sự');
   const base = { id: 1, by: 'admin', at: '2026-10-28T02:40:00.000Z', reason: 'Điều chỉnh' };
   expect(historyRow({ ...base, field: 'brackets', month: '2026-11', from: s.groups.tax.values.brackets, to: br }).change).toBe('bậc 2, thuế suất 10% → 12%');
   expect(historyRow({ ...base, field: 'zone', month: null, from: { lat: 10.7769, lng: 106.7009, radiusM: 150 }, to: { lat: 10.7769, lng: 106.7009, radiusM: 200 } }))

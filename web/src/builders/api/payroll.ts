@@ -146,6 +146,7 @@ export type PayslipDetailDTO = PayslipRecordDTO['details'] & HalfShiftPayDTO & {
   rates?: SlipRates; // như trên
   calendar?: { date: string; kind: 'work' | 'leave' | 'isat' | 'unpaid' | 'rest' | 'future' }[]; // như trên
   ot15Hours: number;
+  totalOtHours?: number;
   ot20Hours: number;
   ot30Hours: number;
   lateEarlyHours: number;
@@ -222,7 +223,7 @@ export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetail
     settlementPay: d.leaveSettlementPay,
     holiday: { days: d.holidayPaidDays, pay: d.holidayPay },
     allowances,
-    ot: { hours: [d.ot15Hours, d.ot20Hours, d.ot30Hours], pay: d.otPayTotal },
+    ot: { hours: [d.ot15Hours, d.ot20Hours, d.ot30Hours], total: d.totalOtHours ?? 0, pay: d.otPayTotal },
     late: { minutes: d.lateMinutes ?? 0, hours: d.lateEarlyHours, cut: line.lateCut },
     rates: d.rates ?? null,
     exempt: d.taxExemptIncome,

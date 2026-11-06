@@ -16,6 +16,7 @@ import { isPst, matchScope, useMineDepts, type StaffPst } from '@/components/sta
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import type { InboxItem } from '@/mock/inbox';
 import { getAttendance } from '@/services/admin-attendance';
 import { useRealtimeReload } from '@/composables/useRealtimeReload';
@@ -41,7 +42,7 @@ const period = usePeriodStore();
 const shell = useShellStore();
 
 // Lọc tên và nhóm do BE làm: đổi ?q hoặc ?pb thì tải lại.
-const { data, loading, reload } = useLoad(
+const { data, loading, error, reload } = useLoad(
   () => getAttendance(period.month, q.value, dept.value),
   () => `${period.month}|${shell.version}|${q.value}|${dept.value}`
 );
@@ -246,6 +247,8 @@ function onTabKey(event: KeyboardEvent) {
         <p v-if="data">{{ data.subtitle }}</p>
       </div>
     </div>
+
+    <PageLoadError v-if="error && !data" what="bảng chấm công" :error="error" @retry="reload" />
 
     <template v-if="data">
       <section class="tiles" aria-label="Chỉ số chấm công">

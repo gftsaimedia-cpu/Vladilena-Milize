@@ -20,3 +20,4 @@ export { EmployeeProfile, EmployeeProfileParams, EmployeeProfilePatch } from './
 export { EmployeeAccount, EmployeeAccountParams, EmployeeAccountPatch } from './employee-account';
 export { EmployeeContract, EmployeeContractParams } from './employee-contract';
 export { Employee, EmployeeParams, EmployeeDTO } from './employee';
+export * from './staff-summary';

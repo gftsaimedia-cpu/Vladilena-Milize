@@ -1,0 +1,441 @@
+{
+  "employees": [
+    {
+      "profile": {
+        "uuid": "00000000-0000-4000-8000-0000000000aa",
+        "familyName": "",
+        "givenName": "A",
+        "fullName": "A",
+        "birthday": null,
+        "dependants": 0
+      },
+      "account": {
+        "username": "a",
+        "roles": [
+          "staff"
+        ],
+        "primaryRole": "staff",
+        "isLocked": false,
+        "lockedAt": null,
+        "lockedBy": null,
+        "createdAt": "2026-01-01T00:00:00Z"
+      },
+      "contract": {
+        "position": {
+          "type": "nv",
+          "level": 1,
+          "jobTitle": null
+        },
+        "shift": {
+          "type": "NORMAL",
+          "startTime": "08:00",
+          "endTime": "17:00",
+          "allowancePct": 0,
+          "isOvernight": false
+        },
+        "leave": {
+          "totalDays": 0,
+          "usedDays": 0,
+          "remainingDays": 0
+        },
+        "status": "nv",
+        "term": "long",
+        "effectiveFrom": "2025-01-01",
+        "resignedOn": null,
+        "hasInsurance": null,
+        "isUnionMember": false,
+        "hasTax": true,
+        "canAdvance": true,
+        "isDormResident": false,
+        "departmentId": null,
+        "onLeaveFrom": null,
+        "onLeaveTo": null
+      },
+      "departmentId": null,
+      "departmentName": null,
+      "staffStatus": "working",
+      "work": {
+        "active": true,
+        "status": "ok",
+        "statusLabel": "Chính thức",
+        "joinedOn": "2025-01-01",
+        "tenure": "1 năm 10 tháng"
+      }
+    },
+    {
+      "profile": {
+        "uuid": "00000000-0000-4000-8000-0000000000aa",
+        "familyName": "",
+        "givenName": "B",
+        "fullName": "B",
+        "birthday": null,
+        "dependants": 0
+      },
+      "account": {
+        "username": "b",
+        "roles": [
+          "staff"
+        ],
+        "primaryRole": "staff",
+        "isLocked": false,
+        "lockedAt": null,
+        "lockedBy": null,
+        "createdAt": "2026-01-01T00:00:00Z"
+      },
+      "contract": {
+        "position": {
+          "type": "tts",
+          "level": 2,
+          "jobTitle": null
+        },
+        "shift": {
+          "type": "NORMAL",
+          "startTime": "08:00",
+          "endTime": "17:00",
+          "allowancePct": 0,
+          "isOvernight": false
+        },
+        "leave": {
+          "totalDays": 0,
+          "usedDays": 0,
+          "remainingDays": 0
+        },
+        "status": "tts",
+        "term": "short",
+        "effectiveFrom": "2026-11-02",
+        "resignedOn": null,
+        "hasInsurance": null,
+        "isUnionMember": false,
+        "hasTax": true,
+        "canAdvance": true,
+        "isDormResident": false,
+        "departmentId": null,
+        "onLeaveFrom": null,
+        "onLeaveTo": null
+      },
+      "departmentId": null,
+      "departmentName": null,
+      "staffStatus": "working",
+      "work": {
+        "active": true,
+        "status": "ok",
+        "statusLabel": "Chính thức",
+        "joinedOn": "2026-11-02",
+        "tenure": "4 ngày"
+      }
+    },
+    {
+      "profile": {
+        "uuid": "00000000-0000-4000-8000-0000000000aa",
+        "familyName": "",
+        "givenName": "Boss",
+        "fullName": "Boss",
+        "birthday": null,
+        "dependants": 0
+      },
+      "account": {
+        "username": "boss",
+        "roles": [
+          "admin"
+        ],
+        "primaryRole": "admin",
+        "isLocked": false,
+        "lockedAt": null,
+        "lockedBy": null,
+        "createdAt": "2026-01-01T00:00:00Z"
+      },
+      "contract": {
+        "position": {
+          "type": "nv",
+          "level": 1,
+          "jobTitle": null
+        },
+        "shift": {
+          "type": "NORMAL",
+          "startTime": "08:00",
+          "endTime": "17:00",
+          "allowancePct": 0,
+          "isOvernight": false
+        },
+        "leave": {
+          "totalDays": 0,
+          "usedDays": 0,
+          "remainingDays": 0
+        },
+        "status": "nv",
+        "term": "long",
+        "effectiveFrom": "2026-01-05",
+        "resignedOn": null,
+        "hasInsurance": null,
+        "isUnionMember": false,
+        "hasTax": true,
+        "canAdvance": true,
+        "isDormResident": false,
+        "departmentId": null,
+        "onLeaveFrom": null,
+        "onLeaveTo": null
+      },
+      "departmentId": null,
+      "departmentName": null,
+      "staffStatus": "working",
+      "work": {
+        "active": true,
+        "status": "ok",
+        "statusLabel": "Chính thức",
+        "joinedOn": "2026-01-05",
+        "tenure": "10 tháng"
+      }
+    },
+    {
+      "profile": {
+        "uuid": "00000000-0000-4000-8000-0000000000aa",
+        "familyName": "",
+        "givenName": "C",
+        "fullName": "C",
+        "birthday": null,
+        "dependants": 0
+      },
+      "account": {
+        "username": "c",
+        "roles": [
+          "staff"
+        ],
+        "primaryRole": "staff",
+        "isLocked": false,
+        "lockedAt": null,
+        "lockedBy": null,
+        "createdAt": "2026-01-01T00:00:00Z"
+      },
+      "contract": {
+        "position": {
+          "type": "ctv",
+          "level": 1,
+          "jobTitle": null
+        },
+        "shift": {
+          "type": "NORMAL",
+          "startTime": "08:00",
+          "endTime": "17:00",
+          "allowancePct": 0,
+          "isOvernight": false
+        },
+        "leave": {
+          "totalDays": 0,
+          "usedDays": 0,
+          "remainingDays": 0
+        },
+        "status": "nghiviec",
+        "term": "long",
+        "effectiveFrom": "2026-10-10",
+        "resignedOn": "2026-11-03",
+        "hasInsurance": null,
+        "isUnionMember": false,
+        "hasTax": true,
+        "canAdvance": true,
+        "isDormResident": false,
+        "departmentId": null,
+        "onLeaveFrom": null,
+        "onLeaveTo": null
+      },
+      "departmentId": null,
+      "departmentName": null,
+      "staffStatus": "resigned",
+      "work": {
+        "active": false,
+        "status": "out",
+        "statusLabel": "Đã nghỉ việc",
+        "joinedOn": "2026-10-10",
+        "tenure": ""
+      }
+    },
+    {
+      "profile": {
+        "uuid": "00000000-0000-4000-8000-0000000000aa",
+        "familyName": "",
+        "givenName": "D",
+        "fullName": "D",
+        "birthday": null,
+        "dependants": 0
+      },
+      "account": {
+        "username": "d",
+        "roles": [
+          "staff"
+        ],
+        "primaryRole": "staff",
+        "isLocked": true,
+        "lockedAt": "2026-11-01T00:00:00Z",
+        "lockedBy": null,
+        "createdAt": "2026-01-01T00:00:00Z"
+      },
+      "contract": {
+        "position": {
+          "type": "nv",
+          "level": 2,
+          "jobTitle": null
+        },
+        "shift": {
+          "type": "NORMAL",
+          "startTime": "08:00",
+          "endTime": "17:00",
+          "allowancePct": 0,
+          "isOvernight": false
+        },
+        "leave": {
+          "totalDays": 0,
+          "usedDays": 0,
+          "remainingDays": 0
+        },
+        "status": "thuviec",
+        "term": null,
+        "effectiveFrom": "2026-10-15",
+        "resignedOn": null,
+        "hasInsurance": null,
+        "isUnionMember": false,
+        "hasTax": true,
+        "canAdvance": true,
+        "isDormResident": false,
+        "departmentId": null,
+        "onLeaveFrom": null,
+        "onLeaveTo": null
+      },
+      "departmentId": null,
+      "departmentName": null,
+      "staffStatus": "probation",
+      "work": {
+        "active": true,
+        "status": "try",
+        "statusLabel": "Thử việc",
+        "joinedOn": "2026-10-15",
+        "tenure": "22 ngày"
+      }
+    },
+    {
+      "profile": {
+        "uuid": "00000000-0000-4000-8000-0000000000aa",
+        "familyName": "",
+        "givenName": "E",
+        "fullName": "E",
+        "birthday": null,
+        "dependants": 0
+      },
+      "account": {
+        "username": "e",
+        "roles": [
+          "staff"
+        ],
+        "primaryRole": "staff",
+        "isLocked": false,
+        "lockedAt": null,
+        "lockedBy": null,
+        "createdAt": "2026-01-01T00:00:00Z"
+      },
+      "contract": {
+        "position": {
+          "type": "nv",
+          "level": 1,
+          "jobTitle": null
+        },
+        "shift": {
+          "type": "NORMAL",
+          "startTime": "08:00",
+          "endTime": "17:00",
+          "allowancePct": 0,
+          "isOvernight": false
+        },
+        "leave": {
+          "totalDays": 0,
+          "usedDays": 0,
+          "remainingDays": 0
+        },
+        "status": "nv",
+        "term": "long",
+        "effectiveFrom": "2026-12-01",
+        "resignedOn": null,
+        "hasInsurance": null,
+        "isUnionMember": false,
+        "hasTax": true,
+        "canAdvance": true,
+        "isDormResident": false,
+        "departmentId": null,
+        "onLeaveFrom": null,
+        "onLeaveTo": null
+      },
+      "departmentId": null,
+      "departmentName": null,
+      "staffStatus": "working",
+      "work": {
+        "active": false,
+        "status": "ok",
+        "statusLabel": "Chính thức",
+        "joinedOn": "2026-12-01",
+        "tenure": ""
+      }
+    }
+  ],
+  "total": 6,
+  "summary": {
+    "month": "2026-11",
+    "asOf": "2026-11-06",
+    "prevMonth": "2026-10",
+    "compareYear": 2025,
+    "total": 6,
+    "active": {
+      "value": 4,
+      "prev": 4,
+      "delta": {
+        "dir": "up",
+        "value": 0
+      }
+    },
+    "joined": {
+      "value": 1,
+      "prev": 2,
+      "delta": {
+        "dir": "down",
+        "value": 1
+      }
+    },
+    "left": {
+      "value": 1,
+      "prev": 0,
+      "delta": {
+        "dir": "up",
+        "value": 1
+      }
+    },
+    "tenure": {
+      "value": 0.7,
+      "prev": 1,
+      "delta": {
+        "dir": "down",
+        "value": 0.3
+      }
+    },
+    "inactiveAccounts": 1,
+    "byType": {
+      "nv": 3,
+      "tts": 1
+    },
+    "byLevel": {
+      "nv": {
+        "1": 2,
+        "2": 1
+      },
+      "tts": {
+        "2": 1
+      }
+    },
+    "byTerm": {
+      "long": 2,
+      "short": 1,
+      "unset": 1
+    },
+    "byStatus": {
+      "ok": 3,
+      "try": 1,
+      "off": 0,
+      "out": 0
+    }
+  }
+}

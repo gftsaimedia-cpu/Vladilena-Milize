@@ -5,6 +5,7 @@
 import { ref, watch } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import { getAccounts, setAccountLocked, setAccountRole } from '@/services/admin-settings';
 import { initials } from '@/utils/format';
 import StaffFormDialog from '../staff/StaffFormDialog.vue';
@@ -17,7 +18,7 @@ import SelectBox from './fields/SelectBox.vue';
 const role = ref('all'); // khoá chip vai trò
 const q = ref('');
 const page = ref(1);
-const { data, reload } = useLoad(
+const { data, error, reload } = useLoad(
   () => getAccounts({ page: page.value, role: role.value, q: q.value }),
   () => [page.value, role.value, q.value]
 );
@@ -75,6 +76,7 @@ async function toggleLock(acc?) {
       </template>
     </template>
 
+    <PageLoadError v-if="error && !data" what="danh sách tài khoản" :error="error" @retry="reload" />
     <section v-if="data" class="card">
       <PermTabs active="tai-khoan" />
       <div class="tools" style="padding-top: 16px">

@@ -2,7 +2,9 @@
 // Thêm, Sửa hồ sơ và Cho nghỉ việc ghi thẳng vào các dòng giả (mất khi tải lại trang); người dùng thật không đi qua đây.
 import { dmy, initials, tenure } from '../utils/format';
 export { tenure };
+import { staffStatsFromSummary, type StaffSummaryDTO } from '../builders/api/staff-stats';
 import { MOCK_TODAY } from './clock';
+import { MOCK_HEADCOUNT } from './positions';
 
 export type StaffStatus = 'ok' | 'try' | 'off' | 'out';
 
@@ -84,12 +86,24 @@ const ROWS: StaffRow[] = PEOPLE.map(([id, name, code, email, activated, dept, ti
   joined
 }));
 
-const STATS: StaffStat[] = [
-  { key: 'active', label: 'Nhân sự đang làm', value: '128', unit: 'người', delta: { dir: 'up', text: '4' }, note: 'so với tháng 9', dark: true },
-  { key: 'joined', label: 'Vào làm tháng 10', value: '6', unit: 'người', delta: { dir: 'up', text: '2' }, note: 'so với tháng 9', dark: false },
-  { key: 'left', label: 'Nghỉ việc tháng 10', value: '2', unit: 'người', delta: { dir: 'down', text: '1' }, note: 'so với tháng 9', dark: false },
-  { key: 'tenure', label: 'Thâm niên trung bình', value: '3,2', unit: 'năm', delta: { dir: 'up', text: '0,3 năm' }, note: 'so với năm 2025', dark: false }
-];
+// Cùng dạng `summary` của GET /api/v2/employees (test hợp đồng web/tests/staff-contract.spec.ts); thẻ chỉ số dựng từ đây.
+const SUMMARY: StaffSummaryDTO = {
+  month: '2026-10',
+  asOf: '2026-10-26',
+  prevMonth: '2026-09',
+  compareYear: 2025,
+  total: 131,
+  active: { value: 128, prev: 124, delta: { dir: 'up', value: 4 } },
+  joined: { value: 6, prev: 4, delta: { dir: 'up', value: 2 } },
+  left: { value: 2, prev: 3, delta: { dir: 'down', value: 1 } },
+  tenure: { value: 3.2, prev: 2.9, delta: { dir: 'up', value: 0.3 } },
+  inactiveAccounts: 2,
+  byType: MOCK_HEADCOUNT,
+  byLevel: { nv: { '1': 5, '2': 7 }, ctv: { '1': 3 }, tts: { '1': 4 } },
+  byTerm: { long: 15, short: 2, unset: 2 },
+  byStatus: { ok: 17, try: 2, off: 0, out: 0 }
+};
+const STATS: StaffStat[] = staffStatsFromSummary(SUMMARY);
 
 const HC = 'Hành chính · 08:00–17:00';
 const FIXED = 'HĐLĐ từ 3 tháng';
@@ -110,6 +124,47 @@ const NO_JOB: [string, string, string, string, string, string] = [NONE, NONE, NO
 const NOTES: Record<string, { title: string; text: string }> = {
   'hoang-thi-mai': { title: 'Nghỉ thai sản', text: '15/09/2026 – 15/03/2027 · đi làm lại 16/03/2027' }
 };
+
+/** Phản hồi giả của GET /api/v2/employees (đúng khoá của BE) cho 10 hồ sơ trang đầu. */
+export function staffListDto() {
+  return {
+    employees: ROWS.map(r => ({
+      profile: { uuid: `u-${r.id}`, familyName: '', givenName: '', fullName: r.name, birthday: null, dependants: 0 },
+      account: {
+        username: r.id,
+        roles: ['staff'],
+        primaryRole: 'staff',
+        isLocked: !r.activated,
+        lockedAt: null,
+        lockedBy: null,
+        createdAt: '2026-01-01T00:00:00Z'
+      },
+      contract: {
+        position: { type: 'nv', level: 2, jobTitle: r.title },
+        shift: { type: 'NORMAL', startTime: '08:00', endTime: '17:00', allowancePct: 0, isOvernight: false },
+        leave: { totalDays: 12, usedDays: 0, remainingDays: 12 },
+        status: 'nv',
+        term: 'long' as 'long' | 'short' | null,
+        effectiveFrom: r.joined,
+        resignedOn: null as string | null,
+        hasInsurance: null as boolean | null,
+        isUnionMember: false,
+        hasTax: true,
+        canAdvance: true,
+        isDormResident: false,
+        departmentId: null as number | null,
+        onLeaveFrom: null as string | null,
+        onLeaveTo: null as string | null
+      },
+      departmentId: null as number | null,
+      departmentName: r.dept === '—' ? null : (r.dept as string | null),
+      staffStatus: ({ ok: 'working', try: 'probation', off: 'on_leave', out: 'resigned' } as const)[r.status],
+      work: { active: r.status !== 'out', status: r.status, statusLabel: r.statusLabel, joinedOn: r.joined, tenure: '' }
+    })),
+    total: SUMMARY.total,
+    summary: SUMMARY
+  };
+}
 
 export function staffListView(): StaffListView {
   return { stats: STATS, total: 121 + ROWS.length, rows: ROWS };

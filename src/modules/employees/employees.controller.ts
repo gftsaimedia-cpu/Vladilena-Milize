@@ -38,13 +38,23 @@ export class EmployeesController {
     @Query('status') status?: string,
     @Query('q') q?: string,
     @Query('staffStatus') staffStatus?: string,
-    @Query('departmentId') departmentId?: string
+    @Query('departmentId') departmentId?: string,
+    @Query('month') month?: string
   ): Promise<unknown> {
+    if (month !== undefined && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
+    }
     // Có bộ lọc chung (staffStatus, departmentId) thì q đi theo cách tìm không dấu của bộ lọc chung.
     const common = staffStatus !== undefined || departmentId !== undefined;
     const staff = common ? staffFilterFromQuery({ staffStatus, departmentId, q }) : undefined;
     const employees = await this.service.list({ shiftType, status, q: common ? undefined : q, staff });
-    return { employees: await this.service.views(employees) };
+    const views = await this.service.views(employees);
+    // `work` và `summary` do BE tính theo tháng `month` (mặc định tháng này); `summary` luôn tính trên toàn bộ hồ sơ.
+    return {
+      employees: views.map((v, i) => ({ ...v, work: this.service.workOf(employees[i], month) })),
+      total: employees.length,
+      summary: await this.service.summary(month)
+    };
   }
 
   @RequireCap('staff.manage')
@@ -78,7 +88,7 @@ export class EmployeesController {
     if (!employee) {
       throw new NotFoundError('Không tìm thấy nhân viên', { code: 'EMPLOYEE_NOT_FOUND' });
     }
-    return { employee: (await this.service.views([employee]))[0] };
+    return { employee: { ...(await this.service.views([employee]))[0], work: this.service.workOf(employee) } };
   }
 
   @RequireCap('staff.manage')

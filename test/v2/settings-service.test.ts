@@ -330,6 +330,8 @@ describe('settings service: per-person work week and attendance zone', () => {
       from: null,
       typeWeekdays: [1, 2, 3, 4, 5, 6],
       typeStandardWorkdays: 26,
+      upcoming: null,
+      standardByDays: { 1: 4, 2: 9, 3: 13, 4: 17, 5: 22, 6: 26 },
       stamp: 0
     });
     assert.deepEqual(await svc.saveWorkWeek('nv-binh', { effectiveMonth: '2026-12', weekdays: [5, 4, 3, 2, 1], reason: null, stamp: 0 }, 'admin', NOW), {

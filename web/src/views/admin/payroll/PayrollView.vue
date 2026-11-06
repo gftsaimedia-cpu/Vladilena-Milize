@@ -12,6 +12,7 @@ import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import type { KpiPart } from '@/mock/payroll-calc';
 import type { PayrollLine, PayrollScreen, PayrollStatus, Payslip } from '@/mock/payroll';
 import { personStatusOf } from '@/mock/people-status';
@@ -27,7 +28,7 @@ import PayslipDrawer from './payslip/PayslipDrawer.vue';
 
 const period = usePeriodStore();
 const route = useRoute();
-const { data: loaded, reload } = useLoad(
+const { data: loaded, error: loadError, reload } = useLoad(
   () => getPayroll(period.month),
   () => period.month
 );
@@ -238,6 +239,7 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
 </script>
 
 <template>
+  <PageLoadError v-if="loadError && !data" what="bảng lương" :error="loadError" @retry="reload" />
   <div v-if="data">
     <div class="title">
       <div>

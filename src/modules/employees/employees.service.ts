@@ -25,6 +25,11 @@ import {
   ShiftType,
   Leave,
   ContractStatus,
+  StaffSummary,
+  WorkInfo,
+  asOfFor,
+  summarizeStaff,
+  workOf,
 } from './domain';
 
 const SALT_BYTES = 16;
@@ -168,6 +173,24 @@ export class EmployeesService {
       }
       return true;
     });
+  }
+
+  /** Hôm nay theo giờ Việt Nam. */
+  today(): string {
+    return businessDateText(this.now());
+  }
+
+  /** Số liệu làm việc của một người ở ngày tính của tháng `month` (mặc định: hôm nay). */
+  workOf(employee: Employee, month?: string): WorkInfo {
+    const today = this.today();
+    return workOf(employee.toDTO(), asOfFor(month ?? today.slice(0, 7), today), today);
+  }
+
+  /** Tóm tắt toàn bộ nhân sự (không theo bộ lọc) cho tháng `month` (mặc định: tháng này). */
+  async summary(month?: string): Promise<StaffSummary> {
+    const today = this.today();
+    const all = await this.repo.findAll();
+    return summarizeStaff(all.map(e => e.toDTO()), month ?? today.slice(0, 7), today);
   }
 
   async findByUsernameOrUuid(id: string): Promise<Employee | null> {

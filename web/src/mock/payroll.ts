@@ -45,7 +45,7 @@ export type Payslip = Omit<SlipInput, 'allowances'> & {
   calendar: DayKind[];
   pendingDates: string[];
   allowances: { label: string; rule: number; actual: number }[];
-  ot: { hours: [number, number, number]; pay: number };
+  ot: { hours: [number, number, number]; /** Tổng giờ làm thêm (BE totalOtHours). */ total: number; pay: number };
   // minutes: tổng phút đi muộn quá ân hạn (BE chỉ ghi phút quá ân hạn); hours, cut: giờ và tiền bị trừ.
   late: { minutes: number; hours: number; cut: number };
   rates: SlipRates | null;
@@ -331,7 +331,7 @@ function buildSlip(r: Raw): Payslip {
     leavePay: r.leavePay,
     isatPay: r.isatPay,
     allowances: r.allowances.map(([rule, actual], i) => ({ label: ALLOWANCE_LABELS[i], rule, actual })),
-    ot: { hours: [...r.otHours], pay: r.otPay },
+    ot: { hours: [...r.otHours], total: r.otHours.reduce((a, b) => a + b, 0), pay: r.otPay },
     // Như BE: chỉ phút muộn quá ân hạn được ghi.
     late: {
       minutes: r.lateMinutes.filter(m => m > MOCK_GRACE).reduce((a, b) => a + b, 0),

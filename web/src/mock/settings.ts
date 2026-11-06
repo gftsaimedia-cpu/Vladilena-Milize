@@ -299,6 +299,15 @@ function weekStore(username: string): Store {
 
 const standardOf = (weekdays: number[]) => Math.round((weekdays.length * 52) / 12);
 
+// Như BE (getWorkWeek): phiên bản mới nhất sau `month`, chỉ khi khác tuần đang áp dụng (tuần riêng hoặc null = theo loại).
+function upcomingOf(store: Store, month: string, now: number[] | null): WorkWeek['upcoming'] {
+  const later = [...store.chain].reverse().find(v => v.month > month);
+  if (!later) return null;
+  const days: number[] | null = later.values.weekdays;
+  if (JSON.stringify(days) === JSON.stringify(now)) return null;
+  return { month: later.month, weekdays: days ? [...days] : null, standardWorkdays: days ? standardOf(days) : null };
+}
+
 export function workWeekOf(username: string, month: string = MOCK_MONTH): WorkWeek {
   const store = weekStore(username);
   const ver = versionAt(store.chain, month);
@@ -313,6 +322,8 @@ export function workWeekOf(username: string, month: string = MOCK_MONTH): WorkWe
     standardWorkdays: own ? standardOf(own) : TYPE_STANDARD_WORKDAYS,
     typeWeekdays: [...TYPE_WEEKDAYS],
     typeStandardWorkdays: TYPE_STANDARD_WORKDAYS,
+    upcoming: upcomingOf(store, month, own),
+    standardByDays: Object.fromEntries([1, 2, 3, 4, 5, 6].map(n => [n, standardOf(Array.from({ length: n }))])),
     stamp: stampOf(store.history),
   };
 }

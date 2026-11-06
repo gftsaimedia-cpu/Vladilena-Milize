@@ -4,7 +4,7 @@
 import { computed, ref } from 'vue';
 import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
-import { standardWorkdays, weekdaysText, type WorkWeek } from '@/builders/api/settings';
+import { weekdaysText, type WorkWeek } from '@/builders/api/settings';
 import { isStale, saveWorkWeek, STALE_TEXT } from '@/services/settings-store';
 import SelectBox from '../../settings/fields/SelectBox.vue';
 import TextBox from '../../settings/fields/TextBox.vue';
@@ -24,7 +24,7 @@ const saving = ref(false);
 
 const months = computed(() => monthOptions(props.week.minMonth, 6));
 const picked = computed(() => [...ticked.value].sort((a, b) => a - b));
-const workdays = computed(() => (mode.value === 'own' ? standardWorkdays(picked.value.length) : props.week.typeStandardWorkdays));
+const workdays = computed(() => (mode.value === 'own' ? props.week.standardByDays[String(picked.value.length)] ?? 0 : props.week.typeStandardWorkdays));
 const noDay = computed(() => mode.value === 'own' && !picked.value.length);
 // Chỉ đổi tháng không tính là thay đổi: so cách đặt và các ngày với tuần đã tải.
 const unchanged = computed(() => {

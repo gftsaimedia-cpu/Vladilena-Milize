@@ -14,6 +14,8 @@ function controller(over: Record<string, unknown> = {}) {
     assignDepartment: async (...a: unknown[]) => (calls.push(['dept', ...a]), { done: [], failed: [] }),
     list: async (f: unknown) => (calls.push(['list', f]), []),
     views: async (x: unknown[]) => x,
+    workOf: () => ({}),
+    summary: async () => ({}),
     ...over
   };
   return { ctrl: new EmployeesController(service as any), calls };

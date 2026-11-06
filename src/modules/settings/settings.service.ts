@@ -9,7 +9,7 @@ import { TransactionCoordinator } from '../../database/transaction';
 import { AuditLog } from '../audit/audit-log';
 import { validateZone, type Zone } from './domain/attendance-zone';
 import { payDateOf } from './domain/pay-days';
-import { validateWeekdays } from './domain/work-week';
+import { standardWorkdaysForWeek, validateWeekdays } from './domain/work-week';
 import { minMonthFrom } from './domain/min-month';
 import {
   decodeValues,
@@ -212,7 +212,7 @@ export class SettingsService {
     username: unknown,
     month: unknown,
     now: Date = new Date()
-  ): Promise<{ username: string; month: string; minMonth: string } & WorkWeek & { stamp: number }> {
+  ): Promise<{ username: string; month: string; minMonth: string } & WorkWeek & { upcoming: { month: string; weekdays: number[] | null; standardWorkdays: number | null } | null; standardByDays: Record<string, number>; stamp: number }> {
     const at = month === undefined ? businessMonthText(now) : parseMonth(month, 'month');
     if (at < SEED_MONTH) throw new SettingsInputError(`Tháng phải từ ${monthText(SEED_MONTH)} trở đi`, 'month');
     const q = this.repo.db;
@@ -221,7 +221,16 @@ export class SettingsService {
     // Đọc stamp trước chuỗi, cùng lý do như getAll.
     const stamp = await this.repo.stampOf(q, WORK_WEEK, staff.uuid);
     const week = await this.reader.workWeekOf(staff.uuid, at, q);
-    return { username: staff.username, month: at, minMonth, ...week, stamp };
+    // Tuần đổi từ một tháng sau tháng đang xem (phiên bản mới nhất của chuỗi): BE tính sẵn công chuẩn, FE chỉ hiện.
+    const chain = await this.repo.workWeekChain(q, staff.uuid);
+    const later = [...chain].reverse().find(v => v.month > at);
+    const laterDays = later && later.values.weekdays !== null ? (JSON.parse(String(later.values.weekdays)) as number[]) : null;
+    const current = week.source === 'own' ? week.weekdays : null;
+    const differs = !!later && JSON.stringify(laterDays) !== JSON.stringify(current);
+    const upcoming = later && differs ? { month: later.month, weekdays: laterDays, standardWorkdays: laterDays ? standardWorkdaysForWeek(laterDays.length) : null } : null;
+    // Bảng công chuẩn theo số ngày làm trong tuần (1..6) để form Sửa tuần hiện ngay khi tick ngày, không tự tính ở FE.
+    const standardByDays = Object.fromEntries([1, 2, 3, 4, 5, 6].map(n => [n, standardWorkdaysForWeek(n)]));
+    return { username: staff.username, month: at, minMonth, ...week, upcoming, standardByDays, stamp };
   }
 
   async saveWorkWeek(

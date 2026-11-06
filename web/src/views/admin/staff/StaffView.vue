@@ -4,6 +4,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import ResultLine from '@/components/select-mode/ResultLine.vue';
 import SelectBar from '@/components/select-mode/SelectBar.vue';
 import { useSelectMode } from '@/components/select-mode/useSelectMode';
@@ -22,7 +23,7 @@ import { filterStaff, isFiltered } from './staffFilter';
 
 const route = useRoute();
 const router = useRouter();
-const { data, reload } = useLoad(() => getStaffList());
+const { data, error, reload } = useLoad(() => getStaffList());
 
 // Hộp Thêm nhân sự ở ?hop=them-nhan-su; tạo xong thì đóng, báo và tải lại danh sách.
 const { hop, open: openHop, close: closeHop } = useHop(['them-nhan-su']);
@@ -144,6 +145,8 @@ const footer = computed(() =>
         <button type="button" class="btn pri" @click="openHop('them-nhan-su')"><Icon name="plus" />Thêm nhân sự</button>
       </div>
     </div>
+
+    <PageLoadError v-if="error && !data" what="danh sách nhân sự" :error="error" @retry="reload" />
 
     <template v-if="data">
       <StaffStats :stats="data.stats" />

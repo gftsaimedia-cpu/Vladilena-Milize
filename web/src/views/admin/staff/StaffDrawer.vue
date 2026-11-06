@@ -11,7 +11,7 @@ import { lockScroll, registerOverlayFocus, unlockScroll } from '@/components/ui/
 import { useLoad } from '@/composables/useLoad';
 import { workWeekLine } from '@/builders/api/settings';
 import { getStaffProfile } from '@/services/admin-hr';
-import { getWorkWeek, getWorkWeekHistory } from '@/services/settings-store';
+import { getWorkWeek } from '@/services/settings-store';
 import StaffEndDialog from './StaffEndDialog.vue';
 import StaffFormDialog from './StaffFormDialog.vue';
 import StatusPill from './parts/StatusPill.vue';
@@ -27,20 +27,17 @@ const profile = computed(() => (data.value && data.value.id === props.id ? data.
 // "NV · Bậc 2" lấy từ dòng Loại · bậc của hồ sơ, để hộp Tuần làm việc ghi dưới tên.
 const levelText = computed(() => profile.value?.groups.flatMap(g => g.facts).find(f => f.label === 'Loại · bậc')?.value ?? '');
 
-// Tuần làm việc: tuần đang hiệu lực ở tháng đầu và lịch sử để biết có tuần đổi từ tháng sau.
+// Tuần làm việc: tuần đang hiệu lực kèm tuần sắp đổi (BE quyết).
 // week null: loại nhân sự của người này không có tuần làm (404 WORK_WEEK_NOT_FOUND), cả dòng Tuần làm việc ẩn đi.
 const { data: weekRaw, reload: reloadWeek } = useLoad(async () => {
   const id = props.id;
-  const [week, history] = await Promise.all([getWorkWeek(id), getWorkWeekHistory(id)]);
-  return { id, week, history: history.items };
+  return { id, week: await getWorkWeek(id) };
 }, () => props.id);
 const weekData = computed(() => (weekRaw.value && weekRaw.value.id === props.id ? weekRaw.value : null));
 const weekLine = computed(() => {
   const d = weekData.value;
   if (!d || !d.week) return '';
-  // Dòng lịch sử mới nhất (danh sách đã xếp mới trước) đổi tuần từ một tháng sau tháng đang xem.
-  const next = d.history.find(h => h.field === 'weekdays' && h.month && h.month > d.week.month);
-  return workWeekLine(d.week, next ? { month: next.month as string, weekdays: next.to } : null);
+  return workWeekLine(d.week);
 });
 const editingWeek = ref(false);
 // Sửa hồ sơ và Cho nghỉ việc: người đã nghỉ việc không còn hai nút này.
