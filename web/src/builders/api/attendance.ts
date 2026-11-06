@@ -3,7 +3,7 @@
 // view, không cộng trừ, không suy ô, không lọc hay sắp xếp. Chữ đầu/phụ/dòng chi tiết của việc lấy từ /requests (inbox) theo id.
 import type { PersonStatus } from '../../components/staff-scope/staffScope';
 import type { InboxGroup, InboxItem } from '../../mock/inbox';
-import { dm, dmy, weekdayName } from '../../utils/format';
+import { dm, dmy, num, weekdayName } from '../../utils/format';
 
 export type CellKind = 'work' | 'late' | 'leave' | 'absent' | 'todo' | 'off' | 'fu' | 'nocheck';
 export type GroupKey = 'work' | 'late' | 'leave' | 'absent' | 'todo';
@@ -27,6 +27,8 @@ export type DayCellDTO = {
   itemId: string | null;
   label: string;
   aria: string;
+  /** Ngày nghỉ giữa ca (BE): nửa nhân viên làm. */
+  halfShift?: 'FIRST' | 'SECOND' | null;
 };
 
 export type PersonDTO = {
@@ -90,6 +92,8 @@ export type DayHistoryDTO = {
   in: string | null;
   out: string | null;
   itemId: string | null;
+  /** Ngày nghỉ giữa ca: `shift` là nửa ca làm. */
+  halfShift?: 'FIRST' | 'SECOND' | null;
 };
 export type EmployeeMonthDTO = {
   person: PersonDTO;
@@ -141,6 +145,8 @@ export type AttendanceRow = {
   ps?: PersonStatus;
   cells: Cell[];
   totals: { workDays: number; lateMinutes: number; otHours: number };
+  /** Ngày công để hiện (có thể lẻ: "12,5"). */
+  workText: string;
   needsAction: number;
 };
 export type Tile = { key: TileDTO['key']; label: string; value: string; note: string };
@@ -198,7 +204,11 @@ const NONE = '—';
 // ---- Ánh xạ ----
 
 /** "12 ngày" / "26 ngày" ... chữ đơn vị đi sau số của thẻ. */
-const numText = (value: number, of?: number, unit?: string) => (of !== undefined ? `${value} / ${of}` : unit ? `${value} ${unit}` : String(value));
+// Số có thể lẻ (ngày công 12,5): viết dấu phẩy kiểu Việt Nam.
+const numText = (value: number, of?: number, unit?: string) =>
+  of !== undefined ? `${num(value)} / ${num(of)}` : unit ? `${num(value)} ${unit}` : num(value);
+/** Ca của một ngày; ngày nghỉ giữa ca ghi "Nửa ca" trước nửa ca làm. */
+const shiftOf = (shift: string, half?: string | null) => (half ? `Nửa ca ${shift}` : shift);
 
 const cellFrom = (c: DayCellDTO): Cell => ({
   date: c.date,
@@ -210,7 +220,7 @@ const cellFrom = (c: DayCellDTO): Cell => ({
   live: c.live,
   itemId: c.itemId,
   label: c.label,
-  aria: c.aria
+  aria: c.halfShift ? `${c.aria}, nửa ca` : c.aria
 });
 
 const personRef = (p: { username: string; name: string; initials: string }): PersonRef => ({ id: p.username, name: p.name, initials: p.initials });
@@ -266,6 +276,7 @@ export function attendanceFromWeek(dto: WeekDTO, inbox: InboxItem[]): Attendance
       ps: r.staffStatus,
       cells: r.days.map(cellFrom),
       totals: r.totals,
+      workText: num(r.totals.workDays),
       needsAction: r.needsAction
     })),
     // Việc chờ không mang phòng ban / trạng thái riêng: lấy theo dòng của cùng người (BE trả việc của đúng những người đã lọc).
@@ -293,7 +304,7 @@ export function employeeFromDto(dto: EmployeeMonthDTO): EmployeeView {
     dayLabel: h.dayLabel,
     kind: h.kind,
     range: h.text,
-    sub: h.shift,
+    sub: shiftOf(h.shift, h.halfShift),
     status: h.status,
     tone: h.tone as HistoryRow['tone'],
     inText: h.in ?? NONE,
@@ -311,7 +322,7 @@ export function employeeFromDto(dto: EmployeeMonthDTO): EmployeeView {
     nextId: dto.next,
     data: {
       pending: dto.pending ? { count: dto.pending.count, date: dto.pending.date, text: dto.pending.text } : null,
-      stats: dto.stats.map(s => ({ label: s.label, value: s.unit ? `${s.value} ${s.unit}` : String(s.value), note: s.note })),
+      stats: dto.stats.map(s => ({ label: s.label, value: numText(s.value, undefined, s.unit), note: s.note })),
       chips: dto.chips,
       strip,
       history,
@@ -329,7 +340,7 @@ export function dayDetailFromDto(dto: EmployeeMonthDTO, date: string, inbox: Inb
     person: personRef(dto.person),
     date,
     title: `${dto.person.name} · ${weekdayName(date)} ${dmy(date)}`,
-    sub: `${dto.person.group} · ${dto.person.title || NONE} · Ca ${hist?.shift ?? dto.person.shiftText}`,
+    sub: `${dto.person.group} · ${dto.person.title || NONE} · ${hist?.halfShift ? shiftOf(hist.shift, hist.halfShift) : `Ca ${hist?.shift ?? dto.person.shiftText}`}`,
     cell: cellFrom(cell),
     item: (cell.itemId && inbox.find(i => i.id === cell.itemId)) || null
   };

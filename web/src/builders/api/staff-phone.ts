@@ -16,12 +16,22 @@ import type {
   RequestStep,
   RequestsView
 } from '../../mock/staff-phone';
-import { dmy, initials, vnd } from '../../utils/format';
+import { dmy, initials, num, vnd } from '../../utils/format';
 import type { RequestDTO } from './inbox';
 import type { Zone } from './settings';
 
 export type MeLeave = 'paid' | 'unpaid' | 'holiday';
-export type MeDay = { date: string; kind: CellKind; leave?: MeLeave; in: string | null; out: string | null; lateMinutes: number };
+// halfShift: ngày nghỉ giữa ca (BE), nửa nhân viên làm; khi có thì `shift` của ngày là nửa ca làm.
+export type MeHalfShift = 'FIRST' | 'SECOND';
+export type MeDay = {
+  date: string;
+  kind: CellKind;
+  leave?: MeLeave;
+  in: string | null;
+  out: string | null;
+  lateMinutes: number;
+  halfShift?: MeHalfShift | null;
+};
 // Các tháng được xem: từ tháng vào làm tới tháng hiện tại (BE quyết).
 export type MeRange = { from: string; to: string };
 export type MeMonth = {
@@ -34,6 +44,7 @@ export type MeMonth = {
 export type MeToday = {
   date: string;
   shift: { type: string; start: string; end: string } | null;
+  halfShift?: MeHalfShift | null; // hôm nay nghỉ giữa ca: `shift` là nửa ca làm
   punches: { in: string | null; out: string | null };
   workedMinutes: number;
   week: MeDay[];
@@ -116,7 +127,8 @@ const hoursOf = (min: number) => String(Math.round((min / 60) * 10) / 10).replac
 function cellOf(d: MeDay, today: string, padDay: boolean): CalendarCell {
   const isToday = d.date === today;
   const live = isToday && !!d.in && !d.out;
-  const text = live ? 'đang làm' : d.kind === 'leave' && d.leave ? lower(LEAVE_KIND[d.leave]) : KIND_TEXT[d.kind];
+  const base = live ? 'đang làm' : d.kind === 'leave' && d.leave ? lower(LEAVE_KIND[d.leave]) : KIND_TEXT[d.kind];
+  const text = d.halfShift ? `${base} · nửa ca` : base;
   const dow = dowOf(d.date);
   return {
     date: d.date,
@@ -267,7 +279,8 @@ export function attendanceViewOf(m: MeMonth, shiftLine: string, today: string, r
     state: m.periodState === 'locked' ? 'Kỳ công đã chốt' : 'Kỳ công đang mở',
     shiftLine: `Ca ${shiftLine} · thứ Hai – thứ Bảy`,
     tiles: [
-      { value: String(m.totals.workDays), of: String(m.totals.standardDays), label: 'Ngày công' },
+      // Ngày công có thể lẻ (nửa ca = 0,5 công): viết "12,5".
+      { value: num(m.totals.workDays), of: num(m.totals.standardDays), label: 'Ngày công' },
       { value: String(m.totals.lateCount), of: null, label: 'Lần đi muộn' },
       { value: String(m.totals.paidLeaveDays), of: null, label: 'Ngày nghỉ có lương' }
     ],
@@ -293,7 +306,7 @@ export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } |
   return {
     date: d.date,
     title: `${DOW_LONG[dowOf(d.date)]} ${dmy(d.date)}`,
-    shiftLine: `Ca ${shift.start}–${shift.end}`,
+    shiftLine: `${d.halfShift ? 'Nửa ca' : 'Ca'} ${shift.start}–${shift.end}`,
     kind,
     today: d.date === today,
     statusText: d.date === today && d.in && !d.out ? 'Đang làm' : statusOf(d),
@@ -330,7 +343,7 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
     initials: initials(profile.name),
     weekday: DOW_LONG[dowOf(t.date)],
     date: dmy(t.date),
-    shiftLabel: `Ca ${profile.shift.type === 'NORMAL' ? 'HC' : profile.shift.type} · ${start}–${end}`,
+    shiftLabel: t.halfShift ? `Nửa ca · ${start}–${end}` : `Ca ${profile.shift.type === 'NORMAL' ? 'HC' : profile.shift.type} · ${start}–${end}`,
     shiftStart: start,
     shiftEnd: end,
     now,

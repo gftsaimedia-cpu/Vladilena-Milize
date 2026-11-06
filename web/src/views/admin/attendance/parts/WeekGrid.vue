@@ -146,7 +146,7 @@ const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ?
               <span v-if="row.cells[i].live" class="dot" aria-hidden="true" />{{ cellText(row.cells[i]) }}
             </button>
           </td>
-          <td class="sm s1">{{ row.totals.workDays }}</td>
+          <td class="sm s1">{{ row.workText }}</td>
           <td class="sm s2">{{ row.totals.lateMinutes }}</td>
           <td class="sm s3">{{ row.totals.otHours }}</td>
         </tr>
