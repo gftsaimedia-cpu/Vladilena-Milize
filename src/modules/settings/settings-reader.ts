@@ -6,7 +6,7 @@ import type { DB } from '../../database/schema';
 import type { Zone } from './domain/attendance-zone';
 import { decodeValues, GROUP_KEYS, SETTING_GROUPS, type Bracket } from './domain/setting-groups';
 import { standardWorkdaysForWeek } from './domain/work-week';
-import { TypeWeekMissingError } from './settings.errors';
+import { SettingsMissingError, TypeWeekMissingError } from './settings.errors';
 import { SettingsRepository } from './settings.repository';
 
 type Q = Kysely<DB>;
@@ -48,7 +48,7 @@ export class SettingsReader {
     for (const g of GROUP_KEYS) {
       const chain = await this.repo.groupChain(q, g);
       const version = versionAt(chain, month);
-      if (!version) throw new Error(`Không có cài đặt ${g} nào có hiệu lực ở tháng ${month}`);
+      if (!version) throw new SettingsMissingError(g, month);
       out[SETTING_GROUPS[g].responseKey] = decodeValues(g, version.values);
     }
     return out as unknown as SettingsSnapshot;

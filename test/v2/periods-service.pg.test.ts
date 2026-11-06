@@ -116,6 +116,23 @@ test('unlock with a reason over 1000 characters is a 400, a trimmed 1000 is fine
   });
 });
 
+// Nhật ký từ chối ký tự NUL (PG không lưu được); trước đây lỗi đó thành 500 sau khi giao dịch đã mở.
+test('unlock with a NUL character in the reason is a 400 REASON_INVALID and changes nothing', async t => {
+  await withTempDb(t, 'periods_svc', async (db, client) => {
+    const { service } = build(db, '2026-11-01T08:00:00+07:00');
+    await service.lock('2026-10', 'admin');
+
+    await assert.rejects(service.unlock('2026-10', 'admin', 'Chấm thay\u0000 cho Châu'), (e: any) => {
+      assert.equal(e.status, 400);
+      assert.deepEqual(e.details, { code: 'REASON_INVALID' });
+      assert.equal(e.message, 'Lý do chứa ký tự không hợp lệ');
+      return true;
+    });
+    assert.equal((await service.snapshot('2026-10')).status, 'attendance_locked');
+    assert.equal((await auditRows(client)).length, 1);
+  });
+});
+
 test('view of an open month before its end has no actions and the default payday', async t => {
   await withTempDb(t, 'periods_svc', async db => {
     const { service } = build(db, '2026-11-05T09:00:00+07:00');

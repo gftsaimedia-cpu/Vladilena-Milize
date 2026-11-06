@@ -2,7 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { businessDateText } from '../../common/business-date';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import { AuditLog } from '../audit';
-import { payDateOf, SettingsReader } from '../settings';
+import { payDateOf, SettingsMissingError, SettingsReader } from '../settings';
 import {
   approveReason,
   availableActions,
@@ -16,8 +16,10 @@ import {
 import {
   BeforePaydayError,
   MonthNotEndedError,
+  NoSettingsError,
   PeriodBlockedError,
   PeriodStateError,
+  ReasonInvalidError,
   ReasonRequiredError,
   ReasonTooLongError,
 } from './periods.errors';
@@ -31,6 +33,8 @@ function requireReason(reason: unknown): string {
   const text = typeof reason === 'string' ? reason.trim() : '';
   if (text === '') throw new ReasonRequiredError();
   if (text.length > REASON_MAX) throw new ReasonTooLongError(REASON_MAX);
+  // Nhật ký (và PG) không nhận ký tự NUL: từ chối ở đây thành 400, không để thành 500 trong giao dịch.
+  if (text.includes('\u0000')) throw new ReasonInvalidError();
   return text;
 }
 
@@ -71,8 +75,14 @@ export class PeriodsService {
    */
   async paydayFor(month: string, trx?: DatabaseTransaction): Promise<string> {
     if (!this.settings) return paydayOf(month);
-    const { payCalendar } = await this.settings.settingsFor(month, trx);
-    return payDateOf(month, payCalendar.payDay);
+    try {
+      const { payCalendar } = await this.settings.settingsFor(month, trx);
+      return payDateOf(month, payCalendar.payDay);
+    } catch (err) {
+      // Tháng trước phiên bản cài đặt đầu tiên: 400 NO_SETTINGS (lỗi khác, như lỗi DB, ném lại nguyên vẹn).
+      if (err instanceof SettingsMissingError) throw new NoSettingsError(month);
+      throw err;
+    }
   }
 
   /** Mọi kỳ đã có dòng, tháng mới nhất trước. */

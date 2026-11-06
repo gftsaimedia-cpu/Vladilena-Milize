@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Inject, Param, Query, Body, UseFilters } from '@nestjs/common';
-import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, RequireCap } from '../../common';
+import { ApiExceptionFilter, BadRequestError, CurrentUser, HttpError, NotFoundError, RequireCap, type UserSession } from '../../common';
+import { AuditEntryError } from '../audit';
 import { PunchRefusedError } from './attendance.errors';
 import { AttendanceService, RecordPunchInput } from './attendance.service';
 
@@ -19,12 +20,15 @@ export class AttendanceController {
 
   @RequireCap('attendance.correct')
   @Post('punches')
-  async recordPunch(@Body() body: RecordPunchInput): Promise<unknown> {
+  async recordPunch(@Body() body: RecordPunchInput, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
-      const result = await this.service.recordPunch(body);
+      // Admin chấm hộ: người đăng nhập là người thao tác của nhật ký punch.correct.
+      const result = await this.service.recordPunch(body, { actor: user?.username });
       return result;
     } catch (err: any) {
       if (err instanceof HttpError) throw err;
+      // Lỗi dựng dòng nhật ký là lỗi lập trình: để bộ lọc trả 500, không đổi thành 400.
+      if (err instanceof AuditEntryError) throw err;
       if (err instanceof PunchRefusedError) throw new BadRequestError(err.message, { code: err.code, ...err.details });
       throw new BadRequestError(err.message, { code: 'BAD_PUNCH_INPUT' });
     }

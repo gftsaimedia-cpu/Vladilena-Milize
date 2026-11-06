@@ -495,10 +495,11 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
     "matched": 3
   }
   ```
+  - `days[]` (cột tiêu đề): `iso`, `dow`, `dm`, `today`, `monday`, `periodStart`, `scheduled`. `scheduled` = có ít nhất một người đang hiện trong `rows` (sau lọc `q` / `group`) mà tuần làm ở tháng của ngày đó có thứ đó (kho cài đặt: tuần riêng, không có thì tuần của loại nhân sự); lọc không còn ai thì xét mọi người trong danh sách. Ví dụ ba thực tập sinh làm thứ Hai–thứ Sáu: cột thứ Bảy `scheduled: false`; thêm một người có tuần riêng thứ Hai–thứ Bảy: `true`.
   - `rows[]`: một người, xếp theo họ tên (tiếng Việt). `group` = mã chức vụ (BE chưa có phòng ban). `days` đúng `days` ô, **một định nghĩa ô ngày duy nhất** (xem dưới). `totals` là của tháng `month`: `workDays` = số dòng ngày có `countsAsWorkday`, `lateMinutes` = tổng phút trễ, `otHours` = tổng giờ OT của đơn làm thêm **đã duyệt** có `otDate` trong tháng (giờ OT của bảng công luôn 0). `needsAction` = số ô `todo` trong cửa sổ.
   - **Ô ngày** (`rows[].days[]`, `GET /attendance/employees/:username` `days[]`): `kind` ∈ `work | late | leave | absent | todo | off | fu | nocheck`; `base` là loại trước lớp "cần xử lý". Quy tắc: ngày chưa có dòng, thuộc tuần làm: tương lai → `fu`, hôm nay → `nocheck`, quá khứ → `absent`; ngày không thuộc tuần làm (hoặc Chủ nhật) → `off`; hôm nay chưa chấm vào (kể cả dòng đã lập sẵn) → `nocheck`, **không phải** `absent`; nghỉ phép / nghỉ lễ → `leave` (`text` "Nghỉ" / "Nghỉ lễ"); có tiền phạt giờ (`deductionMinutes` > 0) → `late`; ngày có trường hợp ảnh hưởng tiền chưa giải trình duyệt → `todo`. Một đơn chờ duyệt hoặc ngày cần giải trình rơi vào ô thì `kind` = `todo` (và `itemId` = id đơn hoặc `due:<uuid>:<ngày>`), `base` giữ loại gốc. `text`: giờ "08:05–…" (đang làm), "08:00–17:00", "—" (vắng), chữ ca của `fu` / `nocheck`, rỗng khi `off`. `live`: hôm nay có giờ vào chưa có giờ ra. `label` / `aria` là chữ hiển thị / đọc màn hình.
   - `tiles[]` (6 thẻ, tính trên mọi người trong cửa sổ, không theo `q` / `group`): `todo` (số việc trong `pending`), `present` (`value` / `of`, có giờ vào hôm nay), `late`, `leave`, `absent` (số dòng `ABSENT` của tháng), `ot` (`unit` "giờ"). `note` là chữ phụ sẵn.
-  - `pending[]`: việc cần xử lý có ngày rơi vào cửa sổ, một phần tử mỗi việc ở ngày đầu tiên trong cửa sổ (`date`), xếp theo ngày rồi `username`. `action` `decide` (đơn `PENDING`: giải trình, làm thêm, nghỉ phép / có làm bù, iSAT, đổi ca; ứng lương không có ngày nên không xuất hiện) hoặc `remind` (ngày cần nhắc giải trình, `kind` `explanation-due`). `group`: `att | leave | ot | exp | adv`. Đọc tối đa 500 đơn chờ.
+  - `pending[]`: việc cần xử lý có ngày rơi vào cửa sổ, một phần tử mỗi việc ở ngày đầu tiên trong cửa sổ (`date`), xếp theo ngày rồi `username`. `action` `decide` (đơn `PENDING`: giải trình, làm thêm, nghỉ phép / có làm bù, iSAT, đổi ca; ứng lương không có ngày nên không xuất hiện) hoặc `remind` (ngày cần nhắc giải trình, `kind` `explanation-due`). `group`: `att | leave | ot | exp | adv`. Đọc mọi đơn chờ của những người trong danh sách, không giới hạn số đơn.
 - **Lỗi**: `400 INVALID_DATE` khi `from` không phải ngày có thật; `400 INVALID_DAYS`; `400 INVALID_MONTH`.
 
 #### `GET /api/v2/attendance/employees/:username?month=YYYY-MM`
@@ -660,7 +661,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 #### `GET /api/v2/overview?month=YYYY-MM&days=`
 - **Mục đích**: Mọi con số của màn Tổng quan do BE tính; FE chỉ định dạng (tiền, tỷ ₫, ngày) và hiển thị.
 - **Quyền**: `config.read`.
-- **Query**: `month` bỏ trống thì tháng hiện tại. `days` số ngày làm gần nhất cho biểu đồ chấm công (mặc định 6, 1–14, `400 INVALID_DAYS` ngoài khoảng; bỏ Chủ nhật). Phần `payroll`, `period`, `kpis.payrollNet` theo `month`; phần người và công là của **hôm nay**.
+- **Query**: `month` bỏ trống thì tháng hiện tại. `days` số ngày làm gần nhất cho biểu đồ chấm công (mặc định 6, 1–14, `400 INVALID_DAYS` ngoài khoảng). Ngày làm: có ít nhất một người đang làm hôm đó (đã vào làm, chưa nghỉ việc) mà tuần làm có thứ đó; hôm đó chưa ai đang làm thì theo tuần mặc định thứ Hai–thứ Bảy. Ví dụ mọi người đều là thực tập sinh (thứ Hai–thứ Sáu) thì bỏ cả thứ Bảy lẫn Chủ nhật. Phần `payroll`, `period`, `kpis.payrollNet` theo `month`; phần người và công là của **hôm nay**.
 - **Response 200** (rút gọn; đầy đủ: `web/tests/fixtures/api/overview.json`):
   ```json
   {
@@ -918,7 +919,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 #### Các route `/api/v2/me` cho nhân viên tự nộp đơn
 Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đang đăng nhập, `employeeId` hay `username` trong body bị bỏ qua. Nguồn luật: `docs/superpowers/specs/2026-11-05-staff-requests-design.md` (mục 2 và 3).
 
-- **`GET /api/v2/me/request-context`**: một lần gọi trả đủ dữ liệu cho form: `today`, `window` (từ hôm nay tới ngày cuối tháng sau, giờ Việt Nam), `kinds` (loại đơn dùng được, `enabled: false` kèm `reason` là loại bị khoá), `months` (`closed`: kỳ lương của tháng không còn `open`, tức đơn loại thường không nộp được; `otMinutes`, `otCapMinutes`, `hasOvertime`, `hasMakeupLeave`), `leaveTypes`, `annualLeaveLeft` (`null` khi không có quyền lợi phép năm), `shiftFrames`, `days` (`workday`, `shift`, `holiday`, `claim`, `hours`), `explanationDays` (mỗi ngày `{ date, cases, needs, remindedAt, checkIn, checkOut }`: `checkIn`/`checkOut` là giờ vào/ra thực của ngày theo bảng công, `HH:mm` giờ Việt Nam, `null` khi chưa có lần chấm đó; gồm cả ngày của tháng đã chốt công hay đã tính lương; bỏ tháng đã phê duyệt hay đã trả lương) và `advance` (`null` khi loại tạm ứng bị khoá; mở thì `{ month, amount, workDays, from, to, windowEnd, ordersThisMonth }`: `windowEnd` là ngày cuối nộp, `<tháng>-17`; `ordersThisMonth` là số đơn tạm ứng của tháng sau khi nộp đơn này, luôn `1` vì mỗi tháng một đơn). Lỗi: `400 BAD_REQUEST`.
+- **`GET /api/v2/me/request-context`**: một lần gọi trả đủ dữ liệu cho form: `today`, `window` (từ hôm nay tới ngày cuối tháng sau, giờ Việt Nam), `kinds` (loại đơn dùng được, `enabled: false` kèm `reason` là loại bị khoá), `months` (`closed`: kỳ lương của tháng không còn `open`, tức đơn loại thường không nộp được; `otMinutes`, `otCapMinutes`, `hasOvertime`, `hasMakeupLeave`), `leaveTypes`, `annualLeaveLeft` (`null` khi không có quyền lợi phép năm), `shiftFrames`, `days` (`workday`, `shift`, `holiday`, `claim`, `hours`), `explanationDays` (mỗi ngày `{ date, cases, needs, remindedAt, checkIn, checkOut }`: `checkIn`/`checkOut` là giờ vào/ra thực của ngày theo bảng công, `HH:mm` giờ Việt Nam, `null` khi chưa có lần chấm đó; gồm cả ngày của tháng đã chốt công hay đã tính lương; bỏ tháng đã phê duyệt hay đã trả lương) và `advance` (`null` khi loại tạm ứng bị khoá; mở thì `{ month, amount, workDays, from, to, windowEnd, ordersThisMonth }`: `windowEnd` là ngày cuối nộp, `<tháng>-17`, lấy từ cùng danh sách ngày mở form; `ordersThisMonth` là số đơn tạm ứng của tháng mà luật mỗi tháng một đơn đếm (đang chờ, đã duyệt) cộng đơn sắp nộp; đơn bị từ chối hay đã huỷ không tính, nên khi form mở số này là `1`). Lỗi: `400 BAD_REQUEST`.
 - **`GET /api/v2/me/requests/:id`**: `{ request, steps }`. `request.dates` (cũng có trong mỗi phần tử của danh sách `GET /api/v2/me/requests` và `GET /api/v2/requests`) là mảng ngày `YYYY-MM-DD` tăng dần mà đơn giữ hoặc chạm tới: nghỉ và nghỉ có làm bù (cả khoảng nghỉ cộng ngày bù), đổi ca (cả khoảng), OT, giải trình, iSAT (Thứ Bảy đăng ký); tạm ứng là `[]`. Cùng nguồn với `requestDates` dùng cho bảng công.
 - **`POST /api/v2/me/requests/:kind/preview`**: body giống `POST /api/v2/me/requests/:kind`, không ghi gì. `:kind` là một trong `leave`, `leave-with-makeup`, `overtime`, `shift-change`, `explanation`, `advance`; loại khác (kể cả `isat`, không có xem trước) trả `404` mã `REQUEST_KIND_NOT_FOUND`. Luôn trả `200`:
   - hợp lệ: `{ "ok": true, "title": "Phép năm 13–16/11", "summary": { … }, "warnings": [] }`; `summary` theo loại: leave `{ dates, daysCount, annualLeaveLeftAfter }`, leave-with-makeup `{ dates, daysCount, makeupMinutesRequired, makeupMinutesPlanned }`, overtime `{ minutes, monthMinutesAfter }`, shift-change `{ dates, keptDates }`, explanation `{ cases, needs }`, advance `{ month, amount, workDays }`;
@@ -927,7 +928,7 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   - ngày phải nằm trong `window` (`Chỉ chọn ngày từ 05/11 đến 31/12`), áp cho đơn nghỉ, nghỉ có làm bù (cả ngày nghỉ lẫn ngày bù), làm thêm giờ, đổi ca;
   - tháng đã chốt thì `409 PERIOD_LOCKED` như route Admin (xem "Quy ước chung"; giải trình nộp được tới khi kỳ được phê duyệt);
   - giờ OT và giờ bù phải là giờ tròn (`Chỉ chọn giờ tròn`);
-  - tạm ứng chỉ nộp ngày 16 và 17 (giờ Việt Nam) cho tháng hiện tại (`Chỉ nộp tạm ứng ngày 16 và 17`);
+  - tạm ứng chỉ nộp ngày 16 và 17 (giờ Việt Nam) cho tháng hiện tại (`Chỉ nộp tạm ứng ngày 16 và 17`); hồ sơ tắt cờ tạm ứng thì `400 ADVANCE_NOT_ELIGIBLE` trước cả hạn nộp, và trong `request-context` loại `advance` khoá với `reason: "Bạn không thuộc diện tạm ứng"`;
   - `iSAT` giữ nguyên như trước.
 - **Tiêu đề do server đặt** (cả `/me` lẫn Admin): `title` client gửi bị bỏ qua. Mẫu: `Phép năm 13–16/11`, `Nghỉ có làm bù 13–14/11`, `Làm thêm 10/11 18–20h`, `Đổi ca Flex 06–15, 10–12/11`, `Giải trình 27/10`, `Tạm ứng lương tháng 11`; khoảng ngày khác tháng ghi đủ (`Phép năm 30/11–02/12`).
 - **`GET /api/v2/me/today`**: thêm `reminders: [{ date, remindedAt }]`, những ngày Admin đã nhắc và còn cần giải trình, mới nhất trước. Lỗi khi lấy lời nhắc thì trả `[]`, màn không hỏng. `alerts: [{ date, kind: "todo" }]` (D9) là mọi ngày đã qua có ô `todo` mà giải trình chưa ở trạng thái `pending` (chưa giải trình hoặc bị từ chối vẫn nhắc; ô ngày vẫn là `todo`), cũ nhất trước, `[]` khi không có. Server quét từ tháng hiện tại lùi về, dừng trước tháng đầu tiên mà kỳ lương đã `approved` hoặc `paid` (tháng đó và các tháng cũ hơn không được nhắc), không lùi quá tháng vào làm và không quá 12 tháng trước tháng hiện tại; không giới hạn ở tuần hiện tại. `alert` giữ nguyên dạng `{ date, kind: "todo" }` hoặc `null` và bằng phần tử cuối của `alerts` (ngày `todo` gần nhất), để app cũ vẫn chạy.
@@ -1246,6 +1247,7 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   |---|---|
   | `Thiếu employeeId của nhân viên` | Không gửi `employeeId` |
   | `period must be a valid YYYY-MM period string, got: <giá trị>` | `period` sai định dạng |
+  | `Bạn không thuộc diện tạm ứng` (`code: ADVANCE_NOT_ELIGIBLE`) | Hồ sơ tắt cờ tạm ứng (`staff.advance_on = 0`, `contract.canAdvance: false`); áp cho cả nhân viên lẫn Admin, mọi ngày, xét trước hạn nộp. Xem trước trả `{ ok: false, message, code: "ADVANCE_NOT_ELIGIBLE" }` |
   | `Tháng M đã có đơn tạm ứng` | Mỗi tháng một đơn: đã có đơn tạm ứng đang chờ hoặc đã duyệt của kỳ đó (đơn bị từ chối hoặc đã huỷ không chặn). Kiểm trong khoá nhân viên |
   | `Chưa tính được số tiền tạm ứng` | Không có bộ tính lương hoặc tính lỗi (kiểm sau lỗi trùng tháng) |
   | `Chưa có ngày công 01–15/MM` | Số tiền được ứng bằng 0 |
@@ -1741,7 +1743,7 @@ Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công
       }
     }
     ```
-    `reason` nối các phần theo thứ tự: người chưa có phiếu, phiếu chưa duyệt, đơn chờ duyệt (chỉ phần có số lớn hơn 0). `pendingRequests` là số đơn `PENDING` có ngày (nghỉ, làm bù, tăng ca, giải trình, đổi ca, kỳ ứng, Thứ Bảy iSAT) rơi vào tháng; đơn của tháng khác không tính. `unapprovedSlips` là số phiếu của lần chạy hiện tại có trạng thái khác `approved`. `missingSlips` là nhân sự chưa bị khoá (`locked_at` rỗng) mà không có phiếu trong lần chạy hiện tại, sắp theo `username`.
+    `reason` nối các phần theo thứ tự: người chưa có phiếu, phiếu chưa duyệt, đơn chờ duyệt (chỉ phần có số lớn hơn 0). `pendingRequests` là số đơn `PENDING` có ngày (nghỉ, làm bù, tăng ca, giải trình, đổi ca, kỳ ứng, Thứ Bảy iSAT) rơi vào tháng; đơn của tháng khác không tính. `unapprovedSlips` là số phiếu của lần chạy hiện tại có trạng thái khác `approved`. `missingSlips` là nhân sự chưa bị khoá (`locked_at` rỗng), thuộc diện tính lương và có làm ít nhất một ngày trong tháng (`start_date` không sau cuối tháng, `resigned_on` không trước đầu tháng; ngày trống hay sai dạng coi như không ghi) mà không có phiếu trong lần chạy hiện tại, sắp theo `username`. Tính cả kỳ dùng cùng tập người đó: ví dụ Chi vào làm 11/11 không có phiếu tháng 10 và không chặn Phê duyệt kỳ tháng 10.
 - Mọi route dưới đây trả cùng dạng này sau khi đổi trạng thái.
 
 #### `POST /api/v2/system/periods/:month/lock`
@@ -1775,6 +1777,8 @@ Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công
 | 400 | `INVALID_MONTH` | `:month` không đúng `YYYY-MM` (tháng 01 đến 12) |
 | 400 | `REASON_REQUIRED` | `unlock` hoặc `unapprove` thiếu `reason`, không phải chuỗi, hoặc toàn khoảng trắng. Câu: `Cần ghi lý do` |
 | 400 | `REASON_TOO_LONG` | `unlock` hoặc `unapprove` có `reason` dài hơn 1000 ký tự sau khi cắt khoảng trắng hai đầu (độ dài như nhật ký đếm). Kiểm ngay sau `REASON_REQUIRED`, trước khi đọc kỳ; không ghi gì. Câu: `Lý do tối đa 1000 ký tự` |
+| 400 | `REASON_INVALID` | `unlock` hoặc `unapprove` có `reason` chứa ký tự NUL (nhật ký không lưu được). Kiểm cùng lúc với `REASON_TOO_LONG`, trước khi đọc kỳ; không ghi gì. Câu: `Lý do chứa ký tự không hợp lệ` |
+| 400 | `NO_SETTINGS` | `:month` trước phiên bản cài đặt đầu tiên (dữ liệu nạp sẵn từ `2000-01`), nên không có ngày trả lương; kèm `month`. Mọi route kỳ (cả `GET`); không ghi gì. Câu: `Tháng MM/YYYY chưa có cài đặt lương` |
 | 409 | `PERIOD_STATE` | Thao tác không hợp lệ ở bước hiện tại, ví dụ chốt công hai lần; kèm `month`, `status`. Câu: `Kỳ lương tháng MM/YYYY đang ở bước "<nhãn>", không làm được thao tác này` |
 | 409 | `MONTH_NOT_ENDED` | `lock` khi tháng chưa kết thúc. Câu: `Tháng MM/YYYY chưa kết thúc, chưa chốt công được` |
 | 409 | `PERIOD_BLOCKED` | `approve` còn vướng; kèm `blockers` (dạng như ở `GET .../:month`). Câu: `Còn <n> người chưa có phiếu · <n> phiếu chưa duyệt · <n> đơn chờ duyệt` (chỉ phần có số lớn hơn 0) |
@@ -1844,8 +1848,8 @@ Mọi lỗi dưới đây có dạng `{ "error": "<câu tiếng Việt>", "code"
 - **Response 200**: `{ "deleted": true }`
 - **Lỗi**:
   - `400` `Ngày lễ không hợp lệ: <giá trị>` khi `:date` sai định dạng hoặc ngày không tồn tại.
-  - `409 PERIOD_LOCKED` khi tháng của `:date` không còn `open` (xem đầu mục), kiểm trước khi tìm ngày lễ.
-  - `404` `Không có ngày lễ <date>` với `code: "HOLIDAY_NOT_FOUND"` khi ngày đó không có trong lịch.
+  - `404` `Không có ngày lễ <date>` với `code: "HOLIDAY_NOT_FOUND"` khi ngày đó không có trong lịch, kiểm trước cổng kỳ (cả ở tháng đã chốt).
+  - `409 PERIOD_LOCKED` khi ngày có trong lịch nhưng tháng của `:date` không còn `open` (xem đầu mục).
   - `400` `Ngày lễ không hợp lệ: <date>` khi `:date` sai định dạng hoặc là ngày không tồn tại.
 
 ---

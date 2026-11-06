@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
-import { RequestsService } from '../../src/modules/requests/requests.service';
-import { NV_UUID, makeService } from './helpers/requests-fakes';
+import { SystemRequest, advanceDayOpen, advanceWindowEnd } from '../../src/modules/requests/domain';
+import { RequestsService, advanceOrdersAfterFiling } from '../../src/modules/requests/requests.service';
+import { NV_UUID, makeService, staffContext } from './helpers/requests-fakes';
 
 const SELF = { filedBy: 'self' as const };
 const BODY = { employeeId: 'nv01' };
@@ -147,5 +148,50 @@ describe('Tạm ứng do server tính (spec 2.5)', () => {
       ok: false,
       message: 'Chỉ nộp tạm ứng ngày 16 và 17'
     });
+  });
+
+  // D8 (người dùng chốt 06/11): hồ sơ tắt cờ tạm ứng (advance_on = 0) thì không nộp được, cả nhân viên lẫn Admin, mọi ngày.
+  it('staff outside the advance scheme cannot file, by themselves or by Admin (D8)', async () => {
+    ctx.repo.putStaff('nv01', staffContext({ canAdvance: false }));
+    const refused = (e: any) => {
+      assert.equal(e.message, 'Bạn không thuộc diện tạm ứng');
+      assert.equal(e.status, 400);
+      assert.equal(e.details.code, 'ADVANCE_NOT_ELIGIBLE');
+      return true;
+    };
+    for (const now of [ON_16TH, '2026-11-04T03:00:00Z']) {
+      ctx.service.now = () => new Date(now);
+      await assert.rejects(ctx.service.createAdvanceRequest(BODY as any, SELF), refused);
+      await assert.rejects(ctx.service.createAdvanceRequest({ ...BODY, period: '2026-11' } as any), refused);
+      assert.deepEqual(await ctx.service.previewRequest('advance', BODY, SELF), {
+        ok: false,
+        message: 'Bạn không thuộc diện tạm ứng',
+        code: 'ADVANCE_NOT_ELIGIBLE'
+      });
+    }
+    assert.equal(ctx.repo.requests.size, 0);
+    assert.deepEqual(ctx.payroll.calls, []);
+  });
+});
+
+describe('Hạn nộp và số đơn tạm ứng của form', () => {
+  it('the last filing day comes from the same days that open the form', () => {
+    assert.equal(advanceWindowEnd('2026-11'), '2026-11-17');
+    assert.equal(advanceDayOpen(advanceWindowEnd('2026-02')), true);
+    assert.equal(advanceDayOpen('2026-11-18'), false);
+  });
+
+  it('orders this month count the advances the one-per-month rule counts, plus this one', () => {
+    const advance = (period: string, status: string) =>
+      Object.assign(
+        SystemRequest.createAdvanceRequest({ employeeId: NV_UUID, title: 't', reason: 't', amount: 1, period }),
+        { status }
+      );
+    assert.equal(advanceOrdersAfterFiling([], '2026-11'), 1);
+    assert.equal(
+      advanceOrdersAfterFiling([advance('2026-11', 'REJECTED'), advance('2026-11', 'CANCELLED'), advance('2026-10', 'APPROVED')], '2026-11'),
+      1
+    );
+    assert.equal(advanceOrdersAfterFiling([advance('2026-11', 'PENDING')], '2026-11'), 2);
   });
 });

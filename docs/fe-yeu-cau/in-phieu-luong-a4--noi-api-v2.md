@@ -1,5 +1,7 @@
 # Trang in phiếu lương A4: nối API v2
 
+> **Thay đổi ngày 06/11 (D11, người dùng chốt):** bản in không ghi trạng thái phiếu nào. Không có dòng "bản nháp…", không có ô Tình trạng, tiêu đề chỉ là "Phiếu lương tháng MM/YYYY" (không còn "· chính thức" / "· tạm tính"), dòng phụ không có ghi chú tạm tính. `A4Sheet` không còn `slipStatus` và `periodNote`. Mọi chỗ nói về trạng thái phiếu bên dưới (mục 1, các dòng `status` và `periodNote` trong bảng ở mục 2, mục 3 và mục 4) không còn hiệu lực. Ngăn kéo trên màn hình vẫn giữ chip trạng thái.
+
 Viết theo main `19bdf03` (sau đợt thiết kế lại bản in A4). Đường dẫn và số dòng dưới đây là của commit đó.
 
 Trang `/in/phieu-luong/:month/:username` (một phiếu) và `/in/phieu-luong/:month` (in tất cả) hiện chỉ chạy trên dữ liệu giả: `getPayslipSheet` luôn trả tháng mẫu 10/2026 (`web/src/services/payslip.ts:50-59`), còn `getApprovedSheets` vẫn đi qua API v1 `/periods/...` nên hỏng trên cả hai (`:61-91`). Việc cần làm: trên BE thật, trang đọc API v2 và dựng cùng kiểu `A4Sheet` mà giao diện đang dùng; trên dữ liệu giả, giữ nguyên bản mẫu và thêm trạng thái. BE đã tính sẵn mọi số; FE chỉ trình bày, không tự tính luật lương.

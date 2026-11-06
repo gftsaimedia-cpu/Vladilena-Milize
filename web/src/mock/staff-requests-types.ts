@@ -46,7 +46,8 @@ export type ContextMonth = {
   hasOvertime: boolean;
   hasMakeupLeave: boolean;
 };
-// windowEnd: ngày cuối nộp tạm ứng ('2026-10-17'); ordersThisMonth: số đơn tạm ứng của tháng sau khi nộp đơn này (luôn 1).
+// windowEnd: ngày cuối nộp tạm ứng ('2026-10-17'); ordersThisMonth: số đơn tạm ứng chờ duyệt hay đã duyệt của tháng, kể cả
+// đơn đang nộp (mỗi tháng một đơn nên form mở được thì là 1; đơn bị từ chối hay đã huỷ không tính).
 export type AdvanceInfo = {
   month: string;
   amount: number;
