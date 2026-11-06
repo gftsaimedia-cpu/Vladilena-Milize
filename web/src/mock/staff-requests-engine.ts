@@ -69,8 +69,17 @@ function shiftChangeEnds(from: EngineDay[]): string[] {
 
 /** Nợ nghỉ giữa ca còn lại của tháng (phút); 0 khi không nợ. */
 const debtLeft = (ctx: EngineCtx, month: string) => monthInfo(ctx, month)?.halfShiftDebt?.remainingMinutes ?? 0;
-/** Tháng có Nghỉ có làm bù chặn OT, trừ khi còn nợ nghỉ giữa ca (BE T6: OT mở để trả nợ). */
-const otBlocked = (ctx: EngineCtx, month: string) => !!monthInfo(ctx, month)?.hasMakeupLeave && debtLeft(ctx, month) <= 0;
+/**
+ * Tháng có Nghỉ có làm bù chặn OT của ngày, trừ khi còn nợ nghỉ giữa ca mà khung ngày này trả được (BE T6): cùng tháng, có
+ * đơn nghỉ giữa ca đã duyệt từ ngày này trở về trước (khung trước ngày nghỉ giữa ca không trả được nợ của ngày đó).
+ */
+const otBlocked = (ctx: EngineCtx, day: EngineDay) => {
+  const month = monthOf(day.date);
+  if (!monthInfo(ctx, month)?.hasMakeupLeave) return false;
+  if (debtLeft(ctx, month) <= 0) return true;
+  const owedBy = (d: EngineDay) => d.claim?.status === 'HALF_SHIFT' && !d.claim.pending;
+  return !ctx.days.some(d => owedBy(d) && monthOf(d.date) === month && d.date <= day.date);
+};
 
 /** Phút OT còn đăng ký được trong tháng (40 giờ trừ phần đã có); tháng không có trong months là 0. */
 export function otLeftMinutes(ctx: EngineCtx, month: string): number {
@@ -90,7 +99,7 @@ export function startDates(ctx: EngineCtx, kind: RequestKind): string[] {
         .map(d => d.date);
     case 'overtime':
       return days
-        .filter(d => !otBlocked(ctx, monthOf(d.date)))
+        .filter(d => !otBlocked(ctx, d))
         .filter(d => startHours(d, { capMinutes: otLeftMinutes(ctx, monthOf(d.date)) }).length > 0)
         .map(d => d.date);
     case 'half-shift-leave':
@@ -209,7 +218,7 @@ const daysIn = (ctx: EngineCtx, start: string, end: string) => ctx.days.filter(d
  */
 export function otHoursOf(ctx: EngineCtx, day: EngineDay): HourSlot[] {
   const m = monthInfo(ctx, monthOf(day.date));
-  if (!m || m.closed || otBlocked(ctx, m.month)) return [];
+  if (!m || m.closed || otBlocked(ctx, day)) return [];
   return day.hours
     .map(h => ({ start: h.start, ends: h.ends.filter(e => e.minutes <= m.otLeftMinutes) }))
     .filter(h => h.ends.length > 0);

@@ -10,6 +10,11 @@ const rowsOf = (dialog: Locator) => dialog.getByRole('group', { name: 'Loại y�
 const kindRow = (dialog: Locator, name: string) =>
   rowsOf(dialog).filter({ has: dialog.page().getByText(name, { exact: true }) });
 const choices = (select: Locator) => select.locator('option:not([value=""])');
+// Chữ của các lựa chọn, sau khi danh sách đã có (form vẽ lựa chọn khi request-context tải xong).
+async function optionsOf(select: Locator) {
+  await expect(choices(select).first()).toBeAttached();
+  return choices(select).allTextContents();
+}
 const sheetOf = (page: Page, name: string) => page.getByRole('dialog', { name });
 const sendButton = (dialog: Locator) => dialog.getByRole('button', { name: 'Gửi yêu cầu' });
 const phoneRows = (page: Page) => page.getByRole('tabpanel').getByRole('link');
@@ -70,7 +75,7 @@ test.describe('form Nghỉ giữa ca', () => {
   test('offers only working days, then the two halves of that day from the server', async ({ page }) => {
     const calls = await openPhone(page, '/nv/yeu-cau?tao=nghi-giua-ca');
     const sheet = sheetOf(page, 'Nghỉ giữa ca');
-    const dates = await choices(sheet.getByLabel('Ngày')).allTextContents();
+    const dates = await optionsOf(sheet.getByLabel('Ngày'));
     expect(dates.slice(0, 4)).toEqual(['T4 28/10', 'T5 29/10', 'T6 30/10', 'T7 31/10']);
     expect(dates).not.toContain('CN 01/11');
     await expect(sheet.getByLabel('Nửa ca')).toBeDisabled();
@@ -96,7 +101,7 @@ test.describe('form Nghỉ giữa ca', () => {
     await expect(phoneRows(page).first()).toHaveAccessibleName('Nghỉ giữa ca 29/10, làm 08–12h, Chờ duyệt');
 
     sheet = await openKind(page, 'Nghỉ giữa ca');
-    expect(await choices(sheet.getByLabel('Ngày')).allTextContents()).not.toContain('T5 29/10');
+    expect(await optionsOf(sheet.getByLabel('Ngày'))).not.toContain('T5 29/10');
     expect(calls).toEqual([]);
   });
 
@@ -113,7 +118,7 @@ test.describe('form Nghỉ giữa ca', () => {
     await expect(sendErrorLine(sheet)).toHaveText('Ngày 29/10 đã có đơn nghỉ');
     await expect(sentToast(page)).toHaveCount(0);
     await expect(sheet.getByLabel('Ngày')).toHaveValue('');
-    expect(await choices(sheet.getByLabel('Ngày')).allTextContents()).not.toContain('T5 29/10');
+    expect(await optionsOf(sheet.getByLabel('Ngày'))).not.toContain('T5 29/10');
     await expect(sheet.getByLabel('Lý do')).toHaveValue('Việc gia đình');
   });
 
@@ -121,7 +126,71 @@ test.describe('form Nghỉ giữa ca', () => {
     await openPhone(page, '/nv/yeu-cau');
     expect(await otherDevice(page, 'half-shift-leave', { date: '2026-10-29', half: 'FIRST', reason: 'Máy khác' })).toBeTruthy();
     const sheet = await openKind(page, 'Đơn nghỉ');
-    expect(await choices(sheet.getByLabel('Từ ngày')).allTextContents()).not.toContain('T5 29/10');
+    expect(await optionsOf(sheet.getByLabel('Từ ngày'))).not.toContain('T5 29/10');
+  });
+});
+
+test.describe('Làm thêm giờ để bù', () => {
+  // Đơn nghỉ giữa ca 05/11 (nửa đầu) đã duyệt: tháng 11 nợ 4 giờ.
+  async function owe(page: Page) {
+    const id = await otherDevice(page, 'half-shift-leave', { date: '2026-11-05', half: 'FIRST', reason: 'Máy khác' });
+    expect(id).toBeTruthy();
+    await approve(page, id as string);
+  }
+
+  test('a month with debt shows how much is registered and how it is paid; other months do not', async ({ page }) => {
+    const calls = await openPhone(page, '/nv/yeu-cau');
+    await owe(page);
+    const sheet = await openKind(page, 'Làm thêm giờ');
+    await sheet.getByLabel('Ngày').selectOption({ label: 'T6 06/11' });
+    await expect(summaryBox(sheet)).toContainText('Nợ nghỉ giữa ca tháng 11: đã đăng ký bù 0 / 4 giờ, còn 4 giờ');
+    await expect(summaryBox(sheet)).toContainText('Giờ làm thêm trong tháng trả nợ trước: ×1, không phụ cấp');
+    await sheet.getByLabel('Ngày').selectOption({ label: 'T5 29/10' });
+    await expect(summaryBox(sheet)).not.toContainText('Nợ nghỉ giữa ca');
+    expect(calls).toEqual([]);
+  });
+
+  test('in a month with Nghỉ có làm bù, OT opens only up to the hours still owed', async ({ page }) => {
+    const calls = await openPhone(page, '/nv/yeu-cau');
+    const makeup = {
+      startDate: '2026-11-09',
+      endDate: '2026-11-09',
+      slots: [
+        { date: '2026-11-10', startTime: '18:00', endTime: '22:00' },
+        { date: '2026-11-11', startTime: '18:00', endTime: '22:00' }
+      ],
+      reason: 'Máy khác'
+    };
+    expect(await otherDevice(page, 'leave-with-makeup', makeup)).toBeTruthy();
+    await owe(page);
+    const ot = { otDate: '2026-11-06', startTime: '18:00', endTime: '20:00', reason: 'Máy khác' };
+    expect(await otherDevice(page, 'overtime', ot)).toBeTruthy();
+
+    const sheet = await openKind(page, 'Làm thêm giờ');
+    const dates = await optionsOf(sheet.getByLabel('Ngày'));
+    expect(dates).not.toContain('T3 03/11'); // trước ngày nghỉ giữa ca: không trả được nợ
+    await sheet.getByLabel('Ngày').selectOption({ label: 'T7 07/11' });
+    await expect(summaryBox(sheet)).toContainText('Nợ nghỉ giữa ca tháng 11: đã đăng ký bù 2 / 4 giờ, còn 2 giờ');
+    await sheet.getByLabel('Giờ bắt đầu').selectOption({ label: '18:00' });
+    await expect(choices(sheet.getByLabel('Giờ kết thúc'))).toHaveText(['19:00', '20:00']);
+    await sheet.getByLabel('Lý do').fill('Bù nghỉ giữa ca');
+    await expect(sendButton(sheet)).toBeEnabled();
+    expect(calls).toEqual([]);
+  });
+});
+
+test.describe('Đổi ca qua ngày nghỉ giữa ca', () => {
+  test('the half-shift day keeps its shift and the summary says why', async ({ page }) => {
+    await openPhone(page, '/nv/yeu-cau');
+    expect(await otherDevice(page, 'half-shift-leave', { date: '2026-11-04', half: 'SECOND', reason: 'Máy khác' })).toBeTruthy();
+    const sheet = await openKind(page, 'Đổi ca');
+    await sheet.getByLabel('Từ ngày').selectOption({ label: 'T2 02/11' });
+    await sheet.getByLabel('Đến ngày').selectOption({ label: 'T7 07/11' });
+    await sheet.getByRole('radio', { name: 'Flex 06–15' }).check();
+    await sheet.getByLabel('Lý do').fill('Đưa đón con tuần này');
+    await expect(sendButton(sheet)).toBeEnabled();
+    await expect(summaryBox(sheet)).toContainText('5 ngày đổi sang Flex 06–15: 02, 03, 05, 06 và 07/11');
+    await expect(summaryBox(sheet)).toContainText('Ngày 04/11 đã có đơn nghỉ giữa ca, giữ nguyên, không đổi ca.');
   });
 });
 
