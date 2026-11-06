@@ -430,6 +430,8 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
       line('cal', 'Lương ngày công', p.baseSalaryActual),
       line('leave', 'Nghỉ phép, iSAT', leavePay),
       ...ifAny('clock', 'Làm thêm giờ', p.otPayTotal || 0),
+      // Giờ làm thêm trả nợ nghỉ giữa ca: khoản riêng của BE, không nằm trong tiền OT.
+      ...ifAny('clock', 'Bù nghỉ giữa ca', p.halfShiftRepaidPay || 0),
       line('gift', 'Phụ cấp', p.totalAllowanceActual),
       line('target', 'Lương KPI', p.kpiActualPay),
       ...ifAny('out', 'Trừ đi muộn, về sớm', p.lateEarlyDeductionAmount || 0, true),

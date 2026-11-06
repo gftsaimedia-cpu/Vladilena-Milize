@@ -11,11 +11,11 @@ const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const d = computed(() => props.slip.days);
 const summary = computed(
   () =>
-    `Chấm công tháng ${no.value}: ${d.value.work} ngày công, ${d.value.leave} phép, ${d.value.isat} iSAT, ` +
+    `Chấm công tháng ${no.value}: ${num(d.value.work)} ngày công, ${d.value.leave} phép, ${d.value.isat} iSAT, ` +
     `${d.value.pending} chờ giải trình, ${d.value.unpaid} không lương`
 );
 const stats = computed(() => [
-  { label: 'Ngày công', value: String(d.value.work), unit: ` / ${d.value.standard}` },
+  { label: 'Ngày công', value: num(d.value.work), unit: ` / ${d.value.standard}` },
   { label: 'Phép · iSAT', value: `${d.value.leave} · ${d.value.isat}`, unit: '' },
   { label: 'Chờ giải trình', value: String(d.value.pending), unit: '' },
   { label: 'Làm thêm', value: num(sum(props.slip.ot.hours)), unit: ' giờ' },

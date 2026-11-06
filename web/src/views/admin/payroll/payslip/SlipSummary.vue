@@ -4,6 +4,7 @@
 // Hai slot chỉ có dòng khi được đổ nội dung (Task 5). Loại nhân sự không có KPI (tts, kpiApplicable false): bỏ cả nhóm.
 import { computed } from 'vue';
 import { KPI_LABELS } from '@/constants/labels';
+import { halfShiftNote } from '@/builders/api/half-shift-pay';
 import type { Payslip } from '@/mock/payroll';
 import { monthNo, num, vnd } from '@/utils/format';
 
@@ -39,7 +40,8 @@ const groups = computed<Group[]>(() => {
       id: 'work',
       title: 'Ngày công và lương cơ bản',
       rows: [
-        { label: `Ngày công tháng ${monthNo(props.month)}`, rule: String(s.days.standard), actual: String(s.days.work) },
+        // Ngày công có thể lẻ (nửa ca = 0,5 công): viết "12,5".
+        { label: `Ngày công tháng ${monthNo(props.month)}`, rule: num(s.days.standard), actual: num(s.days.work) },
         { label: 'Lương cơ bản (đ)', rule: money(s.base), actual: money(c.baseActual), strong: true },
         {
           label: 'Chờ giải trình (ngày)',
@@ -65,7 +67,9 @@ const groups = computed<Group[]>(() => {
       title: 'Làm thêm giờ',
       rows: [
         { label: otLabel.value, rule: s.ot.hours.map(h => num(h)).join(' · ') },
-        { label: 'Tiền OT', actual: money(s.ot.pay) }
+        { label: 'Tiền OT', actual: money(s.ot.pay) },
+        // Giờ làm thêm trả nợ nghỉ giữa ca: ×1, không phụ cấp, tiền do BE tính; chỉ có khi tháng có nợ.
+        ...(s.halfShift ? [{ label: 'Bù nghỉ giữa ca', sub: halfShiftNote(s.halfShift), actual: money(s.halfShift.pay) }] : [])
       ]
     },
     {

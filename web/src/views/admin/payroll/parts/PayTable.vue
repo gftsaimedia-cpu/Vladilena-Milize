@@ -6,7 +6,7 @@ import { useRoute } from 'vue-router';
 import SelectCheck from '@/components/select-mode/SelectCheck.vue';
 import type { CheckState } from '@/components/select-mode/useSelectMode';
 import type { PayrollLine, PayrollScreen } from '@/mock/payroll';
-import { vnd } from '@/utils/format';
+import { num, vnd } from '@/utils/format';
 import { useDragScroll } from '../useDragScroll';
 import StatusPill from './StatusPill.vue';
 
@@ -123,7 +123,7 @@ const missing = (line: PayrollLine) => (line.kpiMissing.length ? `Thiếu điể
               </span>
             </th>
             <td class="m">
-              {{ line.days }}<span class="mut"> / {{ line.standard }}</span>
+              {{ num(line.days) }}<span class="mut"> / {{ line.standard }}</span>
             </td>
             <td class="m">{{ money(line.workPay) }}</td>
             <td class="m kp" :title="missing(line) || undefined">

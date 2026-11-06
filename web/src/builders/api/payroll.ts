@@ -4,6 +4,7 @@ import type { DayKind, Payslip, PayrollLine, PayrollScreen, PayrollStatus, SlipC
 import type { KpiPart } from '../../mock/payroll-calc';
 import { KPI_LABELS, employeeTypeLabel, employmentStatusLabel } from '../../constants/labels';
 import { initials } from '../../utils/format';
+import { halfShiftPayOf, type HalfShiftPayDTO } from './half-shift-pay';
 
 export type PayslipRecordDTO = {
   id: number;
@@ -125,7 +126,7 @@ export function payrollScreenFromPayslips(items: PayslipRecordDTO[], month: stri
 
 // ---------- Phiếu lương chi tiết (ngăn kéo) ----------
 
-export type PayslipDetailDTO = PayslipRecordDTO['details'] & {
+export type PayslipDetailDTO = PayslipRecordDTO['details'] & HalfShiftPayDTO & {
   contractStatusText: string;
   month: string;
   paidLeaveDays: number;
@@ -242,6 +243,7 @@ export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetail
       afterInsurance: d.incomeAfterInsurance,
       tax: d.personalIncomeTax,
       net: d.netIncome
-    }
+    },
+    halfShift: halfShiftPayOf(d)
   };
 }
