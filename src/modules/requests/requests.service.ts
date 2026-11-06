@@ -1147,7 +1147,9 @@ export class RequestsService {
     // ra thật) là ngày công có giờ ra trước giờ vào.
     const inTime = actualCheckIn ?? check.checkIn;
     const outTime = actualCheckOut ?? check.checkOut;
-    if (!overnight && inTime !== null && outTime !== null && outTime <= inTime) {
+    // Chỉ xét khi người dùng có khai giờ: ngày không cần nhập giờ thì lần chấm thật trùng phút không bị chặn.
+    const declared = actualCheckIn !== null || actualCheckOut !== null;
+    if (declared && !overnight && inTime !== null && outTime !== null && outTime <= inTime) {
       throw new Error('Giờ ra phải sau giờ vào');
     }
 

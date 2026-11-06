@@ -97,6 +97,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
   [OverviewController, 'week', cap('attendance.correct')],
   [OverviewController, 'employee', cap('attendance.correct')],
   [OverviewController, 'overview', cap('config.read')],
+  [OverviewController, 'pendingCount', cap('requests.review')],
   ...['savePositions', 'saveLevel', 'addLevel'].map(
     m => [PositionsController, m, cap('config.write')] as [any, string, AccessRule]
   ),

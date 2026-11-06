@@ -96,6 +96,15 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
     assert.deepEqual([dto.actualCheckIn, dto.actualCheckOut], ['22:00', '06:00']);
   });
 
+  it('same-minute punches do not block a day that needs no times', async () => {
+    ctx.att.timesheets = [timesheet('2026-11-03', '08:40', '08:40')];
+    const dto = await expl();
+    assert.deepEqual([dto.actualCheckIn, dto.actualCheckOut], [null, null]);
+    // Thiếu giờ ra thì vẫn so giờ khai với giờ vào thật.
+    ctx.att.timesheets = [timesheet('2026-11-02', '08:00', null)];
+    await assert.rejects(expl({ workDate: '2026-11-02', actualCheckOut: '08:00' }), { message: 'Giờ ra phải sau giờ vào' });
+  });
+
   // Người dùng chốt 05/11: giải trình nộp được tới khi kỳ được phê duyệt ("Nộp tới Phê duyệt kỳ").
   it('an explanation is accepted while the month is locked or calculated, by staff and by Admin', async () => {
     ctx.periods.statuses.set('2026-11', 'attendance_locked');

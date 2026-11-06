@@ -132,10 +132,12 @@ export async function getInbox(): Promise<{ items: InboxItem[]; notes: SystemNot
   return { items, notes: [] };
 }
 
-/** Số việc đang chờ (số trên chuông). */
+/** Số việc đang chờ (số trên chuông): một con số do BE tính, khớp danh sách trong chuông; FE không cộng. */
 export async function countPending(): Promise<number> {
-  const res = await api.get(`/requests${qs({ status: 'PENDING', limit: 1 })}`);
-  return Number(res.total) || 0;
+  const res = await api.get('/overview/pending-count');
+  const count = Number(res?.count);
+  if (!Number.isFinite(count)) throw new Error('Số việc chờ không hợp lệ');
+  return count;
 }
 
 // Họ tên và chức danh theo tên đăng nhập và uuid (đơn iSAT lưu theo uuid).

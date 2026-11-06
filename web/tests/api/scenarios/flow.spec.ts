@@ -115,8 +115,11 @@ test('admin: Tổng quan, Chấm công và chuông khớp JSON của BE (có m�
   expect(present.note).toBe(`${ov.kpis.notCheckedIn} người chưa Check-in`);
   await expect(page.getByText(present.note)).toBeVisible();
 
-  // Chuông: số trên chuông là số đơn chờ duyệt của BE; mỗi đơn vừa nộp có một dòng trong ngăn kéo.
-  await expect(page.getByRole('button', { name: `Thông báo, ${pendingList.total} việc cần xử lý` })).toBeVisible();
+  // Chuông: số trên chuông là một số do BE đếm (đơn chờ duyệt + ngày cần giải trình, như danh sách trong ngăn kéo); mỗi đơn vừa nộp có một dòng trong ngăn kéo.
+  const due = await (await page.request.get('/api/v2/requests/explanations-due')).json();
+  const bell = pendingList.total + due.items.length;
+  expect((await (await page.request.get('/api/v2/overview/pending-count')).json()).count).toBe(bell);
+  await expect(page.getByRole('button', { name: `Thông báo, ${bell} việc cần xử lý` })).toBeVisible();
   await page.getByRole('button', { name: /Thông báo/ }).click();
   const dlg = page.getByRole('dialog', { name: 'Thông báo' });
   for (const k of KINDS.filter(k => k.slug !== 'giai-trinh')) {
@@ -145,7 +148,8 @@ test('admin duyệt một đơn và từ chối một đơn từ chuông: nhân 
 
   const after = (await (await admin.get('/api/v2/requests?status=PENDING&limit=1')).json()).total as number;
   expect(after).toBe(before - 2);
-  await expect(page.getByRole('button', { name: `Thông báo, ${after} việc cần xử lý` })).toBeVisible();
+  const dueNow = (await (await admin.get('/api/v2/requests/explanations-due')).json()).items.length as number;
+  await expect(page.getByRole('button', { name: `Thông báo, ${after + dueNow} việc cần xử lý` })).toBeVisible();
 
   // Nhân viên: tab Đã duyệt / Từ chối đếm đúng và hiện lý do của admin.
   const mine = await (await staffApi.get('/api/v2/me/requests')).json();

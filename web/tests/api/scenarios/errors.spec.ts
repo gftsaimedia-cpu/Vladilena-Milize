@@ -275,3 +275,27 @@ test('admin: máy chủ treo ở Bảng lương cũng hết treo sau 30 giây v�
   await retryButton(page).click();
   await expect(page.locator('.period')).toBeVisible();
 });
+
+// Chuông: không đếm được số việc chờ thì hiện "?" (không rõ), không im lặng hiện 0; đọc lại được thì hiện số thật.
+test('admin bell: số việc chờ lỗi → dấu ?, không phải 0', async ({ page }) => {
+  await page.setViewportSize(DESKTOP);
+  await signInAdmin(page);
+  await page.route('**/api/v2/overview/pending-count', route => route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"boom"}' }));
+  await page.goto('/admin/tong-quan');
+  const bell = page.locator('.topbar .bell');
+  await expect(bell).toHaveAccessibleName('Thông báo, không rõ số việc cần xử lý');
+  await expect(bell.locator('i')).toHaveText('?');
+  await page.unroute('**/api/v2/overview/pending-count');
+  await page.reload();
+  await expect(bell).not.toHaveAccessibleName(/không rõ/);
+  await expect(bell.getByText('?', { exact: true })).toHaveCount(0);
+});
+
+test('chuông: GET /overview/pending-count khớp đơn chờ + ngày cần giải trình', async () => {
+  const [count, pending, due] = await Promise.all([
+    admin.get('/api/v2/overview/pending-count').then(r => r.json()),
+    admin.get('/api/v2/requests?status=PENDING&limit=1').then(r => r.json()),
+    admin.get('/api/v2/requests/explanations-due').then(r => r.json())
+  ]);
+  expect(count.count).toBe(pending.total + due.items.length);
+});

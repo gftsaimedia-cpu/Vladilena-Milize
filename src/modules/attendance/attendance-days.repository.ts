@@ -41,6 +41,17 @@ export interface EmployeeFacts {
 
 type Window = { start: string; end: string };
 
+/**
+ * Nguồn dùng chung giữa nhiều nhân sự trong một lượt dựng lại: quyền lợi theo loại nhân sự và ngày lễ của khoảng.
+ * Chỉ dùng trong một lượt (đọc một lần, không giữ qua lượt khác).
+ */
+export interface SourcesCache {
+  benefits: Map<string, Map<string, Benefits>>;
+  holidays: Map<string, Set<string>>;
+}
+
+export const newSourcesCache = (): SourcesCache => ({ benefits: new Map(), holidays: new Map() });
+
 /** Ca mặc định khi hồ sơ không ghi ca: ca đầu của danh mục (như ensureDefaultSchedule). */
 const FALLBACK_SHIFT = { start: DEFAULT_SHIFT.startTime, end: DEFAULT_SHIFT.endTime };
 
@@ -127,7 +138,8 @@ export class AttendanceDaysRepository {
    */
   async loadSources(
     employeeId: string,
-    dates: readonly string[]
+    dates: readonly string[],
+    cache?: SourcesCache
   ): Promise<{ employee: EmployeeFacts; benefitsByMonth: Map<string, Benefits>; days: DayFacts[] }> {
     const staff = await this.qb
       .selectFrom('staff')
@@ -151,7 +163,12 @@ export class AttendanceDaysRepository {
     };
 
     const months = [...new Set(dates.map(date => date.slice(0, 7)))].sort();
-    const benefitsByMonth = await this.loadBenefits(staff.type, months);
+    const benefitsKey = `${staff.type}|${months.join(',')}`;
+    let benefitsByMonth = cache?.benefits.get(benefitsKey);
+    if (!benefitsByMonth) {
+      benefitsByMonth = await this.loadBenefits(staff.type, months);
+      cache?.benefits.set(benefitsKey, benefitsByMonth);
+    }
     if (dates.length === 0) return { employee, benefitsByMonth, days: [] };
 
     const sorted = [...dates].sort();
@@ -163,7 +180,12 @@ export class AttendanceDaysRepository {
     const otWindows = await this.loadOtWindows(employeeId, from, to);
     const makeupWindows = await this.loadMakeupWindows(employeeId, from, to);
     const explanations = await this.loadExplanations(employeeId, from, to);
-    const holidays = await this.loadHolidays(from, to);
+    const holidayKey = `${from}|${to}`;
+    let holidays = cache?.holidays.get(holidayKey);
+    if (!holidays) {
+      holidays = await this.loadHolidays(from, to);
+      cache?.holidays.set(holidayKey, holidays);
+    }
 
     const days = dates.map<DayFacts>(date => ({
       date,

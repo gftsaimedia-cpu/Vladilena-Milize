@@ -147,6 +147,18 @@ export class OverviewService {
     return items;
   }
 
+  /**
+   * Số trên chuông Admin: đơn chờ duyệt cộng ngày cần giải trình, đúng hai nguồn của danh sách chuông. Lỗi ở nguồn nào
+   * cũng ném ra (không lặng lẽ đếm thiếu) để màn hình báo "không rõ" thay vì một con số sai.
+   */
+  async pendingCount(): Promise<number> {
+    const [pending, due] = await Promise.all([
+      this.requests.listRequests({ status: 'PENDING', limit: 1 }),
+      this.explanations.listDue()
+    ]);
+    return pending.total + due.length;
+  }
+
   /** Giờ OT đã duyệt trong `month` theo username. */
   private async approvedOt(people: Employee[], month: string): Promise<Map<string, number>> {
     const who = new Map<string, string>();

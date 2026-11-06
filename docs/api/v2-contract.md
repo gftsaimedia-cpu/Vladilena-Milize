@@ -671,6 +671,11 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   - `dayHistory`: lịch sử từng ngày (mới nhất trước, đến hôm nay, bỏ ngày `off`). `history`: tối đa 50 dòng `audit_log` có `subject` = người này và `month` = tháng đang xem, mới nhất trước; `text` là `action` hoặc `action: reason`.
 - **Lỗi**: `404 EMPLOYEE_NOT_FOUND` (không có nhân sự); `400 INVALID_MONTH`.
 
+#### `GET /api/v2/overview/pending-count`
+- **Mục đích**: Số trên chuông Admin, BE tính một con số duy nhất: đơn đang chờ duyệt cộng ngày cần giải trình (`GET /requests/explanations-due`), đúng hai nguồn của danh sách trong chuông. FE chỉ hiển thị.
+- **Quyền**: `requests.review`.
+- **Response 200**: `{ "count": 5 }`. Một trong hai nguồn lỗi thì cả route lỗi (không đếm thiếu); FE hiện trạng thái "không rõ" thay vì 0.
+
 #### `GET /api/v2/overview?month=YYYY-MM&days=`
 - **Mục đích**: Mọi con số của màn Tổng quan do BE tính; FE chỉ định dạng (tiền, tỷ ₫, ngày) và hiển thị.
 - **Quyền**: `config.read`.
