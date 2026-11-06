@@ -608,12 +608,23 @@ export class RequestsService {
     const baseDays = eachDate(window.from, window.to).map(date => {
       const shift = days.shiftOf(date);
       const claim = days.claimOn(date);
+      const isClosedMonth = openMonths.every(m => m.month !== monthOf(date));
+      const isClaimBlocked =
+        claim?.status === 'LEAVE' ||
+        claim?.status === 'LEAVE_WITH_MAKEUP' ||
+        claim?.status === 'ISAT' ||
+        claim?.status === 'HALF_SHIFT';
+      const halfShift =
+        !isClosedMonth && days.isWorkingDay(date) && !holidayNames.has(date) && !isClaimBlocked && shift
+          ? halvesOf({ start: shift.startTime, end: shift.endTime })
+          : null;
       return {
         date,
         workday: days.isWorkingDay(date),
         shift: shift ? { start: shift.startTime, end: shift.endTime } : null,
         holiday: holidayNames.get(date) ?? null,
         claim: claim ? { status: claim.status, pending: claim.requestStatus === 'PENDING' } : null,
+        halfShift,
         hours: days.isOnLeave(date) || claim?.status === 'ISAT'
           ? []
           : dayHourOptions({ date, shifts: days.shiftsAround(date), hasShift: shift !== null, windows: days.windowsOn(date) })
@@ -621,6 +632,14 @@ export class RequestsService {
     });
     const annualLeaveLeft = annualLeaveLeftOfStaff(staff, active);
     const { days: dayStates, choices } = filingDayStates({ days: baseDays, months, annualLeaveLeft });
+
+    if (!staff.benefits.ot || !staff.benefits.makeup) {
+      kinds.push({ kind: 'half-shift-leave', enabled: false, reason: 'Loại nhân sự này chưa dùng được nghỉ giữa ca' });
+    } else if (openMonths.length === 0 || choices['half-shift-leave'].dates.length === 0) {
+      kinds.push({ kind: 'half-shift-leave', enabled: false, reason: NO_FILING_DAYS });
+    } else {
+      kinds.push({ kind: 'half-shift-leave', enabled: true });
+    }
 
     return {
       today,

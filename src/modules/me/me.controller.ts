@@ -71,6 +71,7 @@ const CREATE: Record<string, (s: RequestsService, input: any) => Promise<Created
   advance: (s, i) => s.createAdvanceRequest(i, SELF),
   explanation: (s, i) => s.createExplanationRequest(i, SELF),
   'shift-change': (s, i) => s.createShiftChangeRequest(i, SELF),
+  'half-shift-leave': (s, i) => s.createHalfShiftLeaveRequest(i, SELF),
   isat: (s, i) => s.createIsatRequest({ employeeId: i.employeeId, saturday: i.saturday, team: i.team, conditions: i.conditions }),
 };
 

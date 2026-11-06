@@ -6,6 +6,7 @@ import type { FilingChoices, FilingRules } from './filing-choices';
 import type { HourOption } from './filing-rules';
 import type { LeaveType } from './leave-types';
 import type { FrameShiftType } from './shift-frames';
+import type { Halves } from '../../../common/half-shift';
 
 /** Một loại đơn trên form: khoá thì `reason` là câu cho nhân viên. */
 export interface FilingKindState {
@@ -41,6 +42,8 @@ export interface FilingDayState {
   shiftChangeable: boolean;
   /** Giờ OT chọn được: `hours` đã bỏ khung dài hơn số phút OT còn lại của tháng; rỗng khi tháng không nhận OT. */
   otHours: HourOption[];
+  /** Hai nửa ca của ngày (làm 4 giờ, nghỉ 4 giờ); null khi ngày không chọn được để nghỉ giữa ca. */
+  halfShift: Halves | null;
 }
 
 /** Mọi thứ các form đơn của nhân viên cần trong một lần gọi (spec 2.1). */

@@ -33,6 +33,7 @@ export interface FilingChoices {
   };
   overtime: { dates: string[] };
   'shift-change': RangeChoices;
+  'half-shift-leave': { dates: string[] };
 }
 
 /** Quy tắc con số mà form hiện chữ (không tự tính). */
@@ -40,16 +41,18 @@ export interface FilingRules {
   makeupMinutesPerLeaveDay: 480;
   dayCapMinutes: 720;
   monthOtCapMinutes: 2400;
+  halfShiftOwedMinutes: 240;
 }
 
 export const FILING_RULES: FilingRules = {
   makeupMinutesPerLeaveDay: 480,
   dayCapMinutes: 720,
-  monthOtCapMinutes: 2400
+  monthOtCapMinutes: 2400,
+  halfShiftOwedMinutes: 240
 };
 
 /** Phần của một ngày mà luật lựa chọn cần. */
-export type DayFacts = Pick<FilingDayState, 'date' | 'workday' | 'claim' | 'hours'>;
+export type DayFacts = Pick<FilingDayState, 'date' | 'workday' | 'claim' | 'hours' | 'halfShift'>;
 
 /** Một ngày của khoảng nộp trước phần server suy ra (cờ ngày, giờ OT). */
 export type FilingBaseDay = Omit<FilingDayState, 'leaveCounted' | 'shiftChangeable' | 'otHours'>;
@@ -59,8 +62,8 @@ const monthOf = (iso: string) => iso.slice(0, 7);
 const held = (d: DayFacts) => d.claim?.status === 'LEAVE' || d.claim?.status === 'LEAVE_WITH_MAKEUP';
 const approvedIsat = (d: DayFacts) => d.claim?.status === 'ISAT' && !d.claim.pending;
 const pendingIsat = (d: DayFacts) => d.claim?.status === 'ISAT' && d.claim.pending;
-/** Ngày chọn được làm ngày nghỉ: ngày làm, không bị đơn nghỉ giữ, không có iSAT. */
-const countsAsLeave = (d: DayFacts) => d.workday && !held(d) && d.claim?.status !== 'ISAT';
+/** Ngày chọn được làm ngày nghỉ: ngày làm, không bị đơn nghỉ giữ, không có iSAT, không có nửa ca. */
+const countsAsLeave = (d: DayFacts) => d.workday && !held(d) && d.claim?.status !== 'ISAT' && d.claim?.status !== 'HALF_SHIFT';
 /** Ngày đơn nghỉ giữ trong một khoảng: ngày làm, bỏ Thứ Bảy có iSAT đã duyệt (spec 2.2). */
 export const leaveCounted = (d: DayFacts) => d.workday && !approvedIsat(d);
 /** Ngày đổi được ca: ngày làm chưa bị đơn nào giữ. */
@@ -103,12 +106,12 @@ export function filingChoices(input: {
     .filter(d => countsAsLeave(d) && !monthInfo(monthOf(d.date))!.hasOvertime && roomAfter(d.date))
     .map(d => d.date);
 
-  // Đơn nghỉ: ngày làm từ `start`, dừng trước ngày kế tiếp bị đơn nghỉ giữ hoặc iSAT chờ duyệt. Nghỉ có làm bù: thêm cùng
+  // Đơn nghỉ: ngày làm từ `start`, dừng trước ngày kế tiếp bị đơn nghỉ giữ hoặc iSAT chờ duyệt hoặc nửa ca. Nghỉ có làm bù: thêm cùng
   // tháng và sau đó còn ngày để bù.
   const leaveEnds = (start: string, makeup: boolean): string[] => {
     const out: string[] = [];
     for (const d of open.filter(x => x.date >= start)) {
-      if (held(d) || pendingIsat(d)) break;
+      if (held(d) || pendingIsat(d) || d.claim?.status === 'HALF_SHIFT') break;
       if (makeup && (monthOf(d.date) !== monthOf(start) || !roomAfter(d.date))) break;
       if (countsAsLeave(d)) out.push(d.date);
     }
@@ -165,7 +168,8 @@ export function filingChoices(input: {
     ),
     'leave-with-makeup': { ...makeup, slotDates },
     overtime: { dates: open.filter(d => overtimeHours(d, monthInfo(monthOf(d.date))).length > 0).map(d => d.date) },
-    'shift-change': ranged(shiftStarts, s => shiftEnds(open.filter(d => d.date >= s)), () => ({}), shiftChangeable)
+    'shift-change': ranged(shiftStarts, s => shiftEnds(open.filter(d => d.date >= s)), () => ({}), shiftChangeable),
+    'half-shift-leave': { dates: open.filter(d => d.halfShift != null).map(d => d.date) }
   };
 }
 

@@ -152,6 +152,24 @@ export class RequestsController {
     }
   }
 
+  @RequireCap('requests.review')
+  @Post('half-shift-leave')
+  async createHalfShiftLeave(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
+    try {
+      const employeeId = requireEmployeeId(body);
+      const created = await this.service.createHalfShiftLeaveRequest({
+        employeeId,
+        date: body.date,
+        half: body.half,
+        reason: body.reason,
+        title: body.title
+      });
+      return createdBody(created);
+    } catch (err: any) {
+      throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+    }
+  }
+
   // Phải khai báo trước @Get(':id') để 'isat' không bị bắt làm id
   @RequireCap('requests.review')
   @Get('isat/conditions')
