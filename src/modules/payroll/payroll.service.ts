@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
+import { allocateHalfShiftDebt, type DebtEvent, type WorkPiece } from '../../common/half-shift';
 import type { AttendanceDayRecord } from '../attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../attendance/attendance-days.service';
 import type { AttendanceDayStatus } from '../attendance/domain/attendance-day';
@@ -521,6 +522,40 @@ export class PayrollService {
       }
     }
     const otShares = measureOvertime(otWindows, spans, new Set(data.holidayDates ?? []), rules.otRates);
+
+    const holidaySet = new Set(data.holidayDates ?? []);
+    const debtEvents: DebtEvent[] = [];
+    for (const req of requests) {
+      if (req.type === 'HALF_SHIFT_LEAVE' && req.status === 'APPROVED' && req.halfShiftDate) {
+        if (holidaySet.has(req.halfShiftDate)) continue;
+        const rowForDate = shownRows.find(r => r.workDate === req.halfShiftDate);
+        if (rowForDate?.status === 'ABSENT') continue;
+        debtEvents.push({ date: req.halfShiftDate, minutes: 240 });
+      }
+    }
+    const halfShiftOwedMinutes = debtEvents.reduce((sum, e) => sum + e.minutes, 0);
+
+    const pieces: WorkPiece[] = otShares.map(s => ({
+      date: s.otDate,
+      start: s.start,
+      minutes: Math.round(s.hours * 60)
+    }));
+
+    const splits = allocateHalfShiftDebt(debtEvents, pieces);
+    const repaidMinutesByLine = new Map<string, number>();
+    let halfShiftRepaidMinutes = 0;
+
+    for (let i = 0; i < otShares.length; i++) {
+      const split = splits[i];
+      const share = otShares[i];
+      share.hours = split.ot / 60;
+      if (split.repaid > 0) {
+        repaidMinutesByLine.set(share.lineDate, (repaidMinutesByLine.get(share.lineDate) ?? 0) + split.repaid);
+        halfShiftRepaidMinutes += split.repaid;
+      }
+    }
+    const halfShiftDroppedMinutes = Math.max(0, halfShiftOwedMinutes - halfShiftRepaidMinutes);
+
     const otSharesByLine = new Map<string, OtShare[]>();
     for (const share of otShares) {
       otSharesByLine.set(share.lineDate, [...(otSharesByLine.get(share.lineDate) ?? []), share]);
@@ -559,8 +594,9 @@ export class PayrollService {
       } else if (onShift && shiftType === 'NIGHT') {
         shiftLabel = `Night +${pctText(allowancePolicy.nightRate)}%`;
         if (row.countsAsWorkday) {
-          nightAllowancePay = allowancePolicy.nightPremium(dayRate);
-          offPaidPay = allowancePolicy.nightBreakPay(hourRate, shiftHours, deductionAmount);
+          const w = (kind === 'PRESENT' && (row as any).halfShift) ? 0.5 : 1;
+          nightAllowancePay = Math.round(w * allowancePolicy.nightPremium(dayRate));
+          offPaidPay = (row as any).halfShift ? 0 : allowancePolicy.nightBreakPay(hourRate, shiftHours, deductionAmount);
         }
       }
 
@@ -578,8 +614,11 @@ export class PayrollService {
       const linePayByRate = otLinePayByRate(lineShares, hourRate);
       const otPay = linePayByRate.x15 + linePayByRate.x20 + linePayByRate.x30;
 
+      const lineRepaidMinutes = repaidMinutesByLine.get(row.workDate) ?? 0;
+      const lineRepaidPay = Math.round((lineRepaidMinutes / 60) * hourRate);
+
       const dailyTotal =
-        daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay + makeupPay - deductionAmount;
+        daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay + makeupPay + lineRepaidPay - deductionAmount;
 
       dailyLines.push({
         date: row.workDate,
@@ -602,6 +641,8 @@ export class PayrollService {
         dailyTotal,
         kind,
         payUnits: row.payUnits,
+        halfShift: (row as any).halfShift ?? null,
+        repaidMinutes: lineRepaidMinutes,
         countsAsWorkday: row.countsAsWorkday,
         countsAsDayOff: row.countsAsDayOff,
         makeupMinutes: row.makeupMinutes,
@@ -667,7 +708,10 @@ export class PayrollService {
       dependants: staff.dependants,
       warnings,
       advanceDeduction,
-      remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays
+      remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays,
+      halfShiftOwedMinutes,
+      halfShiftRepaidMinutes,
+      halfShiftDroppedMinutes
     });
   }
 }

@@ -101,8 +101,14 @@ export class EmployeeDays implements DayView {
   /** Đơn đổi ca (đang chờ hoặc đã duyệt) đang giữ ngày D trong `day_status`, hoặc null. */
   private shiftChangeOn(date: string): SystemRequest | null {
     const claim = this.claimOn(date);
-    if (claim?.status !== 'SHIFT_CHANGE') return null;
-    return this.active.find(r => r.id === claim.requestId && r.type === 'SHIFT_CHANGE') ?? null;
+    if (!claim) return null;
+    if (claim.status === 'SHIFT_CHANGE') {
+      return this.active.find(r => r.id === claim.requestId && r.type === 'SHIFT_CHANGE') ?? null;
+    }
+    if (claim.status === 'HALF_SHIFT' && claim.baseRequestId) {
+      return this.active.find(r => r.id === claim.baseRequestId && r.type === 'SHIFT_CHANGE') ?? null;
+    }
+    return null;
   }
 
   /** Ca của D−1, D và D+1 (bỏ ngày không có ca): ca đêm hôm trước có thể kéo sang sáng D. */

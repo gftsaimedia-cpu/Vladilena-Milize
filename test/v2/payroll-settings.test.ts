@@ -283,7 +283,7 @@ describe('OT rates from the settings', () => {
       weekend: 2,
       holiday: 3
     });
-    assert.deepEqual(shares, [{ lineDate: '2026-10-07', otDate: '2026-10-07', hours: 2, kind: 'weekday', multiplier: 1.6 }]);
+    assert.deepEqual(shares, [{ lineDate: '2026-10-07', otDate: '2026-10-07', start: '18:00', hours: 2, kind: 'weekday', multiplier: 1.6 }]);
     // 2 hours x 28,846.15 x 1.6
     assert.deepEqual(otLinePayByRate(shares, HOUR_RATE), { x15: 92_308, x20: 0, x30: 0 });
   });

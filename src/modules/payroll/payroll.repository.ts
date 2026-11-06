@@ -162,6 +162,10 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       otStartTime: clockTextOrNull(r.ot_start_time),
       otEndTime: clockTextOrNull(r.ot_end_time),
       otHours: numberOrNull(r.ot_hours),
+      halfShiftDate: dateTextOrNull(r.half_shift_date),
+      halfShiftHalf: r.half_shift_half,
+      halfStartTime: clockTextOrNull(r.half_start_time),
+      halfEndTime: clockTextOrNull(r.half_end_time),
       advanceAmount: numberOrNull(r.advance_amount),
       advancePeriod: r.advance_period
     })),
@@ -385,7 +389,8 @@ export class PayrollRepository {
           eb.and([eb('ot_date', '>=', startDate), eb('ot_date', '<=', endDate)]),
           eb.and([eb('leave_start_date', '>=', startDate), eb('leave_start_date', '<=', endDate)]),
           eb('advance_period', '=', month),
-          eb.and([eb('explanation_date', '>=', startDate), eb('explanation_date', '<=', endDate)])
+          eb.and([eb('explanation_date', '>=', startDate), eb('explanation_date', '<=', endDate)]),
+          eb.and([eb('half_shift_date', '>=', startDate), eb('half_shift_date', '<=', endDate)])
         ])
       )
       .execute();

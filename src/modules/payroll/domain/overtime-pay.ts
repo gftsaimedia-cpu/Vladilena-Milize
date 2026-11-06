@@ -34,6 +34,7 @@ export interface PresenceSpan {
 export interface OtShare {
   lineDate: string;
   otDate: string;
+  start: string;
   hours: number;
   kind: OtKind;
   multiplier: OtMultiplier; // rates[kind]
@@ -94,6 +95,7 @@ export function measureOvertime(
     shares.push({
       lineDate: spans.some(span => span.workDate === window.date) ? window.date : firstOverlap.workDate,
       otDate: window.date,
+      start: window.start,
       hours: minutes / 60,
       kind,
       multiplier: rates[kind]

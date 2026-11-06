@@ -2,7 +2,7 @@ import type { RequestStatus, RequestType } from './types';
 import { formatDayMonth } from './working-days';
 
 /** Trạng thái ngày do một đơn chiếm. */
-export type ClaimStatus = 'LEAVE' | 'LEAVE_WITH_MAKEUP' | 'SHIFT_CHANGE' | 'ISAT';
+export type ClaimStatus = 'LEAVE' | 'LEAVE_WITH_MAKEUP' | 'SHIFT_CHANGE' | 'ISAT' | 'HALF_SHIFT';
 
 /** Trạng thái của đơn còn giữ ngày: đơn đã từ chối hoặc huỷ không giữ ngày nào. */
 export type ActiveStatus = 'PENDING' | 'APPROVED';
@@ -29,6 +29,7 @@ export type NewRequestKind =
   | 'LEAVE_WITH_MAKEUP'
   | 'SHIFT_CHANGE'
   | 'ISAT'
+  | 'HALF_SHIFT_LEAVE'
   | 'OVERTIME'
   | 'MAKEUP_SLOT'
   | 'EXPLANATION';
@@ -79,7 +80,7 @@ export class DayConflictError extends Error {
 }
 
 const RANGE_KINDS: ReadonlySet<NewRequestKind> = new Set(['LEAVE', 'LEAVE_WITH_MAKEUP', 'SHIFT_CHANGE']);
-const CLAIMING_KINDS: ReadonlySet<NewRequestKind> = new Set([...RANGE_KINDS, 'ISAT']);
+const CLAIMING_KINDS: ReadonlySet<NewRequestKind> = new Set([...RANGE_KINDS, 'ISAT', 'HALF_SHIFT_LEAVE']);
 
 const satText = (date: string): string => `Thứ Bảy ${formatDayMonth(date)}`;
 
@@ -110,7 +111,7 @@ function planDay(kind: NewRequestKind, date: string, row: DayClaim | null, days:
     if (kind === 'SHIFT_CHANGE') throw blockedBy(date, row, `Ngày ${formatDayMonth(date)} đã có đơn đổi ca khác`);
     if (claims) outcome = { action: 'take', replaces: row };
   } else if (row?.status === 'LEAVE' || row?.status === 'LEAVE_WITH_MAKEUP') {
-    if (kind === 'LEAVE' || kind === 'LEAVE_WITH_MAKEUP') {
+    if (kind === 'LEAVE' || kind === 'LEAVE_WITH_MAKEUP' || kind === 'HALF_SHIFT_LEAVE') {
       throw blockedBy(date, row, `Ngày ${formatDayMonth(date)} đã có đơn nghỉ`);
     }
     if (kind === 'SHIFT_CHANGE') {
@@ -140,6 +141,20 @@ function planDay(kind: NewRequestKind, date: string, row: DayClaim | null, days:
       return { action: 'skip', warning: `${satText(date)} đã có iSAT được duyệt, không tính vào đơn.`, byIsat: row };
     }
     throw blockedBy(date, row, `${satText(date)} đã có iSAT được duyệt, không chọn được ngày này.`);
+  } else if (row?.status === 'HALF_SHIFT') {
+    if (kind === 'HALF_SHIFT_LEAVE' || kind === 'LEAVE' || kind === 'LEAVE_WITH_MAKEUP') {
+      throw blockedBy(date, row, `Ngày ${formatDayMonth(date)} đã có đơn nghỉ giữa ca`);
+    }
+    if (kind === 'SHIFT_CHANGE') {
+      return {
+        action: 'skip',
+        warning: `Ngày ${formatDayMonth(date)} đã có đơn nghỉ giữa ca, giữ nguyên, không đổi ca.`,
+        byIsat: null
+      };
+    }
+    if (kind === 'ISAT') {
+      throw blockedBy(date, row, `${satText(date)} đã có đơn nghỉ giữa ca`);
+    }
   }
 
   if (kind === 'ISAT') {

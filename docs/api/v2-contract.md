@@ -56,6 +56,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 | | `POST /api/advance-requests` | `POST /api/v2/requests/advance` | POST | Nộp đơn tạm ứng lương |
 | | `POST /api/explanations` | `POST /api/v2/requests/explanation` | POST | **Nộp đơn giải trình công (mới)** |
 | | — (mới) | `POST /api/v2/requests/leave-with-makeup` | POST | **Nộp đơn nghỉ có làm bù** |
+| | — (mới) | `POST /api/v2/requests/half-shift-leave` | POST | **Nộp đơn nghỉ giữa ca** |
 | | — (mới) | `POST /api/v2/requests/shift-change` | POST | **Nộp đơn đổi ca** |
 | | — (mới) | `GET /api/v2/requests/leave-types` | GET | **Danh sách loại nghỉ** |
 | | — (mới) | `GET /api/v2/requests/explanation-cases` | GET | **Danh sách trường hợp giải trình** |
@@ -852,7 +853,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 #### Quy ước chung: `warnings`, lỗi `DAY_CONFLICT`, lỗi `PERIOD_LOCKED`, trạng thái ngày
 **Ngoài thời gian làm việc:** đơn có ngày (nghỉ, nghỉ có làm bù kể cả khung bù, đổi ca, OT, giải trình, iSAT) mà một ngày bất kỳ của đơn (đầu, cuối khoảng hoặc ngày đơn) nằm trước ngày vào làm hoặc sau ngày nghỉ việc thì bị từ chối `409 NOT_EMPLOYED` (xem trước: `200` với `{ ok: false, code: "NOT_EMPLOYED", message }`). Đơn không giữ ngày nào nên không trừ Phép năm.
 
-Áp dụng cho 7 route tạo đơn của Admin (`POST /api/v2/requests/leave`, `.../leave-with-makeup`, `.../overtime`, `.../shift-change`, `.../explanation`, `.../advance`, `.../isat`) và `POST /api/v2/me/requests/:kind` với `:kind` là một trong cùng 7 tên đó (cùng thân trả về, cùng lỗi). Nguồn luật: `docs/superpowers/specs/2026-11-05-day-status-design.md`; riêng `PERIOD_LOCKED`: `docs/superpowers/specs/2026-11-05-payroll-period-lifecycle-design.md` §5.
+Áp dụng cho 8 route tạo đơn của Admin (`POST /api/v2/requests/leave`, `.../leave-with-makeup`, `.../half-shift-leave`, `.../overtime`, `.../shift-change`, `.../explanation`, `.../advance`, `.../isat`) và `POST /api/v2/me/requests/:kind` với `:kind` là một trong cùng 8 tên đó (cùng thân trả về, cùng lỗi). Nguồn luật: `docs/superpowers/specs/2026-11-05-day-status-design.md`; riêng `PERIOD_LOCKED`: `docs/superpowers/specs/2026-11-05-payroll-period-lifecycle-design.md` §5; nghỉ giữa ca: `docs/superpowers/specs/2026-11-06-half-shift-leave-design.md`.
 
 - **Thân trả về khi tạo đơn** luôn có `warnings`, đứng cạnh `request` (không nằm trong `request`). Ví dụ trong các mục dưới chỉ ghi `created` và `request` cho gọn.
   ```json
@@ -862,8 +863,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
     "warnings": ["Thứ Bảy 14/11 đã có iSAT được duyệt, không tính vào đơn."]
   }
   ```
-  - `warnings`: mảng chuỗi, rỗng khi không có gì để báo (đơn OT, tạm ứng, giải trình, iSAT luôn trả `[]`). Đơn vẫn được nhận; ngày bị bỏ không tính vào số ngày, Phép năm và giờ bù của đơn.
-  - Hai loại cảnh báo: `Thứ Bảy dd/MM đã có iSAT được duyệt, không tính vào đơn.` (đơn nghỉ, nghỉ có làm bù, đổi ca) và `Ngày dd/MM đang nghỉ, giữ nguyên ngày nghỉ, không đổi ca.` (đơn đổi ca).
+  - `warnings`: mảng chuỗi, rỗng khi không có gì để báo (đơn OT, tạm ứng, giải trình, iSAT, nghỉ giữa ca luôn trả `[]`). Đơn vẫn được nhận; ngày bị bỏ không tính vào số ngày, Phép năm và giờ bù của đơn.
+  - Ba loại cảnh báo: `Thứ Bảy dd/MM đã có iSAT được duyệt, không tính vào đơn.` (đơn nghỉ, nghỉ có làm bù, đổi ca), `Ngày dd/MM đang nghỉ, giữ nguyên ngày nghỉ, không đổi ca.` (đơn đổi ca) và `Ngày dd/MM đã có đơn nghỉ giữa ca, giữ nguyên, không đổi ca.` (đơn đổi ca).
 - **Lỗi xung đột ngày** `DAY_CONFLICT`: một ngày của đơn đang bị đơn khác (đang chờ hoặc đã duyệt) chiếm theo ma trận dưới đây.
   - Lúc **nộp** đơn: `400`. Lúc **duyệt** (kiểm lại thất bại): `409`, câu báo thêm ` Chỉ có thể từ chối đơn này.`, đơn giữ `PENDING` và không ghi gì; vẫn `REJECT` được.
   - Thân lỗi là JSON phẳng (bộ lọc lỗi trải `details` ra ngang hàng, không có khoá `details`): `error` là câu báo của ô bị chặn; `code`, `date`, `requestId`, `requestType`, `requestStatus` cho client biết đơn nào đang chiếm ngày. Cùng dạng ở `400` lúc nộp và `409` lúc duyệt (chỉ khác `error` có thêm câu ` Chỉ có thể từ chối đơn này.` và `requestStatus` của đơn chiếm):
@@ -886,21 +887,27 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   |---|---|---|
   | Khung OT/bù đã duyệt | iSAT | `400` C8: `Thứ Bảy dd/MM đã có khung OT hoặc làm bù được duyệt, không chọn được cho iSAT.` |
   | Khung OT/bù đang chờ | iSAT | `400` C9: `Thứ Bảy dd/MM đang có đơn OT chờ duyệt. Huỷ đơn đó hoặc chọn Thứ Bảy khác.` (khung của đơn nghỉ có làm bù: `đơn nghỉ có làm bù`) |
-  | Đổi ca (chờ hoặc đã duyệt) | Nghỉ, nghỉ có làm bù, iSAT | Được, đơn mới thay ca của ngày đó |
+  | Đổi ca (chờ hoặc đã duyệt) | Nghỉ, nghỉ có làm bù, iSAT, nghỉ giữa ca | Được, đơn mới thay ca của ngày đó |
   | Ngày lễ | iSAT | `400` C5: `Thứ Bảy dd/MM là ngày lễ, không chọn được cho iSAT.` |
   | Nghỉ hoặc nghỉ có làm bù (chờ hoặc đã duyệt) | Đổi ca | Bỏ ngày đó, kèm cảnh báo C4 |
+  | Nghỉ hoặc nghỉ có làm bù (chờ hoặc đã duyệt) | Nghỉ giữa ca | `400`: `Ngày dd/mm đã có đơn nghỉ` |
   | Nghỉ hoặc nghỉ có làm bù đã duyệt | iSAT | `400` C6: `Thứ Bảy dd/MM đã nghỉ theo đơn đã duyệt, không chọn được cho iSAT.` |
   | Nghỉ hoặc nghỉ có làm bù đang chờ | iSAT | `400` C7: `Thứ Bảy dd/MM đang có đơn nghỉ chờ duyệt. Huỷ đơn nghỉ hoặc chọn Thứ Bảy khác.` |
   | iSAT đã duyệt | Nghỉ, nghỉ có làm bù, đổi ca | Bỏ ngày đó, kèm cảnh báo C2; nếu mọi ngày đều bị bỏ vì iSAT thì `400` C1 |
-  | iSAT đã duyệt | Khung bù, OT, giải trình | `400` C1: `Thứ Bảy dd/MM đã có iSAT được duyệt, không chọn được ngày này.` |
-  | iSAT đang chờ | Nghỉ, nghỉ có làm bù, khung bù, OT, đổi ca, giải trình | `400` C3: `Thứ Bảy dd/MM đang có đơn iSAT chờ duyệt. Huỷ đơn iSAT hoặc chọn ngày khác.` |
+  | iSAT đã duyệt | Khung bù, OT, giải trình, nghỉ giữa ca | `400` C1: `Thứ Bảy dd/MM đã có iSAT được duyệt, không chọn được ngày này.` |
+  | iSAT đang chờ | Nghỉ, nghỉ có làm bù, khung bù, OT, đổi ca, giải trình, nghỉ giữa ca | `400` C3: `Thứ Bảy dd/MM đang có đơn iSAT chờ duyệt. Huỷ đơn iSAT hoặc chọn ngày khác.` |
+  | Nghỉ giữa ca (chờ hoặc đã duyệt) | Nghỉ, nghỉ có làm bù | `400`: `Ngày dd/mm đã có đơn nghỉ giữa ca` |
+  | Nghỉ giữa ca (chờ hoặc đã duyệt) | Đổi ca | Bỏ ngày đó, kèm cảnh báo: `Ngày dd/mm đã có đơn nghỉ giữa ca, giữ nguyên, không đổi ca.` |
+  | Nghỉ giữa ca (chờ hoặc đã duyệt) | iSAT | `400`: `Thứ Bảy dd/mm đã có đơn nghỉ giữa ca` |
+  | Nghỉ giữa ca (chờ hoặc đã duyệt) | Nghỉ giữa ca | `400`: `Ngày dd/mm đã có đơn nghỉ giữa ca` |
+  | Nghỉ giữa ca (chờ hoặc đã duyệt) | OT, khung bù, giải trình | Được (nhận bình thường, không chặn) |
 
   Đơn theo khoảng ngày xét từng ngày làm việc: gặp ô chặn thì từ chối cả đơn (báo theo ngày đầu tiên bị chặn); ô "bỏ ngày" chỉ loại ngày đó. Một ngày vừa đổi ca vừa có khung OT thì ô chặn thắng, đơn nghỉ trên ngày đó vẫn bị chặn như cũ.
-- **Tác động lên trạng thái ngày** (bảng `day_status`, mỗi người mỗi ngày một dòng cho đơn nghỉ, nghỉ có làm bù, đổi ca, iSAT đang chờ hoặc đã duyệt):
-  - Nộp đơn: giữ chỗ các ngày được tính ngay khi đơn còn `PENDING`. Ngày đang là ngày đổi ca bị đơn nghỉ hoặc iSAT thay thì dòng đó chuyển cho đơn mới và nhớ đơn đổi ca cũ.
-  - `APPROVE`: kiểm lại ma trận trên trạng thái hiện tại; qua thì ghi lịch làm việc đúng trên các ngày đơn đang giữ (không tính lại khoảng ngày), bảng `day_status` không đổi. Đơn đổi ca không ghi đè lịch của ngày đã bị đơn nghỉ đã duyệt thay.
-  - `REJECT` và huỷ (`PATCH .../cancel`): trả ngày. Ngày từng là ngày đổi ca của một đơn còn hiệu lực thì trả về đơn đổi ca đó (đã duyệt thì ghi lại lịch đổi ca); còn lại ngày về trạng thái thường (ca mặc định). Thứ Bảy iSAT được trả ngay nên đơn nghỉ hoặc OT nộp sau đó nhận được.
-- **Lỗi kỳ lương đã chốt** `PERIOD_LOCKED` (`409`): ở các route tạo đơn trên và ở `PATCH /api/v2/requests/:id/review`. Đơn chạm tới các tháng của: khoảng nghỉ (cả các tháng ở giữa), các ngày khung bù, ngày OT, khoảng đổi ca, ngày giải trình, Thứ Bảy iSAT, kỳ tạm ứng (`period`). Một tháng trong đó không cho thao tác thì cả đơn bị chặn, kể cả đơn vắt qua hai tháng (ví dụ nghỉ 30/10–02/11 khi tháng 10 đã chốt công).
+- **Tác động lên trạng thái ngày** (bảng `day_status`, mỗi người mỗi ngày một dòng cho đơn nghỉ, nghỉ có làm bù, đổi ca, iSAT, nghỉ giữa ca đang chờ hoặc đã duyệt):
+  - Nộp đơn: giữ chỗ các ngày được tính ngay khi đơn còn `PENDING`. Ngày đang là ngày đổi ca bị đơn nghỉ, nghỉ giữa ca hoặc iSAT thay thì dòng đó chuyển cho đơn mới và nhớ đơn đổi ca cũ.
+  - `APPROVE`: kiểm lại ma trận trên trạng thái hiện tại; qua thì ghi lịch làm việc đúng trên các ngày đơn đang giữ (không tính lại khoảng ngày), bảng `day_status` không đổi. Đơn đổi ca không ghi đè lịch của ngày đã bị đơn nghỉ đã duyệt thay. Đơn nghỉ giữa ca không ghi lịch làm việc mới (ngày vẫn là ngày làm), chỉ cập nhật lại dòng ngày công.
+  - `REJECT` và huỷ (`PATCH .../cancel`): trả ngày. Ngày từng là ngày đổi ca của một đơn còn hiệu lực thì trả về đơn đổi ca đó (đã duyệt thì ghi lại lịch đổi ca); còn lại ngày về trạng thái thường (ca mặc định). Thứ Bảy iSAT và ngày nghỉ giữa ca được trả ngay nên đơn nộp sau đó nhận được.
+- **Lỗi kỳ lương đã chốt** `PERIOD_LOCKED` (`409`): ở các route tạo đơn trên và ở `PATCH /api/v2/requests/:id/review`. Đơn chạm tới các tháng của: khoảng nghỉ (cả các tháng ở giữa), các ngày khung bù, ngày OT, khoảng đổi ca, ngày giải trình, Thứ Bảy iSAT, ngày nghỉ giữa ca, kỳ tạm ứng (`period`). Một tháng trong đó không cho thao tác thì cả đơn bị chặn, kể cả đơn vắt qua hai tháng (ví dụ nghỉ 30/10–02/11 khi tháng 10 đã chốt công).
 
   | Kỳ lương của tháng | Nộp đơn (trừ giải trình) | Nộp giải trình | Duyệt / Từ chối |
   |---|---|---|---|
@@ -914,25 +921,25 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
     ```
   - Câu báo: `Tháng MM/YYYY đã chốt công` (`attendance_locked`, `calculated`), `Kỳ lương tháng MM/YYYY đã phê duyệt` (`approved`), `Kỳ lương tháng MM/YYYY đã trả lương` (`paid`).
   - Không ghi gì: đơn bị chặn lúc nộp không được lưu; lúc duyệt thì đơn giữ `PENDING`. Lúc nộp, cổng xét trước mọi luật riêng của loại đơn (khoảng nộp, giờ tròn, thời gian làm việc `NOT_EMPLOYED`, diện tạm ứng `ADVANCE_NOT_ELIGIBLE`, ngày làm việc…), trên các ngày client gửi, nên đơn vừa sai luật vừa rơi vào tháng đã khoá nhận `409 PERIOD_LOCKED`. Ví dụ: tháng 10 đã chốt công, Admin nộp nghỉ Chủ nhật 18/10 → `PERIOD_LOCKED`, không phải `Khoảng nghỉ không có ngày làm việc`. Ngày sai dạng thì cổng bỏ qua, lỗi dạng của ngày đó vẫn là `400`. Riêng iSAT vẫn xét luật của iSAT trước cổng.
-  - Áp như nhau cho nhân viên tự nộp (`POST /api/v2/me/requests/:kind`) và Admin nộp thay (`POST /api/v2/requests/leave`, `.../leave-with-makeup`, `.../overtime`, `.../shift-change`, `.../explanation`, `.../advance`, `.../isat`). Giải trình nộp được tới khi kỳ được phê duyệt (người dùng chốt 05/11/2026). Ví dụ: tháng 10 chốt công ngày 01/11, ngày 03/11 Bình nộp giải trình cho 29/10 → được nhận; sau khi Phê duyệt kỳ tháng 10 thì `409` `Kỳ lương tháng 10/2026 đã phê duyệt`.
+  - Áp như nhau cho nhân viên tự nộp (`POST /api/v2/me/requests/:kind`) và Admin nộp thay (`POST /api/v2/requests/leave`, `.../leave-with-makeup`, `.../half-shift-leave`, `.../overtime`, `.../shift-change`, `.../explanation`, `.../advance`, `.../isat`). Giải trình nộp được tới khi kỳ được phê duyệt (người dùng chốt 05/11/2026). Ví dụ: tháng 10 chốt công ngày 01/11, ngày 03/11 Bình nộp giải trình cho 29/10 → được nhận; sau khi Phê duyệt kỳ tháng 10 thì `409` `Kỳ lương tháng 10/2026 đã phê duyệt`.
   - Xem trước (`POST /api/v2/me/requests/:kind/preview`) qua cùng cổng, cùng chỗ, nhưng vẫn trả `200`: `{ "ok": false, "message": "Tháng 10/2026 đã chốt công", "code": "PERIOD_LOCKED", "month": "2026-10", "status": "attendance_locked" }`.
   - Huỷ đơn (`PATCH .../cancel`) không qua cổng kỳ.
 
 #### Các route `/api/v2/me` cho nhân viên tự nộp đơn
-Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đang đăng nhập, `employeeId` hay `username` trong body bị bỏ qua. Nguồn luật: `docs/superpowers/specs/2026-11-05-staff-requests-design.md` (mục 2 và 3).
+Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đang đăng nhập, `employeeId` hay `username` trong body bị bỏ qua. Nguồn luật: `docs/superpowers/specs/2026-11-05-staff-requests-design.md` (mục 2 và 3) và `docs/superpowers/specs/2026-11-06-half-shift-leave-design.md`.
 
-- **`GET /api/v2/me/request-context`**: một lần gọi trả đủ dữ liệu cho form: `today`, `window` (từ hôm nay tới ngày cuối tháng sau, giờ Việt Nam), `kinds` (loại đơn dùng được, `enabled: false` kèm `reason` là loại bị khoá), `months` (`closed`: kỳ lương của tháng không còn `open`, tức đơn loại thường không nộp được; `otMinutes`, `otCapMinutes`, `hasOvertime`, `hasMakeupLeave`), `leaveTypes`, `annualLeaveLeft` (`null` khi không có quyền lợi phép năm), `shiftFrames`, `days` (`workday`, `shift`, `holiday`, `claim`, `hours`), `explanationDays` (mỗi ngày `{ date, cases, needs, remindedAt, checkIn, checkOut }`: `checkIn`/`checkOut` là giờ vào/ra thực của ngày theo bảng công, `HH:mm` giờ Việt Nam, `null` khi chưa có lần chấm đó; gồm cả ngày của tháng đã chốt công hay đã tính lương; bỏ tháng đã phê duyệt hay đã trả lương) và `advance` (`null` khi loại tạm ứng bị khoá; mở thì `{ month, amount, workDays, from, to, windowEnd, ordersThisMonth }`: `windowEnd` là ngày cuối nộp, `<tháng>-17`, lấy từ cùng danh sách ngày mở form; `ordersThisMonth` là số đơn tạm ứng của tháng mà luật mỗi tháng một đơn đếm (đang chờ, đã duyệt) cộng đơn sắp nộp; đơn bị từ chối hay đã huỷ không tính, nên khi form mở số này là `1`). Lỗi: `400 BAD_REQUEST`.
-- **`GET /api/v2/me/requests/:id`**: `{ request, steps }`. `request.dates` (cũng có trong mỗi phần tử của danh sách `GET /api/v2/me/requests` và `GET /api/v2/requests`) là mảng ngày `YYYY-MM-DD` tăng dần mà đơn giữ hoặc chạm tới: nghỉ và nghỉ có làm bù (cả khoảng nghỉ cộng ngày bù), đổi ca (cả khoảng), OT, giải trình, iSAT (Thứ Bảy đăng ký); tạm ứng là `[]`. Cùng nguồn với `requestDates` dùng cho bảng công.
-- **`POST /api/v2/me/requests/:kind/preview`**: body giống `POST /api/v2/me/requests/:kind`, không ghi gì. `:kind` là một trong `leave`, `leave-with-makeup`, `overtime`, `shift-change`, `explanation`, `advance`; loại khác (kể cả `isat`, không có xem trước) trả `404` mã `REQUEST_KIND_NOT_FOUND`. Luôn trả `200`:
-  - hợp lệ: `{ "ok": true, "title": "Phép năm 13–16/11", "summary": { … }, "warnings": [] }`; `summary` theo loại: leave `{ dates, daysCount, annualLeaveLeftAfter }`, leave-with-makeup `{ dates, daysCount, makeupMinutesRequired, makeupMinutesPlanned }`, overtime `{ minutes, monthMinutesAfter }`, shift-change `{ dates, keptDates }`, explanation `{ cases, needs }`, advance `{ month, amount, workDays }`;
+- **`GET /api/v2/me/request-context`**: một lần gọi trả đủ dữ liệu cho form: `today`, `window` (từ hôm nay tới ngày cuối tháng sau, giờ Việt Nam), `kinds` (loại đơn dùng được, `enabled: false` kèm `reason` là loại bị khoá; bao gồm `half-shift-leave` với `reason: "Loại nhân sự này chưa dùng được nghỉ giữa ca"` khi thiếu quyền lợi), `months` (`closed`: kỳ lương của tháng không còn `open`, tức đơn loại thường không nộp được; `otMinutes`, `otCapMinutes`, `otLeftMinutes`, `hasOvertime`: chỉ `true` khi có OT thật sau khi trừ nợ nghỉ giữa ca, `hasMakeupLeave`, `halfShiftDebt: { owedMinutes, registeredMinutes, remainingMinutes }`), `leaveTypes`, `annualLeaveLeft` (`null` khi không có quyền lợi phép năm), `shiftFrames`, `days` (`workday`, `shift`, `holiday`, `claim`, `hours`, `halfShift`: hai nửa ca `{ FIRST, SECOND }` hoặc `null`), `explanationDays` (mỗi ngày `{ date, cases, needs, remindedAt, checkIn, checkOut }`: `checkIn`/`checkOut` là giờ vào/ra thực của ngày theo bảng công, `HH:mm` giờ Việt Nam, `null` khi chưa có lần chấm đó; gồm cả ngày của tháng đã chốt công hay đã tính lương; bỏ tháng đã phê duyệt hay đã trả lương), `advance` (`null` khi loại tạm ứng bị khoá), `choices` (gồm `choices['half-shift-leave'].dates`), `rules` (gồm `halfShiftOwedMinutes: 240`). Lỗi: `400 BAD_REQUEST`.
+- **`GET /api/v2/me/requests/:id`**: `{ request, steps }`. `request.dates` (cũng có trong mỗi phần tử của danh sách `GET /api/v2/me/requests` và `GET /api/v2/requests`) là mảng ngày `YYYY-MM-DD` tăng dần mà đơn giữ hoặc chạm tới: nghỉ và nghỉ có làm bù (cả khoảng nghỉ cộng ngày bù), đổi ca (cả khoảng), OT, giải trình, iSAT (Thứ Bảy đăng ký), nghỉ giữa ca (`[halfShiftDate]`); tạm ứng là `[]`. Cùng nguồn với `requestDates` dùng cho bảng công.
+- **`POST /api/v2/me/requests/:kind/preview`**: body giống `POST /api/v2/me/requests/:kind`, không ghi gì. `:kind` là một trong `leave`, `leave-with-makeup`, `half-shift-leave`, `overtime`, `shift-change`, `explanation`, `advance`; loại khác (kể cả `isat`, không có xem trước) trả `404` mã `REQUEST_KIND_NOT_FOUND`. Luôn trả `200`:
+  - hợp lệ: `{ "ok": true, "title": "Phép năm 13–16/11", "summary": { … }, "warnings": [] }`; `summary` theo loại: leave `{ dates, daysCount, annualLeaveLeftAfter }`, leave-with-makeup `{ dates, daysCount, makeupMinutesRequired, makeupMinutesPlanned }`, half-shift-leave `{ date, half, work: { start, end }, leave: { start, end }, owedMinutes: 240 }`, overtime `{ minutes, monthMinutesAfter }`, shift-change `{ dates, keptDates }`, explanation `{ cases, needs }`, advance `{ month, amount, workDays }`;
   - không hợp lệ: `{ "ok": false, "message": "<câu lỗi của server>", "code": "DAY_CONFLICT" }`; `code` chỉ có khi là xung đột ngày (`DAY_CONFLICT`) hoặc tháng đã khoá (`PERIOD_LOCKED`, kèm `month`, `status`, xem "Quy ước chung"). Xếp chưa đủ giờ bù thì `ok: false` với câu `Còn thiếu N giờ bù`.
 - **`POST /api/v2/me/requests/:kind`** (tạo đơn): cùng thân trả về và lỗi như route Admin, nhưng áp luật tự nộp (`filedBy: 'self'`):
-  - ngày phải nằm trong `window` (`Chỉ chọn ngày từ 05/11 đến 31/12`), áp cho đơn nghỉ, nghỉ có làm bù (cả ngày nghỉ lẫn ngày bù), làm thêm giờ, đổi ca;
+  - ngày phải nằm trong `window` (`Chỉ chọn ngày từ 05/11 đến 31/12`), áp cho đơn nghỉ, nghỉ có làm bù (cả ngày nghỉ lẫn ngày bù), nghỉ giữa ca, làm thêm giờ, đổi ca;
   - tháng đã chốt thì `409 PERIOD_LOCKED` như route Admin (xem "Quy ước chung"; giải trình nộp được tới khi kỳ được phê duyệt);
   - giờ OT và giờ bù phải là giờ tròn (`Chỉ chọn giờ tròn`);
   - tạm ứng chỉ nộp ngày 16 và 17 (giờ Việt Nam) cho tháng hiện tại (`Chỉ nộp tạm ứng ngày 16 và 17`); hồ sơ tắt cờ tạm ứng thì `400 ADVANCE_NOT_ELIGIBLE` trước cả hạn nộp, và trong `request-context` loại `advance` khoá với `reason: "Bạn không thuộc diện tạm ứng"`;
   - `iSAT` giữ nguyên như trước.
-- **Tiêu đề do server đặt** (cả `/me` lẫn Admin): `title` client gửi bị bỏ qua. Mẫu: `Phép năm 13–16/11`, `Nghỉ có làm bù 13–14/11`, `Làm thêm 10/11 18–20h`, `Đổi ca Flex 06–15, 10–12/11`, `Giải trình 27/10`, `Tạm ứng lương tháng 11`; khoảng ngày khác tháng ghi đủ (`Phép năm 30/11–02/12`).
+- **Tiêu đề do server đặt** (cả `/me` lẫn Admin): `title` client gửi bị bỏ qua. Mẫu: `Phép năm 13–16/11`, `Nghỉ có làm bù 13–14/11`, `Nghỉ nửa ca 12/11: làm 08:00–12:00, nghỉ 13:00–17:00`, `Làm thêm 10/11 18–20h`, `Đổi ca Flex 06–15, 10–12/11`, `Giải trình 27/10`, `Tạm ứng lương tháng 11`; khoảng ngày khác tháng ghi đủ (`Phép năm 30/11–02/12`).
 - **`GET /api/v2/me/today`**: thêm `reminders: [{ date, remindedAt }]`, những ngày Admin đã nhắc và còn cần giải trình, mới nhất trước. Lỗi khi lấy lời nhắc thì trả `[]`, màn không hỏng. `alerts: [{ date, kind: "todo" }]` (D9) là mọi ngày đã qua có ô `todo` mà giải trình chưa ở trạng thái `pending` (chưa giải trình hoặc bị từ chối vẫn nhắc; ô ngày vẫn là `todo`), cũ nhất trước, `[]` khi không có. Server quét từ tháng hiện tại lùi về, dừng trước tháng đầu tiên mà kỳ lương đã `approved` hoặc `paid` (tháng đó và các tháng cũ hơn không được nhắc), không lùi quá tháng vào làm và không quá 12 tháng trước tháng hiện tại; không giới hạn ở tuần hiện tại. `alert` giữ nguyên dạng `{ date, kind: "todo" }` hoặc `null` và bằng phần tử cuối của `alerts` (ngày `todo` gần nhất), để app cũ vẫn chạy. Lỗi khi dựng `alerts` (đọc kỳ lương, hồ sơ hay bảng công) thì trả `alerts: []` và `alert: null`, màn chấm công vẫn dùng được.
 - **`GET /api/v2/me/attendance/:date`**: thêm hai trường:
   - `explanation`: đơn giải trình mới nhất không bị huỷ của ngày đó, dạng `{ id, status, sentAt, cases, actualCheckIn, actualCheckOut }`, hoặc `null`;
@@ -1154,6 +1161,57 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   | 11 | `Cần đúng <n> giờ bù, đang xếp <m> giờ` | Tổng giờ bù nhiều hơn 8 × `leaveDaysCount`, ví dụ `Cần đúng 8 giờ bù, đang xếp 12 giờ` |
 - Nộp dưới khoá `requests_<uuid>` như đơn nghỉ. Đơn và các khung bù (bảng `makeup_slots`) được ghi trong cùng một giao dịch.
 
+#### `POST /api/v2/requests/half-shift-leave` (Đơn nghỉ giữa ca)
+- **Mục đích**: Admin nộp đơn nghỉ giữa ca thay một nhân sự (nhân sự tự nộp qua `POST /api/v2/me/requests/:kind` với `:kind` = `half-shift-leave`, cùng luật). Nhân sự làm một nửa ca 4 giờ và nghỉ nửa ca 4 giờ, phát sinh khoản nợ 240 phút trong tháng.
+- **Request Body**:
+  ```json
+  {
+    "employeeId": "nv01",
+    "date": "2026-11-12",
+    "half": "FIRST",
+    "reason": "Khám bệnh"
+  }
+  ```
+  - `employeeId` (bắt buộc ở route admin): uuid hoặc username; đơn lưu theo uuid của nhân sự.
+  - `date`: `YYYY-MM-DD`, phải là ngày làm việc có ca 9 giờ (540 phút, gồm 8 giờ làm và 1 giờ nghỉ).
+  - `half`: `FIRST` (làm nửa ca đầu, nghỉ nửa ca sau) hoặc `SECOND` (nghỉ nửa ca đầu, làm nửa ca sau).
+  - `reason`: chuỗi không rỗng. Tiêu đề do server tự sinh (`Nghỉ nửa ca dd/mm: làm HH:mm–HH:mm, nghỉ HH:mm–HH:mm`).
+- **Response 201**:
+  ```json
+  {
+    "created": true,
+    "request": {
+      "id": "req-uuid",
+      "employeeId": "4391e6b3-8fa4-4ee9-b4be-5b232c943891",
+      "title": "Nghỉ nửa ca 12/11: làm 08:00–12:00, nghỉ 13:00–17:00",
+      "type": "HALF_SHIFT_LEAVE",
+      "status": "PENDING",
+      "reason": "Khám bệnh",
+      "halfShiftDate": "2026-11-12",
+      "halfShiftHalf": "FIRST",
+      "halfStartTime": "08:00",
+      "halfEndTime": "12:00"
+    },
+    "warnings": []
+  }
+  ```
+- **Lỗi `400 BAD_REQUEST`**:
+
+  | `message` | Khi nào |
+  |---|---|
+  | `Thiếu employeeId của nhân viên` | Route admin không gửi `employeeId` |
+  | `date must be a valid YYYY-MM-DD date string, got: <giá trị>` | Ngày sai định dạng |
+  | `Nửa ca không hợp lệ: <giá trị>` | `half` khác `FIRST` và `SECOND` |
+  | `reason must be a non-empty string` | `reason` rỗng hoặc không phải chuỗi |
+  | `Không tìm thấy nhân sự: <id>` / `Thiếu cấu hình loại nhân sự <loại>` | Như các loại đơn khác |
+  | `Loại nhân sự này không dùng được nghỉ giữa ca` | Thiếu một trong hai quyền lợi `benefits.ot` hoặc `benefits.makeup` |
+  | `Ngày dd/mm không phải ngày làm việc` | Ngày Chủ nhật, ngày nghỉ theo tuần hoặc ngày lễ công ty |
+  | `Ca của ngày dd/mm không chia được thành hai nửa 4 giờ` | Ca không đúng độ dài 9 giờ hoặc không chia được 2 nửa |
+  | `Ngày dd/mm đã có đơn nghỉ giữa ca` (`code: DAY_CONFLICT`) | Trùng đơn nghỉ giữa ca khác đang chờ/đã duyệt |
+  | `Ngày dd/mm đã có đơn nghỉ` (`code: DAY_CONFLICT`) | Trùng đơn nghỉ hoặc đơn nghỉ có làm bù đang giữ ngày |
+
+- **Duyệt / Huỷ**: Duyệt đơn kiểm lại ma trận ngày; nếu ngày nộp đã biến thành ngày lễ thì báo lỗi `409`: `Ngày dd/mm đã thành ngày lễ, đơn nghỉ giữa ca không duyệt được. Chỉ có thể từ chối đơn này.` Khi duyệt thành công, dòng ngày công được cập nhật lại với ca nửa ngày (`0.5` công). Huỷ đơn trả lại trạng thái ngày như cũ.
+
 #### `POST /api/v2/requests/shift-change` (Đơn đổi ca)
 - **Mục đích**: Đổi sang một trong 6 khung ca cho mọi **ngày làm việc** trong khoảng `startDate`–`endDate` (CN, ngày nghỉ của loại nhân sự và ngày lễ trong khoảng giữ nguyên).
 - **Request Body**:
@@ -1338,6 +1396,7 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   | `SHIFT_CHANGE` | `changeStartDate`, `changeEndDate`, `newShiftType`, `newStartTime`, `newEndTime` |
   | `EXPLANATION` | `explanationDate`, `explanationCases: [mã]` theo thứ tự của `GET /requests/explanation-cases`, `actualCheckIn`, `actualCheckOut` |
   | `ISAT` | khối `isat` (bên dưới) |
+  | `HALF_SHIFT_LEAVE` | `halfShiftDate`, `halfShiftHalf`, `halfStartTime`, `halfEndTime` |
   | `ADVANCE` | `advanceAmount`, `advancePeriod` |
 - Trường không thuộc loại đơn là `null`; riêng `makeupSlots` và `explanationCases` là `[]`, `isat` là `null`. Các trường giờ bù đơn lẻ cũ (`makeupStartTime`, `makeupEndTime`) và các trường của đơn sửa giờ chấm công cũ không còn trong đơn.
 - Danh sách đọc mỗi bảng con (`makeup_slots`, `explanation_cases`) bằng một truy vấn cho cả trang kết quả.
@@ -1544,6 +1603,10 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | `ot15Pay`, `ot20Pay`, `ot30Pay` | **Mới**: tiền OT theo hệ số ×1,5 / ×2 / ×3. **Đổi nghĩa (06/11, D1)**: mỗi khoản là một công thức trên giờ OT đúng của cả tháng, làm tròn một lần: `round(lương cơ bản × giờ × hệ số ÷ (công chuẩn × 8))`, ví dụ hai dòng 50 phút ×1,5 → 72.115 (không phải 2 × 36.058). Ba số cộng lại bằng `otPayTotal`. Đi cùng giờ `ot15Hours`, `ot20Hours`, `ot30Hours`. Mọi khoản tiền khác của phiếu cũng theo luật một công thức, làm tròn một lần (spec chấm công 8.1); tiền trên dòng ngày chỉ để xem |
   | `workPay` | **Mới**: tiền ngày công và ngày nghỉ hưởng lương = `baseSalaryActual` + `paidLeavePay` + `leaveSettlementPay` + `isatPay` + `holidayPay` (chưa gồm bù, OT, phụ cấp, KPI, trừ giờ) |
   | `leaveSettlementPay`, `holidayPay`, `holidayPaidDays` | Quyết toán phép dư (hiện luôn 0, chưa có luật), tiền nghỉ lễ hưởng lương và số ngày lễ hưởng lương; FE hiện thẳng |
+  | `halfShiftOwedMinutes` | **Mới (06/11)**: Tổng phút nợ nghỉ giữa ca trong tháng của các đơn nghỉ giữa ca đã duyệt (bỏ ngày vắng và ngày lễ) |
+  | `halfShiftRepaidMinutes` | **Mới (06/11)**: Tổng phút nợ nghỉ giữa ca đã được trả bù qua các khung làm thêm giờ (OT) có mặt thật |
+  | `halfShiftDroppedMinutes` | **Mới (06/11)**: Số phút nợ nghỉ giữa ca còn lại chưa bù được cuối tháng (bị xoá bỏ, không chuyển sang tháng sau) |
+  | `halfShiftRepaidPay` | **Mới (06/11)**: Tiền công trả bù cho nghỉ giữa ca = `round(baseSalaryPolicy × (halfShiftRepaidMinutes / 60) ÷ (standardWorkdays × 8))`. Trả hệ số ×1, không phụ cấp, tính vào `grossIncome` và thu nhập chịu thuế, không vào `makeupPay` hay `taxExemptIncome` |
   | `lateMinutes` | **Mới**: tổng phút đi muộn **quá ân hạn** cộng từ các ngày của tháng (`lateMinutes` của dòng ngày chấm công). Lần muộn trong ân hạn không được ghi nên không có trong số này; 0 khi không có |
   | `rates` | **Mới**: tỉ lệ BE đã dùng để tính phiếu, lấy từ cài đặt đang áp cho tháng của phiếu (lưu cùng phiếu, nên phiếu cũ vẫn in đúng tỉ lệ lúc tính): `kpiWeights` (`wework`, `user`, `peer`, `manager`, `self`, % của lương KPI, tổng 100), `insurancePct` (`bhxh`, `bhyt`, `bhtn`, `total`, đơn vị %, ví dụ 8, 1.5, 1, 10.5), `otMultipliers` (`weekday`, `weekend`, `holiday`, ví dụ 1.5, 2, 3), `lateGraceMinutes` (ân hạn đi muộn, phút). FE in nhãn "(40%)", "BH 10,5%", "×1,5 ×2 ×3", "không quá 15 phút" từ đây, không giữ hằng số |
   | `calendar` | **Mới**: một phần tử `{ date, kind }` cho mỗi ngày của tháng, theo ngày: `kind` là `work` (đi làm có giờ), `leave` (nghỉ phép, lễ hưởng lương, nghỉ có bù hưởng lương), `isat`, `unpaid` (vắng, nghỉ không lương, ngoài thời gian làm, ngày làm không có giờ), `rest` (ngày nghỉ tuần), `future` (ngày chưa tới mốc xét). BE quyết loại ngày theo đồng hồ của nó; FE không so với ngày máy |
@@ -1552,6 +1615,8 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | `dailyLines[].checkIn`, `dailyLines[].checkOut` | Giờ vào và giờ ra thật của dòng ngày, `'HH:MM'` theo giờ Việt Nam (UTC+7); `null` khi thiếu một phía, và luôn `null` ở dòng nghỉ (`LEAVE`, `ISAT`, `UNPAID`). Nguồn: giờ chấm công; phía nào thiếu thì lấy giờ của giải trình đã duyệt cho đúng ngày đó (giải trình chỉ lấp chỗ thiếu, không đè giờ chấm). Giờ ra của giải trình không sau giờ vào được hiểu là giờ ra của hôm sau (ca đêm) |
   | `dailyLines[].inOutText` | **Đổi nghĩa**: dòng ca `NORMAL`, `FLEX`, `NIGHT` là `${checkIn ?? '—'}–${checkOut ?? '—'}`, ví dụ `08:12–17:05`, `08:12–—`. Trước đây ghi cứng `08:00–17:00` hoặc `22:00–06:00`. Dòng nghỉ giữ chữ cũ: `Hưởng lương ngày` (`LEAVE`, `ISAT`), `Không tính lương` (`UNPAID`) |
   | `dailyLines[].shiftLabel` | Nhãn ca do BE dựng: `Normal`, `Flex +20%`, `Night +40%` (phần trăm theo cấu hình, hiện đúng số lẻ nếu có), `Nghỉ phép`, `iSAT`, `Không lương`. FE hiển thị nguyên chữ này |
+  | `dailyLines[].halfShift` | **Mới (06/11)**: `FIRST` hoặc `SECOND` nếu là dòng nửa ca, ngược lại `null` |
+  | `dailyLines[].repaidMinutes` | **Mới (06/11)**: Số phút làm thêm trong ngày được dùng để trả nợ nghỉ giữa ca (không tính vào giờ OT thật) |
   | `dailyLines[].otHours`, `dailyLines[].otPay` | **Đổi nghĩa**: giờ OT và tiền OT thật của dòng ngày (trước đây luôn 0). Cách tính ở "Tiền OT" bên dưới |
   | `dailyLines[].makeupCreditMinutes` | **Mới (06/11)**: phút ghi nhận bù cho nợ nghỉ có bù (L16), bằng `makeupMinutes` trừ khi vào trễ ở khung bù đã được giải trình duyệt thì ghi nhận đủ khung (vào 18:30 khung 18:00–22:00: `makeupMinutes` 210, `makeupCreditMinutes` 240). Chỉ chuyên cần đọc số này; tiền bù (`makeupPay`) luôn tính từ `makeupMinutes` |
   | `dailyLines[].deductionMinutes` | **Mới (06/11)**: phút bị trừ đúng của ngày (`deductionHours` là số hiện, 2 chữ số lẻ). Tiền trừ của phiếu và tạm ứng tính từ số này |

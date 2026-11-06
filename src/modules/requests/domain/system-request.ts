@@ -15,9 +15,11 @@ import {
   CreateLeaveWithMakeupParams,
   CreateExplanationParams,
   CreateIsatParams,
+  CreateHalfShiftLeaveParams,
   SystemRequestRow,
   SystemRequestDTO
 } from './types';
+import { type HalfShift, leaveWindowOf } from '../../../common/half-shift';
 import { IsatRegistration } from './isat';
 import { EXPLANATION_CASES, isExplanationCase, type ExplanationCase } from './explanation-cases';
 import { isLeaveType } from './leave-types';
@@ -188,6 +190,12 @@ export class SystemRequest {
   // ISAT
   isat: IsatRegistration | null;
 
+  // HALF_SHIFT_LEAVE
+  halfShiftDate: string | null;
+  halfShift: HalfShift | null;
+  halfStartTime: string | null;
+  halfEndTime: string | null;
+
   constructor(props: SystemRequestProps) {
     if (!props || typeof props !== 'object') {
       throw new Error('SystemRequest props are required');
@@ -232,6 +240,11 @@ export class SystemRequest {
     this.newEndTime = props.newEndTime ?? null;
 
     this.isat = props.isat ?? null;
+
+    this.halfShiftDate = props.halfShiftDate ?? null;
+    this.halfShift = props.halfShift ?? null;
+    this.halfStartTime = props.halfStartTime ?? null;
+    this.halfEndTime = props.halfEndTime ?? null;
   }
 
   static createLeaveRequest(params: CreateLeaveParams): SystemRequest {
@@ -476,6 +489,36 @@ export class SystemRequest {
     });
   }
 
+  static createHalfShiftLeave(params: CreateHalfShiftLeaveParams): SystemRequest {
+    const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
+    const title = requireNonEmptyString(params?.title, 'title');
+    const reason = requireNonEmptyString(params?.reason, 'reason');
+    const halfShiftDate = requireDateText(params?.halfShiftDate, 'halfShiftDate');
+    if (params?.halfShift !== 'FIRST' && params?.halfShift !== 'SECOND') {
+      throw new Error(`Nửa ca không hợp lệ: ${String(params?.halfShift)}`);
+    }
+    const halfStart = requireTimeText(params?.halfStart, 'halfStart');
+    const halfEnd = requireTimeText(params?.halfEnd, 'halfEnd');
+    const now = new Date();
+    return new SystemRequest({
+      id: randomUUID(),
+      employeeId,
+      title,
+      type: 'HALF_SHIFT_LEAVE',
+      reason,
+      status: 'PENDING',
+      halfShiftDate,
+      halfShift: params.halfShift,
+      halfStartTime: halfStart,
+      halfEndTime: halfEnd,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewNote: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
   /** Đơn nghỉ còn giữ `days` ngày (ngày lễ thắng đơn nghỉ: ngày thành lễ trước lúc duyệt rời khỏi đơn). */
   keepLeaveDays(days: number): SystemRequest {
     if (this.type !== 'LEAVE' && this.type !== 'LEAVE_WITH_MAKEUP') {
@@ -571,7 +614,12 @@ export class SystemRequest {
       change_end_date: this.changeEndDate,
       new_shift_type: this.newShiftType,
       new_start_time: this.newStartTime,
-      new_end_time: this.newEndTime
+      new_end_time: this.newEndTime,
+
+      half_shift_date: this.halfShiftDate,
+      half_shift_half: this.halfShift,
+      half_start_time: this.halfStartTime,
+      half_end_time: this.halfEndTime
     };
   }
 
@@ -669,6 +717,11 @@ export class SystemRequest {
       newStartTime: row.new_start_time ?? row.newStartTime ?? null,
       newEndTime: row.new_end_time ?? row.newEndTime ?? null,
 
+      halfShiftDate: formatDateStr(row.half_shift_date ?? row.halfShiftDate),
+      halfShift: (row.half_shift_half ?? row.halfShift ?? null) as HalfShift | null,
+      halfStartTime: row.half_start_time ?? row.halfStartTime ?? null,
+      halfEndTime: row.half_end_time ?? row.halfEndTime ?? null,
+
       isat
     });
   }
@@ -696,8 +749,21 @@ export class SystemRequest {
       owedMinutes:
         this.type === 'LEAVE_WITH_MAKEUP' && this.leaveDaysCount !== null
           ? OWED_MINUTES_PER_LEAVE_DAY * this.leaveDaysCount
-          : null,
+          : this.type === 'HALF_SHIFT_LEAVE'
+            ? 240
+            : null,
       makeupSlots: this.makeupSlots.map(slot => ({ ...slot })),
+
+      halfShiftDate: this.halfShiftDate,
+      halfShift: this.halfShift,
+      halfShiftWork:
+        this.halfShift && this.halfStartTime && this.halfEndTime
+          ? { start: this.halfStartTime, end: this.halfEndTime }
+          : null,
+      halfShiftLeave:
+        this.halfShift && this.halfStartTime && this.halfEndTime
+          ? leaveWindowOf(this.halfShift, { start: this.halfStartTime, end: this.halfEndTime })
+          : null,
 
       explanationDate: this.explanationDate,
       explanationCases: [...this.explanationCases],

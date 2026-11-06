@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { sql, type Kysely } from 'kysely';
 import { NotFoundError } from '../../common/exceptions/http.exception';
 import { DEFAULT_SHIFT } from '../../common/shift-catalog';
+import type { HalfShift } from '../../common/half-shift';
 import { KYSELY_DB, type DB } from '../../database';
 import type { LeaveType } from '../requests/domain/leave-types';
 import type {
@@ -12,6 +13,7 @@ import type {
   DayFacts,
   ExplanationFacts,
   ExplanationStatus,
+  HalfShiftFacts,
   ScheduleFacts,
   ShiftFacts
 } from './domain/attendance-day';
@@ -109,6 +111,7 @@ export class AttendanceDaysRepository {
               explanation_status: eb.ref('excluded.explanation_status'),
               explanation_request_id: eb.ref('excluded.explanation_request_id'),
               pay_units: eb.ref('excluded.pay_units'),
+              half_shift: eb.ref('excluded.half_shift'),
               deduction_minutes: eb.ref('excluded.deduction_minutes'),
               counts_as_workday: eb.ref('excluded.counts_as_workday'),
               counts_as_day_off: eb.ref('excluded.counts_as_day_off'),
@@ -165,6 +168,7 @@ export class AttendanceDaysRepository {
     const makeupWindows = await this.loadMakeupWindows(employeeId, from, to);
     const explanations = await this.loadExplanations(employeeId, from, to);
     const holidays = await this.loadHolidays(from, to);
+    const halfShifts = await this.loadHalfShifts(employeeId, from, to);
 
     const days = dates.map<DayFacts>(date => ({
       date,
@@ -172,6 +176,7 @@ export class AttendanceDaysRepository {
       punches: punches.get(date) ?? [],
       otWindows: otWindows.get(date) ?? [],
       makeupWindows: makeupWindows.get(date) ?? [],
+      halfShift: halfShifts.get(date) ?? null,
       explanation: explanations.get(date) ?? null,
       isHoliday: holidays.has(date)
     }));
@@ -372,6 +377,41 @@ export class AttendanceDaysRepository {
     return new Set(rows.map(row => row.holiday_date));
   }
 
+  /** Đơn nghỉ giữa ca đã duyệt của ngày. */
+  private async loadHalfShifts(
+    employeeId: string,
+    from: string,
+    to: string
+  ): Promise<Map<string, HalfShiftFacts>> {
+    const rows = await this.qb
+      .selectFrom('system_requests')
+      .select([
+        'id',
+        sql<string>`to_char(half_shift_date, 'YYYY-MM-DD')`.as('half_shift_date'),
+        'half_shift_half',
+        'half_start_time',
+        'half_end_time'
+      ])
+      .where('employee_id', '=', employeeId)
+      .where('type', '=', 'HALF_SHIFT_LEAVE')
+      .where('status', '=', 'APPROVED')
+      .where('half_shift_date', '>=', from)
+      .where('half_shift_date', '<=', to)
+      .execute();
+
+    const byDate = new Map<string, HalfShiftFacts>();
+    for (const row of rows) {
+      if (!row.half_shift_half || !row.half_start_time || !row.half_end_time) continue;
+      byDate.set(row.half_shift_date, {
+        half: row.half_shift_half as HalfShift,
+        start: row.half_start_time,
+        end: row.half_end_time,
+        requestId: row.id
+      });
+    }
+    return byDate;
+  }
+
   /**
    * Nhân sự còn hiệu lực trong [from, to]: có uuid, chưa khoá tài khoản, và thời gian làm việc giao với khoảng
    * (chưa nhận việc sau `to`, chưa nghỉ việc trước `from`). Theo uuid tăng để kết quả ổn định.
@@ -460,7 +500,8 @@ export class AttendanceDaysRepository {
       cases: JSON.parse(row.cases_json) as DetectedCase[],
       explanationStatus: row.explanation_status as ExplanationStatus,
       explanationRequestId: row.explanation_request_id,
-      payUnits: Number(row.pay_units) === 1 ? 1 : 0,
+      payUnits: Number(row.pay_units) === 1 ? 1 : Number(row.pay_units) === 0.5 ? 0.5 : 0,
+      halfShift: (row.half_shift as HalfShift | null) ?? null,
       deductionMinutes: Number(row.deduction_minutes),
       countsAsWorkday: row.counts_as_workday,
       countsAsDayOff: row.counts_as_day_off,
@@ -502,6 +543,7 @@ function valuesOf(day: AttendanceDay, now: Date) {
     explanation_status: day.explanationStatus,
     explanation_request_id: day.explanationRequestId,
     pay_units: day.payUnits,
+    half_shift: day.halfShift ?? null,
     deduction_minutes: day.deductionMinutes,
     counts_as_workday: day.countsAsWorkday,
     counts_as_day_off: day.countsAsDayOff,

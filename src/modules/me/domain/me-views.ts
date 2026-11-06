@@ -1,3 +1,5 @@
+import type { HalfShift } from '../../../common/half-shift';
+
 // Hàm thuần dựng dữ liệu "của tôi" từ bảng công và đơn từ: ngày theo giờ Việt Nam, tuần thứ Hai – Chủ nhật,
 // một ô ngày công, công cả tháng và các bước của một đơn.
 
@@ -13,6 +15,7 @@ export type DaySummary = {
   date: string;
   kind: DayKind;
   leave?: LeaveKind;
+  halfShift?: HalfShift | null;
   in: string | null;
   out: string | null;
   lateMinutes: number;
@@ -27,6 +30,7 @@ export type TimesheetLike = {
   actualCheckIn: string | null;
   actualCheckOut: string | null;
   status: string;
+  halfShift?: HalfShift | null;
   isLocked?: boolean;
   metrics?: { lateMinutes?: number };
   cases?: DayCase[];
@@ -84,14 +88,15 @@ export function daySummaryOf(
   today: string,
   weekdays: readonly number[] = DEFAULT_WEEKDAYS
 ): DaySummary {
-  const base = { date, in: null, out: null, lateMinutes: 0, explanationStatus: 'none' as ExplanationState, cases: [] as DayCase[] };
+  const halfShift = ts?.halfShift ?? null;
+  const base = { date, halfShift, in: null, out: null, lateMinutes: 0, explanationStatus: 'none' as ExplanationState, cases: [] as DayCase[] };
   if (!ts) {
     if (!weekdays.includes(dow(date))) return { ...base, kind: 'off' };
     return { ...base, kind: date > today ? 'future' : 'absent' };
   }
   const cases = ts.cases ?? [];
   const explanationStatus = explanationOf(ts.explanationStatus);
-  const shown = { date, in: hhmm(ts.actualCheckIn), out: hhmm(ts.actualCheckOut), lateMinutes: ts.metrics?.lateMinutes || 0, explanationStatus, cases };
+  const shown = { date, halfShift, in: hhmm(ts.actualCheckIn), out: hhmm(ts.actualCheckOut), lateMinutes: ts.metrics?.lateMinutes || 0, explanationStatus, cases };
   const leave = LEAVE_OF[ts.status];
   if (leave) return { ...base, kind: 'leave', leave, explanationStatus, cases };
   switch (ts.status) {
@@ -138,7 +143,7 @@ export function monthOf(
     month,
     periodState: (periodStatus && periodStatus !== 'open') || inMonth.some(t => t.isLocked) ? ('locked' as const) : ('open' as const),
     totals: {
-      workDays: inMonth.filter(t => t.countsAsWorkday).length,
+      workDays: inMonth.reduce((sum, t) => sum + (t.countsAsWorkday ? ((t.status === 'PRESENT' && t.halfShift) ? 0.5 : 1) : 0), 0),
       standardDays: days.filter(d => weekdays.includes(dow(d.date))).length,
       lateCount: days.filter(d => d.kind === 'late').length,
       // R11: nghỉ hưởng lương gồm phép có lương, lễ có lương và iSAT có lương (payUnits = 1).

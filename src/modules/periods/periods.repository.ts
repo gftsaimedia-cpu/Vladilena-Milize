@@ -96,12 +96,13 @@ export class PeriodsRepository {
     // ứng, ngày làm bù, Thứ Bảy iSAT) tính tháng của chính nó.
     const range = (a: 'leave_start_date' | 'change_start_date', b: 'leave_end_date' | 'change_end_date') =>
       sql`(LEAST(${sql.ref(a)}, ${sql.ref(b)}) <= ${to} AND GREATEST(${sql.ref(a)}, ${sql.ref(b)}) >= ${from})`;
-    const day = (col: 'ot_date' | 'explanation_date') => sql`(${sql.ref(col)} BETWEEN ${from} AND ${to})`;
+    const day = (col: 'ot_date' | 'explanation_date' | 'half_shift_date') => sql`(${sql.ref(col)} BETWEEN ${from} AND ${to})`;
     const touches = sql<boolean>`(
       ${range('leave_start_date', 'leave_end_date')}
       OR ${range('change_start_date', 'change_end_date')}
       OR ${day('ot_date')}
       OR ${day('explanation_date')}
+      OR ${day('half_shift_date')}
       OR left(advance_period, 7) = ${month}
       OR EXISTS (SELECT 1 FROM makeup_slots m WHERE m.request_id = system_requests.id AND m.work_date BETWEEN ${from} AND ${to})
       OR EXISTS (SELECT 1 FROM isat_registrations i WHERE i.request_id = system_requests.id AND i.saturday BETWEEN ${from} AND ${to})
