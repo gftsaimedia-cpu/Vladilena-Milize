@@ -42,7 +42,6 @@ test('staff list follows board I without calling /api', async ({ page }) => {
   await expect(page.getByRole('tablist')).toHaveCount(0);
   for (const name of [
     'Nhập từ Excel',
-    'Thêm nhân sự',
     'Bộ lọc',
     'Trang trước',
     'Trang sau',
@@ -506,7 +505,8 @@ test("a name opens Hoàng Thị Mai's profile as on board I2", async ({ page }) 
     'href',
     '/admin/cham-cong/nhan-vien/hoang-thi-mai'
   );
-  await expect(page.getByRole('button', { name: 'Sửa hồ sơ' })).toHaveCount(0);
+  await expect(d.getByRole('button', { name: 'Sửa hồ sơ' })).toBeVisible();
+  await expect(d.getByRole('button', { name: 'Cho nghỉ việc' })).toBeVisible();
 
   await expect(d).toHaveCSS('border-radius', '24px');
   await expect(d).toHaveCSS('box-shadow', 'none');

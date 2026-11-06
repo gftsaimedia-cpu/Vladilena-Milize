@@ -1,8 +1,25 @@
-// Dịch vụ màn Nhân sự (chỉ đọc). Máy chủ thật: GET /api/v2/employees và /employees/:username; dữ liệu giả: mock/staff.
+// Dịch vụ màn Nhân sự. Máy chủ thật: GET /api/v2/employees và /employees/:username; Thêm nhân sự POST /employees, Sửa hồ
+// sơ PUT /employees/:username, Cho nghỉ việc DELETE /employees/:username (BE ghi nghỉ việc từ hôm nay và khoá tài khoản,
+// hồ sơ vẫn giữ). Dữ liệu giả: mock/staff, ghi thẳng vào các dòng giả.
+import type { TypeRow } from '@/builders/api/catalog';
+import { formFromEmployee, type StaffForm } from '@/builders/admin-hr/staff-form';
 import { staffListFromEmployees, staffProfileFromEmployee } from '@/builders/api/staff';
-import { assignStaffShift, moveStaffDept, staffListView, staffProfile, type StaffListView, type StaffProfile } from '@/mock/staff';
+import {
+  MOCK_DEPARTMENTS,
+  assignStaffShift,
+  createStaff,
+  endStaff,
+  moveStaffDept,
+  staffForm,
+  staffListView,
+  staffProfile,
+  updateStaff,
+  type StaffListView,
+  type StaffProfile
+} from '@/mock/staff';
 import { respond } from '@/mock/respond';
 import { useSessionStore } from '@/stores/session';
+import { catalogRows } from './admin-catalog';
 import { ApiError, api } from './http';
 
 // Gán ca và Đổi phòng ban cho nhiều người. Máy chủ thật: POST /api/v2/employees/shift và /employees/department;
@@ -58,7 +75,7 @@ export async function assignShift(ids: string[], code: string): Promise<string[]
 }
 
 // Hôm nay theo giờ Việt Nam (UTC+7) của đồng hồ máy chủ.
-function today(): string {
+export function staffToday(): string {
   const now = useSessionStore().serverNow;
   const t = now ? Date.parse(now) : Date.now();
   return new Date(t + 7 * 3600000).toISOString().slice(0, 10);
@@ -68,7 +85,7 @@ function today(): string {
 export async function getStaffList(): Promise<StaffListView> {
   if (__MOCK__) return respond(staffListView());
   const { employees = [] } = await api.get('/employees');
-  return staffListFromEmployees(employees, today());
+  return staffListFromEmployees(employees, staffToday());
 }
 
 /** Hồ sơ một người theo id (tên đăng nhập); null nếu không có người này. */
@@ -76,9 +93,53 @@ export async function getStaffProfile(id: string): Promise<StaffProfile | null> 
   if (__MOCK__) return respond(staffProfile(id));
   try {
     const { employee } = await api.get(`/employees/${encodeURIComponent(id)}`);
-    return staffProfileFromEmployee(employee, today());
+    return staffProfileFromEmployee(employee, staffToday());
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) return null;
     throw e;
   }
+}
+
+type DeptChoice = { id: number; name: string };
+
+/** Dữ liệu cho hộp Thêm / Sửa: danh mục chức vụ (mọi phiên bản), các tên đăng nhập đã có, phòng ban và hôm nay. */
+export async function getStaffFormOptions(): Promise<{ catalog: TypeRow[]; taken: string[]; depts: DeptChoice[]; today: string }> {
+  const [catalog, taken, depts] = await Promise.all([
+    catalogRows(),
+    __MOCK__
+      ? respond(staffListView().rows.map(r => r.id))
+      : api.get('/employees').then(r => (r.employees || []).map((e: any) => e.account.username)),
+    __MOCK__ ? respond(MOCK_DEPARTMENTS) : getDepartments()
+  ]);
+  return { catalog, taken, depts, today: staffToday() };
+}
+
+/** Thêm nhân sự (POST /api/v2/employees); thân dựng bằng newStaffBody. Lỗi máy chủ ném nguyên văn. */
+export async function createEmployee(body: Record<string, unknown>): Promise<unknown> {
+  if (__MOCK__) return respond(createStaff(body));
+  return api.post('/employees', body);
+}
+
+/** Biểu mẫu Sửa hồ sơ của một người, điền sẵn từ hồ sơ đang lưu; null nếu không có người này. */
+export async function getStaffForm(id: string): Promise<StaffForm | null> {
+  if (__MOCK__) return respond(staffForm(id));
+  try {
+    const { employee } = await api.get(`/employees/${encodeURIComponent(id)}`);
+    return formFromEmployee(employee);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
+/** Sửa hồ sơ (PUT /api/v2/employees/:username); thân dựng bằng editStaffBody, không đổi tên đăng nhập. */
+export async function updateEmployee(id: string, body: Record<string, unknown>): Promise<unknown> {
+  if (__MOCK__) return respond(updateStaff(id, body));
+  return api.put(`/employees/${encodeURIComponent(id)}`, body);
+}
+
+/** Cho nghỉ việc từ hôm nay (DELETE /api/v2/employees/:username): tài khoản bị khoá, hồ sơ và lịch sử vẫn giữ. */
+export async function endEmployment(id: string): Promise<unknown> {
+  if (__MOCK__) return respond(endStaff(id));
+  return api.del(`/employees/${encodeURIComponent(id)}`);
 }
