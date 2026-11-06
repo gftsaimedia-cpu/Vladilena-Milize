@@ -112,18 +112,24 @@ const KIND_OF: Record<RequestDTO['type'], ReqKind> = {
 };
 const STATUS_OF: Record<RequestDTO['status'], ReqStatus> = { PENDING: 'pend', APPROVED: 'ok', REJECTED: 'rej', CANCELLED: 'cancel' };
 
-/** Danh sách đơn của máy chủ thật. Chữ đầu / phụ / dòng chi tiết dựng như chuông (inboxFromRequests), cho mọi trạng thái. */
+/**
+ * Danh sách đơn của máy chủ thật. Chữ đầu / phụ / dòng chi tiết dựng như chuông (inboxFromRequests), cho mọi trạng thái.
+ * Màn gộp hai lần đọc (đơn chờ + đơn gần đây) nên bỏ trùng theo id (giữ bản đầu), rồi xếp theo sortRequests.
+ */
 export function requestRowsFromDto(
   requests: (RequestDTO & { reviewedAt?: string | null; reviewNote?: string | null })[],
   people: Map<string, PersonInfo>,
   now: number
 ): ReqRow[] {
-  const asPending = requests.map(r => ({ ...r, status: 'PENDING' as const }));
+  const unique = [...new Map(requests.map(r => [r.id, r] as const).reverse()).values()].reverse();
+  const asPending = unique.map(r => ({ ...r, status: 'PENDING' as const }));
   const items = new Map(inboxFromRequests(asPending, people, now).map(i => [i.id, i]));
-  return requests.flatMap(r => {
-    const item = items.get(r.id);
-    if (!item) return [];
-    const row = rowFromInbox(item, KIND_OF[r.type] ?? 'leave', r.createdAt, STATUS_OF[r.status] ?? 'pend');
-    return [{ ...row, reviewedAt: r.reviewedAt ?? undefined, reviewNote: r.reviewNote ?? undefined }];
-  });
+  return sortRequests(
+    unique.flatMap(r => {
+      const item = items.get(r.id);
+      if (!item) return [];
+      const row = rowFromInbox(item, KIND_OF[r.type] ?? 'leave', r.createdAt, STATUS_OF[r.status] ?? 'pend');
+      return [{ ...row, reviewedAt: r.reviewedAt ?? undefined, reviewNote: r.reviewNote ?? undefined }];
+    })
+  );
 }

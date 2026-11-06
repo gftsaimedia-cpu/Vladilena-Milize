@@ -42,11 +42,28 @@ test('staff status and department filters narrow the payslips', async ({ page })
   await expect(names(page)).toHaveText(['Bùi Quốc Huy', 'Trịnh Văn Long', 'Lý Thanh Tâm', 'Ngô Gia Bảo']);
 });
 
-test('no checkbox column and no header recalculate button by default', async ({ page }) => {
+test('no checkbox column by default', async ({ page }) => {
   await page.goto(URL10);
   await expect(names(page)).toHaveCount(10);
   await expect(table(page).getByRole('checkbox')).toHaveCount(0);
-  await expect(page.locator('.title').getByRole('button', { name: /Tính lại/ })).toHaveCount(0);
+});
+
+// Tính cả kỳ (POST không kèm employeeIds) là đường duy nhất đưa kỳ từ Đã chốt công sang Đã tính và tạo phiếu cho người mới;
+// lần chạy mới thay mọi phiếu nên phiếu đã duyệt về nháp: hỏi trước, nói rõ số phiếu đã duyệt phải duyệt lại.
+test('the header recalculates the whole period after warning that approved payslips go back to draft', async ({ page }) => {
+  await page.goto(URL10);
+  await expect(names(page)).toHaveCount(10);
+  await page.locator('.title').getByRole('button', { name: 'Tính lại cả kỳ' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Tính lại cả kỳ lương tháng 10/2026' });
+  await expect(dlg).toContainText('86 phiếu đã duyệt sẽ về nháp và phải duyệt lại.');
+  await dlg.getByRole('button', { name: 'Huỷ' }).click();
+  await expect(dlg).toHaveCount(0);
+
+  await page.locator('.title').getByRole('button', { name: 'Tính lại cả kỳ' }).click();
+  await dlg.getByRole('button', { name: 'Tính lại cả kỳ' }).click();
+  await expect(dlg).toHaveCount(0);
+  // Bản giả có 10 dòng phiếu (số 128 của board chỉ ở ô đếm), nên chỉ khớp dạng câu.
+  await expect(page.getByText(/^Đã tính \d+ phiếu lương\.$/)).toBeVisible();
 });
 
 test('recalculate: approved payslips are locked and select all takes only the rest', async ({ page }) => {
@@ -82,6 +99,18 @@ test('recalculate follows the filters while picking', async ({ page }) => {
   await expect(result(page)).toHaveText('Đã tính lại 1 phiếu lương.');
 });
 
+// Chặn trước: mọi phiếu đang hiện đều đã duyệt thì không có phiếu để tính lại, nút khoá kèm lời giải thích.
+test('Tính lại lương is disabled when every shown payslip is approved', async ({ page }) => {
+  await page.goto(URL10);
+  await expect(names(page)).toHaveCount(10);
+  await page.getByRole('group', { name: 'Lọc theo trạng thái' }).getByRole('button', { name: /^Đã duyệt/ }).click();
+  const btn = page.getByRole('button', { name: 'Tính lại lương' });
+  await expect(btn).toBeDisabled();
+  await expect(btn).toHaveAttribute('title', 'Không có phiếu nào tính lại được trong danh sách đang lọc');
+  await page.getByRole('group', { name: 'Lọc theo trạng thái' }).getByRole('button', { name: /^Tất cả/ }).click();
+  await expect(btn).toBeEnabled();
+});
+
 test('an approved period has no recalculate button', async ({ page }) => {
   await page.goto(URL10);
   await page.evaluate(async () => {
@@ -93,4 +122,5 @@ test('an approved period has no recalculate button', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: 'Phê duyệt kỳ lương' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Tính lại lương' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tính lại cả kỳ' })).toHaveCount(0);
 });

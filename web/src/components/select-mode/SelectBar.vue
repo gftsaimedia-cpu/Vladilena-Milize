@@ -1,6 +1,10 @@
 <script setup lang="ts">
 // Thanh đen của chế độ chọn: Huỷ · tên thao tác · "Đã chọn N / M <đơn vị>" · ghi chú · [ô chọn thêm] · nút chạy (khoá khi chưa đủ).
+// Tiêu điểm: hiện ra khi nút mở vừa biến mất (tiêu điểm rơi về body) thì đặt vào Huỷ; đóng lại khi tiêu điểm đang trong
+// thanh (Huỷ, nút chạy) hay đã rơi về body thì trả về nút đã mở chế độ (opener.ts).
+import { onBeforeUnmount, onMounted, onUnmounted, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
+import { focusOpener } from './opener';
 
 defineProps<{
   title: string;
@@ -10,14 +14,38 @@ defineProps<{
   note?: string;
   goLabel: string;
   goDisabled: boolean;
+  /** Đang chạy: Huỷ khoá, vì các mục đã gửi đi không dừng được; chạy xong màn tự thoát chế độ. */
+  running?: boolean;
 }>();
 defineEmits<{ quit: []; run: [] }>();
+
+const bar = ref<HTMLElement | null>(null);
+const quitBtn = ref<HTMLButtonElement | null>(null);
+const idle = () => !document.activeElement || document.activeElement === document.body;
+onMounted(() => {
+  if (idle()) quitBtn.value?.focus();
+});
+let giveBack = false;
+onBeforeUnmount(() => {
+  giveBack = idle() || !!bar.value?.contains(document.activeElement);
+});
+// onUnmounted chạy sau khi cả màn đã vẽ lại, lúc nút mở chế độ (hay dòng kết quả) đã có trong trang.
+onUnmounted(() => {
+  if (giveBack) focusOpener();
+});
 </script>
 
 <template>
   <div class="smb-wrap">
-    <div class="smb" role="toolbar" :aria-label="`${title} cho nhiều ${unit}`">
-      <button type="button" class="smx" aria-label="Huỷ, thoát chế độ chọn" @click="$emit('quit')">
+    <div ref="bar" class="smb" role="toolbar" :aria-label="`${title} cho nhiều ${unit}`">
+      <button
+        ref="quitBtn"
+        type="button"
+        class="smx"
+        aria-label="Huỷ, thoát chế độ chọn"
+        :disabled="running"
+        @click="$emit('quit')"
+      >
         <Icon name="x" :size="18" :stroke="2" />
       </button>
       <span class="smt">{{ title }}</span>
@@ -58,8 +86,12 @@ defineEmits<{ quit: []; run: [] }>();
   color: var(--on-primary);
   cursor: pointer;
 }
-.smx:hover {
+.smx:hover:not(:disabled) {
   background: var(--surface-dark-raised);
+}
+.smx:disabled {
+  color: var(--ink-on-dark-muted);
+  cursor: default;
 }
 .smt,
 .smn {

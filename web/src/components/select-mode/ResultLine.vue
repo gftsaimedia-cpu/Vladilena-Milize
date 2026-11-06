@@ -7,7 +7,7 @@ defineProps<{ text: string }>();
 
 <template>
   <div v-if="text" class="rsl-wrap">
-    <div class="rsl" role="status">
+    <div class="rsl" role="status" tabindex="-1">
       <Icon name="check" :size="16" :stroke="2" />
       <span>{{ text }}</span>
     </div>

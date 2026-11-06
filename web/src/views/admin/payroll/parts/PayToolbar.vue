@@ -9,7 +9,9 @@ import type { StaffPst } from '@/components/staff-scope/staffScope';
 import Icon from '@/components/ui/Icon.vue';
 import type { PayrollStatus, SlipCounts } from '@/mock/payroll';
 
-const props = defineProps<{ counts: SlipCounts; depts: string[]; recalc: boolean }>();
+// `none`: các phiếu đang lọc đều đã duyệt (vd. nút lọc Đã duyệt), "Tính lại lương" khoá kèm lời giải thích.
+const props = defineProps<{ counts: SlipCounts; depts: string[]; recalc: boolean; none?: boolean }>();
+const NONE_WHY = 'Không có phiếu nào tính lại được trong danh sách đang lọc';
 defineEmits<{ export: []; recalc: [] }>();
 const filter = defineModel<'all' | PayrollStatus>('filter', { required: true });
 const query = defineModel<string>('query', { required: true });
@@ -35,7 +37,9 @@ const buttons = computed(() => FILTERS.map(f => ({ ...f, count: props.counts[f.k
         <input v-model="query" type="text" placeholder="Tìm theo tên…" aria-label="Tìm theo tên" />
       </label>
       <span class="sp" />
-      <BulkButton v-if="recalc" icon="refresh" @click="$emit('recalc')">Tính lại lương</BulkButton>
+      <BulkButton v-if="recalc" icon="refresh" :disabled="none" :title="none ? NONE_WHY : undefined" @click="$emit('recalc')">
+        Tính lại lương
+      </BulkButton>
       <button
         type="button"
         class="xp"

@@ -43,12 +43,17 @@ const failed = ref(false);
 // Dòng vừa duyệt trên bảng: nút Duyệt biến mất nên focus chuyển sang nút Xem của chính dòng đó sau khi tải lại.
 let focusAfter = '';
 
+// Lần tải chồng nhau (duyệt liên tiếp, cập nhật trực tiếp): chỉ lần bắt đầu sau cùng được ghi, lần cũ xong muộn bị bỏ.
+let loadSeq = 0;
 async function load() {
+  const mine = ++loadSeq;
   try {
-    all.value = await getRequests();
+    const rows = await getRequests();
+    if (mine !== loadSeq) return;
+    all.value = rows;
     failed.value = false;
   } catch {
-    failed.value = true;
+    if (mine === loadSeq) failed.value = true;
     return;
   }
   if (focusAfter) {
@@ -259,6 +264,7 @@ async function runBulk() {
             note="Từ chối vẫn làm ở từng đơn vì cần ghi lý do"
             :go-label="approving ? 'Đang duyệt…' : chosen.length ? `Duyệt ${chosen.length} đơn` : 'Chọn ít nhất 1 đơn'"
             :go-disabled="!chosen.length || approving"
+            :running="approving"
             @quit="sel.quit()"
             @run="runBulk"
           />

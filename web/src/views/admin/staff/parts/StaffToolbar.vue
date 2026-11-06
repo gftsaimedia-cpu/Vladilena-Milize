@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Hàng công cụ của thẻ danh sách: cặp bộ lọc nhân sự (trạng thái, phòng ban), ô tìm, hai thao tác nhiều người
 // ("Gán ca", "Đổi phòng ban"; ẩn khi đang chọn hoặc khi máy chủ chưa hỗ trợ) và nút xuất các dòng đang lọc.
+// `none`: danh sách đang lọc không còn ai chọn được (vd. chỉ người đã nghỉ việc), hai nút khoá kèm lời giải thích.
 import StaffScopeFilter from '@/components/staff-scope/StaffScopeFilter.vue';
 import type { StaffPst } from '@/components/staff-scope/staffScope';
 import BulkButton from '@/components/select-mode/BulkButton.vue';
@@ -9,7 +10,8 @@ import Icon from '@/components/ui/Icon.vue';
 const q = defineModel<string>('q', { required: true });
 const pst = defineModel<StaffPst>('pst', { required: true });
 const dept = defineModel<string>('dept', { required: true });
-defineProps<{ depts: string[]; bulk: boolean }>();
+defineProps<{ depts: string[]; bulk: boolean; none?: boolean }>();
+const NONE_WHY = 'Không có người nào chọn được trong danh sách đang lọc';
 defineEmits<{ export: []; shift: []; move: [] }>();
 </script>
 
@@ -22,8 +24,10 @@ defineEmits<{ export: []; shift: []; move: [] }>();
     </label>
     <span class="sp" />
     <template v-if="bulk">
-      <BulkButton icon="clock" @click="$emit('shift')">Gán ca</BulkButton>
-      <BulkButton icon="team" @click="$emit('move')">Đổi phòng ban</BulkButton>
+      <BulkButton icon="clock" :disabled="none" :title="none ? NONE_WHY : undefined" @click="$emit('shift')">Gán ca</BulkButton>
+      <BulkButton icon="team" :disabled="none" :title="none ? NONE_WHY : undefined" @click="$emit('move')">
+        Đổi phòng ban
+      </BulkButton>
     </template>
     <button
       type="button"

@@ -9,6 +9,7 @@ import { useSelectMode } from '@/components/select-mode/useSelectMode';
 import { deptOptions, matchScope, useMineDepts, type StaffPst } from '@/components/staff-scope/staffScope';
 import PeriodActions from '@/components/shell/PeriodActions.vue';
 import PeriodStrip from '@/components/shell/PeriodStrip.vue';
+import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import type { KpiPart } from '@/mock/payroll-calc';
@@ -34,10 +35,17 @@ const data = computed(() => loaded.value as PayrollScreen | null);
 const board = computed(() => (data.value && !data.value.empty ? data.value : null));
 
 // Tính lương cả kỳ khi tháng chưa có phiếu (bản mockup trả ngay); người tính lỗi (thiếu cấu hình bậc…) báo thành một thông báo.
-// Đã có bảng thì tính lại qua chế độ chọn "Tính lại lương" ở thẻ bảng (board G2), không có nút trên tiêu đề.
-// Kỳ đã phê duyệt hoặc đã trả thì không tính lại được (BE trả PAYROLL_FINALIZED), nên ẩn cả hai nút.
+// Đã có bảng thì tiêu đề có "Tính lại cả kỳ": chỉ lần chạy cả kỳ (không kèm employeeIds) mới đưa kỳ từ Đã chốt công sang
+// Đã tính và tạo phiếu cho người mới vào kỳ. Lần chạy mới thay mọi phiếu nên phiếu đã duyệt về nháp: hỏi trước khi chạy.
+// Tính lại riêng vài phiếu đi qua chế độ chọn "Tính lại lương" ở thẻ bảng (board G2).
+// Kỳ đã phê duyệt hoặc đã trả thì không tính lại được (BE trả PAYROLL_FINALIZED), nên ẩn cả ba nút.
 const canCalculate = computed(() => !['approved', 'paid'].includes(period.view?.status ?? ''));
 const calculating = ref(false);
+const askFull = ref(false);
+async function recalcAll() {
+  await calculate();
+  askFull.value = false;
+}
 async function calculate() {
   if (calculating.value) return;
   calculating.value = true;
@@ -253,6 +261,9 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
         <button v-if="canCalculate && !board" type="button" class="btn" :disabled="calculating" @click="calculate">
           <Icon name="clock" />{{ calculating ? 'Đang tính…' : 'Tính lương' }}
         </button>
+        <button v-if="canCalculate && board" type="button" class="btn" :disabled="calculating" @click="askFull = true">
+          <Icon name="refresh" />Tính lại cả kỳ
+        </button>
         <PeriodActions only="approve" />
       </div>
     </div>
@@ -275,6 +286,7 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
           :counts="board.counts"
           :depts="depts"
           :recalc="canCalculate && !sel.mode.value"
+          :none="!pickable.length"
           @export="exportCsv"
           @recalc="startRecalc"
         />
@@ -287,6 +299,7 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
           note="Phiếu đã duyệt không tính lại được"
           :go-label="calculating ? 'Đang tính…' : goLabel"
           :go-disabled="!chosen.length || calculating"
+          :running="calculating"
           @quit="sel.quit()"
           @run="recalc"
         />
@@ -319,6 +332,25 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
       </section>
     </template>
 
+    <AppModal
+      v-if="askFull && board"
+      :title="`Tính lại cả kỳ lương tháng ${monthShort(board.month)}`"
+      sub="Mọi nhân viên được tính lại theo công và cài đặt hiện tại, kể cả người mới vào kỳ."
+      :width="520"
+      :top="200"
+      @close="askFull = false"
+    >
+      <p v-if="approved" class="full-warn">{{ approved }} phiếu đã duyệt sẽ về nháp và phải duyệt lại.</p>
+      <p v-else class="full-warn">Chưa có phiếu nào được duyệt.</p>
+      <template #footer>
+        <span class="sp"></span>
+        <button type="button" class="btn" @click="askFull = false">Huỷ</button>
+        <button type="button" class="btn pri" :disabled="calculating" @click="recalcAll">
+          {{ calculating ? 'Đang tính…' : 'Tính lại cả kỳ' }}
+        </button>
+      </template>
+    </AppModal>
+
     <PayslipDrawer
       v-if="slip && board"
       :slip="slip"
@@ -344,6 +376,9 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
 }
 .title .acts {
   gap: 8px;
+}
+.full-warn {
+  margin: 0;
 }
 .pl-print:focus-visible {
   outline: 2px solid var(--text);

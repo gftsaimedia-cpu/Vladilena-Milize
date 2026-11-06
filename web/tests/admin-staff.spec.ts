@@ -365,6 +365,21 @@ test('cancel leaves select mode and the next run starts from zero', async ({ pag
   await expect(result(page)).toHaveCount(0);
 });
 
+// Chặn trước: lọc ra toàn người đã nghỉ việc thì không có ai để chọn, hai nút khoá kèm lời giải thích.
+test('bulk actions are disabled when nobody shown can be picked', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  await pstSel(page).selectOption({ label: 'Đã nghỉ việc' });
+  await expect(names(page)).toHaveText(['Đặng Văn Phúc']);
+  for (const name of ['Gán ca', 'Đổi phòng ban']) {
+    const btn = page.getByRole('button', { name });
+    await expect(btn).toBeDisabled();
+    await expect(btn).toHaveAttribute('title', 'Không có người nào chọn được trong danh sách đang lọc');
+  }
+  await pstSel(page).selectOption({ label: 'Đang làm việc' });
+  await expect(page.getByRole('button', { name: 'Gán ca' })).toBeEnabled();
+});
+
 async function exportCsv(page: Page, name: string) {
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name }).click()]);
   expect(dl.suggestedFilename()).toBe('danh-sach-nhan-su.csv');

@@ -130,6 +130,7 @@ const footer = computed(() =>
           v-model:dept="dept"
           :depts="depts"
           :bulk="STAFF_BULK && !sel.mode.value"
+          :none="!pickable.length"
           @export="exportCsv"
           @shift="start('shift')"
           @move="start('move')"
@@ -141,7 +142,8 @@ const footer = computed(() =>
           :total="pickable.length"
           unit="người"
           :go-label="goLabel"
-          :go-disabled="goDisabled"
+          :go-disabled="goDisabled || running"
+          :running="running"
           @quit="sel.quit()"
           @run="run"
         >

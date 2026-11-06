@@ -312,6 +312,7 @@ function onTabKey(event: KeyboardEvent) {
           unit="người"
           :go-label="reminding ? 'Đang nhắc…' : chosen.length ? `Nhắc ${chosen.length} người` : 'Chọn ít nhất 1 người'"
           :go-disabled="!chosen.length || reminding"
+          :running="reminding"
           @quit="sel.quit()"
           @run="runRemind"
         />

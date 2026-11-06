@@ -2,6 +2,8 @@
 // duyệt ngay trên dòng, từ chối trong ngăn chi tiết (bắt buộc lý do), ?don mở ngăn. Dữ liệu giả: đơn chờ là việc "duyệt"
 // của mock/inbox (cùng nguồn với chuông), đơn đã xử lý từ mock/admin-requests.ts.
 import { expect, test, type Page } from '@playwright/test';
+import { requestRowsFromDto } from '../src/builders/api/admin-requests';
+import type { RequestDTO } from '../src/builders/api/inbox';
 
 test.use({ reducedMotion: 'reduce' });
 
@@ -177,4 +179,88 @@ test('duyệt nhiều đơn: chỉ đơn chờ chọn được, nút Duyệt/T�
   await expect(rowOf(page, 'Đỗ Mai Linh')).toContainText('Chờ duyệt');
   await expect(bell(page)).toHaveAccessibleName('Thông báo, 10 việc cần xử lý');
   await expect(navLink(page)).toHaveText(/8$/);
+});
+
+// Bàn phím: vào chế độ chọn thì tiêu điểm tới nút Huỷ của thanh đen (nút vừa bấm biến mất); thoát (Huỷ hoặc chạy xong)
+// thì tiêu điểm về lại nút đã mở chế độ, không rơi về đầu trang.
+test('select mode moves focus to Huỷ on entry and back to "Duyệt nhiều đơn" on leaving', async ({ page }) => {
+  await page.goto(URL);
+  const bulk = page.getByRole('button', { name: 'Duyệt nhiều đơn' });
+  const quit = page.getByRole('button', { name: 'Huỷ, thoát chế độ chọn' });
+  await bulk.focus();
+  await page.keyboard.press('Enter');
+  await expect(quit).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(quit).toHaveCount(0);
+  await expect(bulk).toBeFocused();
+
+  await page.keyboard.press('Enter');
+  await page.getByRole('checkbox', { name: 'Chọn đơn của Đỗ Mai Linh' }).click();
+  await page.getByRole('button', { name: 'Duyệt 1 đơn' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Đã duyệt 1 đơn.' })).toBeVisible();
+  await expect(bulk).toBeFocused();
+});
+
+// Vòng duyệt chạy từng đơn một: đang chạy thì Huỷ khoá (Huỷ không dừng được các đơn đã gửi đi), chạy xong mới thoát.
+test('Huỷ is locked while the approvals run', async ({ page }) => {
+  await page.goto(URL);
+  await page.getByRole('button', { name: 'Duyệt nhiều đơn' }).click();
+  const bar = page.getByRole('toolbar', { name: 'Duyệt nhiều đơn cho nhiều đơn' });
+  await page.getByRole('checkbox', { name: 'Chọn đơn của Đỗ Mai Linh' }).click();
+  await page.evaluate(() => ((window as unknown as { __mockLatencyMs: number }).__mockLatencyMs = 400));
+  await bar.getByRole('button', { name: 'Duyệt 1 đơn' }).click();
+  await expect(bar.getByRole('button', { name: 'Đang duyệt…' })).toBeDisabled();
+  await expect(bar.getByRole('button', { name: 'Huỷ, thoát chế độ chọn' })).toBeDisabled();
+  await expect(page.getByRole('status').filter({ hasText: 'Đã duyệt 1 đơn.' })).toBeVisible();
+  await expect(bar).toHaveCount(0);
+});
+
+// Hai lần tải chồng nhau: lần tải chậm bắt đầu trước (dữ liệu cũ) xong sau lần tải sau khi duyệt, không được đè lên.
+test('a slow earlier load does not overwrite the list after an approval', async ({ page }) => {
+  await page.goto(URL);
+  await expect(rowOf(page, 'Võ Đức Thịnh')).toContainText('Chờ duyệt');
+  await page.evaluate(async () => {
+    const w = window as unknown as { __mockLatencyMs: number };
+    w.__mockLatencyMs = 600;
+    const app = (document.querySelector('#app') as unknown as { __vue_app__: any }).__vue_app__;
+    app.config.globalProperties.$pinia._s.get('shell').version++;
+    // Đợi watcher của màn chạy (lần tải chậm đã chụp dữ liệu lúc này) rồi mới bỏ độ trễ.
+    await new Promise(r => setTimeout(r, 0));
+    w.__mockLatencyMs = 0;
+  });
+  await page.getByRole('button', { name: 'Duyệt yêu cầu của Võ Đức Thịnh' }).click();
+  await expect(rowOf(page, 'Võ Đức Thịnh')).toContainText('Đã duyệt');
+  await page.waitForTimeout(900);
+  await expect(rowOf(page, 'Võ Đức Thịnh')).toContainText('Đã duyệt');
+});
+
+// Máy chủ thật: màn gộp hai lần đọc (đơn chờ, đơn gần đây) nên một đơn chờ có thể về hai lần. Danh sách bỏ trùng theo id
+// và giữ thứ tự của board: đơn chờ cũ nhất trước, rồi đơn đã xử lý mới xử lý nhất trước.
+test('real-server rows drop duplicate ids and keep pending oldest first, then latest reviewed first', () => {
+  const leave = (id: string, status: RequestDTO['status'], createdAt: string, reviewedAt?: string) => ({
+    id,
+    employeeId: 'e1',
+    type: 'LEAVE' as const,
+    status,
+    reason: 'Việc nhà',
+    createdAt,
+    leaveType: 'ANNUAL',
+    leaveStartDate: '2026-10-29',
+    leaveEndDate: '2026-10-29',
+    leaveDaysCount: 1,
+    reviewedAt: reviewedAt ?? null
+  });
+  const people = new Map([['e1', { name: 'Lê Hoàng Nam', title: 'Kỹ thuật · Kỹ sư' }]]);
+  const rows = requestRowsFromDto(
+    [
+      leave('ok-old', 'APPROVED', '2026-10-20T01:00:00Z', '2026-10-21T01:00:00Z'),
+      leave('pend-new', 'PENDING', '2026-10-27T01:00:00Z'),
+      leave('rej-late', 'REJECTED', '2026-10-22T01:00:00Z', '2026-10-26T01:00:00Z'),
+      leave('pend-old', 'PENDING', '2026-10-23T01:00:00Z'),
+      leave('pend-new', 'PENDING', '2026-10-27T01:00:00Z')
+    ],
+    people,
+    Date.parse('2026-10-28T01:00:00Z')
+  );
+  expect(rows.map(r => r.id)).toEqual(['pend-old', 'pend-new', 'rej-late', 'ok-old']);
 });

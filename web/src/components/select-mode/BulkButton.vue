@@ -1,15 +1,23 @@
 <script setup lang="ts">
 // Nút trắng mở một thao tác áp cho nhiều người ("Gán ca", "Tính lại lương"…); `count` là ô đếm cam (vd. số người cần nhắc).
+// Bấm nút thì nhớ chữ trên nút (opener.ts) để thanh chọn đóng lại trả tiêu điểm về đây.
+import { ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
+import { rememberOpener } from './opener';
 
 defineProps<{ icon: string; count?: number; disabled?: boolean; title?: string }>();
-defineEmits<{ click: [] }>();
+const emit = defineEmits<{ click: [] }>();
+const text = ref<HTMLElement | null>(null);
+function press() {
+  rememberOpener(text.value?.textContent ?? '');
+  emit('click');
+}
 </script>
 
 <template>
-  <button type="button" class="smbb" :disabled="disabled" :title="title" @click="$emit('click')">
+  <button type="button" class="smbb" :disabled="disabled" :title="title" @click="press">
     <Icon :name="icon" :size="16" />
-    <slot />
+    <span ref="text" class="smbl"><slot /></span>
     <span v-if="count !== undefined" class="smct">{{ count }}</span>
   </button>
 </template>
