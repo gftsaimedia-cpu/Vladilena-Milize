@@ -1141,13 +1141,11 @@ export class RequestsService {
     if (needs.checkOut && actualCheckOut === null) {
       throw new Error('Nhập giờ ra thực tế');
     }
-    // R-P5: ca đêm (giờ hết ca không sau giờ vào ca) thì giờ ra rơi vào sáng hôm sau, không so được với giờ vào.
+    // R-P5: chỉ so hai giờ khai với nhau. Ca đêm (giờ hết ca không sau giờ vào ca) thì giờ ra rơi vào sáng hôm sau, không
+    // so được với giờ vào. D7 (người dùng chốt 06/11): giờ khai không so với lần chấm thật còn lại của ngày; Admin xét khi
+    // duyệt.
     const overnight = shift.endTime <= shift.startTime;
-    // Giờ khai báo còn phải khớp với lần chấm thật còn lại của ngày: khai giờ ra trước giờ vào thật (hay giờ vào sau giờ
-    // ra thật) là ngày công có giờ ra trước giờ vào.
-    const inTime = actualCheckIn ?? check.checkIn;
-    const outTime = actualCheckOut ?? check.checkOut;
-    if (!overnight && inTime !== null && outTime !== null && outTime <= inTime) {
+    if (!overnight && actualCheckIn !== null && actualCheckOut !== null && actualCheckOut <= actualCheckIn) {
       throw new Error('Giờ ra phải sau giờ vào');
     }
 

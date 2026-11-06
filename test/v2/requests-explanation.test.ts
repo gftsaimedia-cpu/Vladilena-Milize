@@ -96,6 +96,18 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
     assert.deepEqual([dto.actualCheckIn, dto.actualCheckOut], ['22:00', '06:00']);
   });
 
+  // D7 (người dùng chốt 06/11): giải trình nhận mọi giờ khai, kiểm tra là việc của Admin. Giờ khai không bị so với lần chấm
+  // thật còn lại của ngày.
+  it('a declared time is not checked against the real punch left on the day (D7)', async () => {
+    // 02/11: vào thật 08:00, thiếu giờ ra; khai giờ ra 07:00 (trước giờ vào thật) vẫn nhận.
+    const out = await expl({ workDate: '2026-11-02', actualCheckOut: '07:00' });
+    assert.deepEqual([out.explanationDate, out.actualCheckIn, out.actualCheckOut], ['2026-11-02', null, '07:00']);
+    // 04/11: ra thật 16:40, thiếu giờ vào; khai giờ vào 18:00 (sau giờ ra thật) vẫn nhận.
+    ctx.att.timesheets.push(timesheet('2026-11-04', null, '16:40'));
+    const inn = await expl({ workDate: '2026-11-04', actualCheckIn: '18:00' });
+    assert.deepEqual([inn.explanationDate, inn.actualCheckIn, inn.actualCheckOut], ['2026-11-04', '18:00', null]);
+  });
+
   // Người dùng chốt 05/11: giải trình nộp được tới khi kỳ được phê duyệt ("Nộp tới Phê duyệt kỳ").
   it('an explanation is accepted while the month is locked or calculated, by staff and by Admin', async () => {
     ctx.periods.statuses.set('2026-11', 'attendance_locked');
