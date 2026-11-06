@@ -968,7 +968,7 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   ```
   - `employeeId`: uuid hoặc username; đơn lưu theo uuid.
   - `workDate` (`YYYY-MM-DD`): không được sau hôm nay (giờ Việt Nam).
-  - Tiêu đề do server đặt (`Giải trình dd/MM`). Các trường hợp (`cases`) do server tự tìm từ ca và bảng công của ngày đó; nếu client có gửi `cases` thì bị bỏ qua. Danh mục mã ở `GET /api/v2/requests/explanation-cases`, đơn lưu theo thứ tự của danh mục.
+  - Tiêu đề do server đặt (`Giải trình dd/MM`). Các trường hợp (`cases`) do server tự tìm từ ca và bảng công của ngày đó; nếu client có gửi `cases` thì bị bỏ qua. Ngày không có ca (Chủ nhật, Thứ Bảy của tts) mà có khung OT hay khung bù **đã duyệt** cũng giải trình được (người dùng chốt 06/11): trường hợp đo so với giờ đầu và giờ cuối của các khung, như dòng ngày `EXTRA` của chấm công (vào trễ hay vào sớm quá 15 phút, ra sớm, ra muộn quá 15 phút, quên check-out quá 30 phút, thiếu giờ vào/ra). Ví dụ: Chủ nhật 15/11 có khung bù 18:00–22:00 đã duyệt, vào 18:30 ra 22:00 → `["LATE_CHECK_IN"]`; vào 18:10 → `Ngày 15/11 không có gì cần giải trình`. Khung của đơn còn chờ duyệt không tính. Danh mục mã ở `GET /api/v2/requests/explanation-cases`, đơn lưu theo thứ tự của danh mục.
   - `actualCheckIn`, `actualCheckOut` (`HH:mm`): chỉ nhận khi ngày có trường hợp `MISSING_CHECK_IN` (cần giờ vào) hoặc `MISSING_CHECK_OUT` (cần giờ ra); ngày đó bắt buộc nhập. Các trường hợp khác (ví dụ `LATE_CHECK_IN`) không cần giờ, giá trị gửi lên được ghi là `null`. `needs` ở `explanationDays`/`explanations-due` cho biết ngày nào cần giờ nào.
   - Các trường khác trong body (kể cả trường giờ chấm của bản cũ) không được chuyển đi.
 - **Response 201**:
@@ -996,7 +996,7 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   | `Không tìm thấy nhân sự: <id>` | Không có hồ sơ theo uuid/username |
   | `Không giải trình cho ngày trong tương lai` | `workDate` sau hôm nay |
   | `Thiếu cấu hình loại nhân sự <loại>` | Loại nhân sự chưa có cấu hình ca/lịch (cần để biết ngày làm và ca) |
-  | `Ngày dd/MM không phải ngày làm` | Không có ca, trước ngày vào làm, ngày lễ, nghỉ phép hoặc Thứ Bảy iSAT |
+  | `Ngày dd/MM không phải ngày làm` | Không có ca và không có khung OT/bù đã duyệt, trước ngày vào làm, ngày lễ, nghỉ phép hoặc Thứ Bảy iSAT |
   | `Ngày dd/MM đã có đơn giải trình` | Người đó đã có đơn giải trình cùng ngày đang chờ, đã duyệt hoặc **đã bị từ chối**. Đơn đã huỷ không chặn. Kiểm lại trong khoá khi ghi |
   | `Ngày dd/MM không có gì cần giải trình` | Giờ chấm của ngày không rơi vào trường hợp nào |
   | `Giờ thực tế không hợp lệ: <giá trị>` | `actualCheckIn`/`actualCheckOut` có giá trị nhưng không phải `HH:mm` |

@@ -251,7 +251,7 @@ Một ngày D của nhân viên là "cần giải trình" khi đủ mọi điề
 1. D ≤ hôm nay và D ≥ `start_date` của nhân viên.
 2. Tháng của D chưa chốt công (mục 2.1, `closed`).
 3. D là ngày làm của người đó:
-   - có ca;
+   - có ca, hoặc không có ca nhưng có khung OT hay khung bù của đơn **đã duyệt** (người dùng chốt 06/11: vào trễ ở khung bù đã duyệt thì giải trình được). Ngày như vậy dò bằng bộ dò duy nhất của chấm công (`detectCases`, spec Chấm công mục 4), như dòng ngày `EXTRA`: đo so với giờ đầu và giờ cuối của các khung. Ví dụ: Chủ nhật 15/11 khung bù 18:00–22:00, vào 18:30 ra 22:00 → LATE_CHECK_IN; vào 18:10 → không có gì cần giải trình;
    - không nghỉ (LEAVE, LEAVE_WITH_MAKEUP);
    - không iSAT;
    - không phải ngày lễ.

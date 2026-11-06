@@ -19,7 +19,7 @@ import { DayStatusRepository } from './day-status.repository';
 import { ExplanationRemindersRepository } from './explanation-reminders.repository';
 import { loadEmployeeDays } from './load-days';
 import { AttendanceRepository } from '../attendance/attendance.repository';
-import type { DailyTimesheet } from '../attendance/domain';
+import { detectCases, expectedBounds, type DailyTimesheet, type TimeWindow } from '../attendance/domain';
 import { HolidaysRepository } from '../holidays/holidays.repository';
 import { gateAllows, type PeriodStatus } from '../periods/domain';
 import { PeriodGate } from '../periods/period-gate';
@@ -60,13 +60,16 @@ function vnTime(at: Date | string | null | undefined): string | null {
   return Number.isNaN(d.getTime()) ? null : new Date(d.getTime() + 7 * 3600000).toISOString().slice(11, 16);
 }
 
-/** Như `DueCheck`; ngày cần giải trình kèm ca của ngày ('HH:MM') để người nộp xét giờ ra sau giờ vào (R-P5). */
+/**
+ * Như `DueCheck`; ngày cần giải trình kèm ca của ngày ('HH:MM') để người nộp xét giờ ra không trước giờ vào (R-P5). Ngày
+ * không ca có khung OT/bù đã duyệt thì `shift` null.
+ */
 export type StaffDayCheck =
   | {
       ok: true;
       cases: ExplanationCase[];
       needs: ExplanationNeeds;
-      shift: { startTime: string; endTime: string };
+      shift: { startTime: string; endTime: string } | null;
       checkIn: string | null;
       checkOut: string | null;
     }
@@ -91,6 +94,8 @@ export interface ExplanationView {
 interface RangeFacts {
   staff: StaffContext;
   today: string;
+  /** Thời điểm đọc, để biết ngày đã tới mốc xét chưa (spec 4.3). */
+  now: Date;
   days: EmployeeDays;
   /** Bảng công theo ngày công. */
   sheets: Map<string, DailyTimesheet>;
@@ -116,6 +121,38 @@ function monthsBetween(from: string, to: string): string[] {
 }
 
 const refuse = (message: string): DayRefusal => ({ ok: false, message });
+
+/** Hết thời gian này sau mốc cuối dự kiến thì ngày được xét (spec 4.3), như bộ dựng dòng ngày của chấm công. */
+const EVALUATE_AFTER_MS = 30 * 60 * 1000;
+
+/** Khung OT và khung bù của đơn đã duyệt trên ngày `date`: đúng tập khung dòng ngày của chấm công dùng. */
+function approvedWindowsOn(days: EmployeeDays, date: string): TimeWindow[] {
+  const sources = days.windowSourcesOn(date);
+  return days
+    .windowsOn(date)
+    .filter((_, i) => sources[i].requestStatus === 'APPROVED')
+    .map(w => ({ kind: w.kind, start: w.startTime, end: w.endTime }));
+}
+
+/**
+ * Trường hợp của ngày không ca có khung đã duyệt, bằng bộ dò duy nhất của chấm công (spec 4) như dòng ngày EXTRA: đo so
+ * với mốc đầu và mốc cuối của các khung (mọi trường hợp chỉ để biết, không ảnh hưởng tiền ngày).
+ */
+function windowDayCases(
+  date: string,
+  windows: readonly TimeWindow[],
+  checkIn: Date | null,
+  checkOut: Date | null,
+  now: Date
+): { cases: ExplanationCase[]; needs: ExplanationNeeds } {
+  const bounds = expectedBounds(date, null, windows);
+  const evaluated =
+    (checkIn !== null && checkOut !== null) || (bounds !== null && now.getTime() >= bounds.end.getTime() + EVALUATE_AFTER_MS);
+  // Không có ca thì bộ dò không dùng ân hạn vào trễ (đo theo ngưỡng 15 phút so với mốc đầu).
+  const { cases } = detectCases({ date, shift: null, windows, checkIn, checkOut, firstOutInShift: null, graceMinutes: 0, evaluated });
+  const codes = cases.map(c => c.code);
+  return { cases: codes, needs: { checkIn: codes.includes('MISSING_CHECK_IN'), checkOut: codes.includes('MISSING_CHECK_OUT') } };
+}
 
 const viewOf = (r: SystemRequest): ExplanationView => ({
   id: r.id,
@@ -286,15 +323,18 @@ export class ExplanationsService {
   }
 
   /**
-   * Ngày `date` (đã qua bước tương lai và bước kỳ lương) theo dữ liệu đã đọc: ngày làm, chưa có đơn, có trường hợp. Ca lấy
-   * từ `shiftOf`, giờ vào/ra từ bảng công, `hasOt` tính cả OT chờ duyệt lẫn đã duyệt (R-P2).
+   * Ngày `date` (đã qua bước tương lai và bước kỳ lương) theo dữ liệu đã đọc: ngày làm (hoặc ngày không ca có khung OT/bù
+   * đã duyệt), chưa có đơn, có trường hợp. Giờ vào/ra từ bảng công. Ngày có ca dò theo ca (`explanationCasesOf`, `hasOt`
+   * tính cả OT chờ duyệt lẫn đã duyệt, R-P2); ngày không ca có khung dò bằng bộ dò duy nhất của chấm công, như dòng ngày
+   * (người dùng chốt 06/11: vào trễ ở khung bù đã duyệt thì giải trình được).
    */
   private judge(facts: RangeFacts, date: string): StaffDayCheck {
     const { staff, days } = facts;
     const day = formatDayMonth(date);
     const shift = days.shiftOf(date);
+    const windows = shift === null ? approvedWindowsOn(days, date) : [];
     if (
-      shift === null ||
+      (shift === null && windows.length === 0) ||
       (staff.startDate !== null && date < staff.startDate) ||
       days.isHoliday(date) ||
       days.isOnLeave(date) ||
@@ -307,17 +347,20 @@ export class ExplanationsService {
     }
 
     const sheet = facts.sheets.get(date);
-    const startTime = hhmm(shift.startTime);
-    const endTime = hhmm(shift.endTime);
-    const { cases, needs } = explanationCasesOf({
-      date,
-      today: facts.today,
-      shiftStart: startTime,
-      shiftEnd: endTime,
-      checkIn: sheet?.actualCheckIn ?? null,
-      checkOut: sheet?.actualCheckOut ?? null,
-      hasOt: days.windowsOn(date).some(w => w.kind === 'OT')
-    });
+    const checkIn = sheet?.actualCheckIn ?? null;
+    const checkOut = sheet?.actualCheckOut ?? null;
+    const times = shift && { startTime: hhmm(shift.startTime), endTime: hhmm(shift.endTime) };
+    const { cases, needs } = times
+      ? explanationCasesOf({
+          date,
+          today: facts.today,
+          shiftStart: times.startTime,
+          shiftEnd: times.endTime,
+          checkIn,
+          checkOut,
+          hasOt: days.windowsOn(date).some(w => w.kind === 'OT')
+        })
+      : windowDayCases(date, windows, checkIn, checkOut, facts.now);
     if (cases.length === 0) {
       return refuse(`Ngày ${day} không có gì cần giải trình`);
     }
@@ -325,7 +368,7 @@ export class ExplanationsService {
       ok: true,
       cases,
       needs,
-      shift: { startTime, endTime },
+      shift: times,
       checkIn: vnTime(sheet?.actualCheckIn),
       checkOut: vnTime(sheet?.actualCheckOut)
     };
@@ -346,6 +389,7 @@ export class ExplanationsService {
     return {
       staff,
       today,
+      now: this.now(),
       days,
       sheets: new Map(sheets.map(sheet => [sheet.workDate, sheet])),
       explained: new Set(
