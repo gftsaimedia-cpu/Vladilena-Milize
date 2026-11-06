@@ -8,7 +8,7 @@ import SelectBar from '@/components/select-mode/SelectBar.vue';
 import { useSelectMode } from '@/components/select-mode/useSelectMode';
 import { deptOptions, useMineDepts, type StaffPst } from '@/components/staff-scope/staffScope';
 import { toast } from '@/components/shell/toast';
-import { SHIFT_OPTIONS, STAFF_BULK, assignShift, getStaffList, moveStaffToDept } from '@/services/admin-hr';
+import { SHIFT_OPTIONS, STAFF_BULK, assignShift, getDepartments, getShiftOptions, getStaffList, moveStaffToDept, type ShiftOption } from '@/services/admin-hr';
 import StaffDrawer from './StaffDrawer.vue';
 import StaffStats from './parts/StaffStats.vue';
 import StaffTable from './parts/StaffTable.vue';
@@ -47,14 +47,23 @@ const exportCsv = () => downloadStaffCsv(shown.value);
 type BulkMode = 'shift' | 'move';
 const sel = useSelectMode<BulkMode>();
 const result = ref('');
+const shiftOptions = ref<readonly ShiftOption[]>(SHIFT_OPTIONS);
+const serverDepts = ref<string[]>([]);
+const moveDepts = computed(() => (serverDepts.value.length ? serverDepts.value : depts.value));
 const shiftCode = ref<string>(SHIFT_OPTIONS[0].code);
 const toDept = ref('');
+// Máy chủ thật: đủ sáu ca và mọi phòng ban (kể cả phòng chưa có người); dữ liệu giả giữ như board.
+getShiftOptions().then(o => {
+  shiftOptions.value = o;
+  if (!o.some(s => s.code === shiftCode.value)) shiftCode.value = o[0]?.code ?? '';
+});
+getDepartments().then(d => (serverDepts.value = d.map(x => x.name)));
 const pickable = computed(() => shown.value.filter(r => r.status !== 'out').map(r => r.id));
 const chosen = computed(() => sel.pickedIn(pickable.value));
 function start(mode: BulkMode) {
   sel.enter(mode);
   result.value = '';
-  shiftCode.value = SHIFT_OPTIONS[0].code;
+  shiftCode.value = shiftOptions.value[0]?.code ?? '';
   toDept.value = '';
 }
 const barTitle = computed(() => (sel.mode.value === 'shift' ? 'Gán ca' : 'Đổi phòng ban'));
@@ -75,7 +84,7 @@ async function run() {
       const done = await moveStaffToDept(ids, toDept.value);
       result.value = `Đã chuyển ${done.length} người sang phòng ${toDept.value}.`;
     } else {
-      const label = SHIFT_OPTIONS.find(s => s.code === shiftCode.value)!.label;
+      const label = shiftOptions.value.find(s => s.code === shiftCode.value)!.label;
       const done = await assignShift(ids, shiftCode.value);
       result.value = `Đã gán ca ${label} cho ${done.length} người.`;
     }
@@ -148,11 +157,11 @@ const footer = computed(() =>
           @run="run"
         >
           <select v-if="sel.mode.value === 'shift'" v-model="shiftCode" aria-label="Ca làm">
-            <option v-for="o in SHIFT_OPTIONS" :key="o.code" :value="o.code">{{ o.label }}</option>
+            <option v-for="o in shiftOptions" :key="o.code" :value="o.code">{{ o.label }}</option>
           </select>
           <select v-else v-model="toDept" aria-label="Phòng ban mới">
             <option value="" disabled>Chuyển sang phòng…</option>
-            <option v-for="d in depts" :key="d" :value="d">{{ d }}</option>
+            <option v-for="d in moveDepts" :key="d" :value="d">{{ d }}</option>
           </select>
         </SelectBar>
         <ResultLine v-else :text="result" />

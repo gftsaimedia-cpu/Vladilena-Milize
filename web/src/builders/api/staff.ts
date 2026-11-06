@@ -1,5 +1,5 @@
-// Màn Nhân sự từ GET /api/v2/employees (EmployeeDTO của BE). BE chưa có phòng ban, mã nhân viên, email, quản lý trực
-// tiếp: các ô đó hiện "—", mã là tên đăng nhập. Import tương đối để chạy được bằng node:test.
+// Màn Nhân sự từ GET /api/v2/employees (EmployeeDTO của BE). Phòng ban và trạng thái nhân sự do BE trả (departmentName,
+// staffStatus). BE chưa có mã nhân viên, email, quản lý trực tiếp: các ô đó hiện "—", mã là tên đăng nhập. Import tương đối để chạy được bằng node:test.
 import type { StaffListView, StaffProfile, StaffRow, StaffStat, StaffStatus } from '../../mock/staff';
 import { dmy, initials, tenure } from '../../utils/format';
 
@@ -16,6 +16,10 @@ export type EmployeeDTO = {
     resignedOn: string | null;
     hasInsurance: boolean | null;
   };
+  // Có từ khi BE trả phòng ban; thiếu ở phản hồi cũ.
+  departmentId?: number | null;
+  departmentName?: string | null;
+  staffStatus?: 'working' | 'probation' | 'on_leave' | 'resigned';
 };
 
 const NONE = '—';
@@ -46,7 +50,15 @@ const SHIFT_LABEL: Record<string, string> = { NORMAL: 'Hành chính', FLEX: 'Lin
 
 const joinedOf = (e: EmployeeDTO) => e.contract.effectiveFrom || e.account.createdAt.slice(0, 10);
 
+const STATUS_OF: Record<NonNullable<EmployeeDTO['staffStatus']>, StaffStatus> = {
+  working: 'ok',
+  probation: 'try',
+  on_leave: 'off',
+  resigned: 'out'
+};
+
 function statusOf(e: EmployeeDTO): StaffStatus {
+  if (e.staffStatus) return STATUS_OF[e.staffStatus];
   if (e.contract.status === 'nghiviec') return 'out';
   if (e.account.isLocked) return 'off';
   return e.contract.status === 'thuviec' ? 'try' : 'ok';
@@ -69,7 +81,7 @@ export function staffRowFromEmployee(e: EmployeeDTO): StaffRow {
     code: e.account.username,
     email: NONE,
     activated: !e.account.isLocked,
-    dept: NONE,
+    dept: e.departmentName || NONE,
     title: e.contract.position.jobTitle || NONE,
     status,
     statusLabel: STATUS_LABEL[status],
@@ -154,7 +166,7 @@ export function staffProfileFromEmployee(e: EmployeeDTO, today: string): StaffPr
       {
         title: 'Công việc',
         facts: [
-          { label: 'Phòng ban', value: NONE },
+          { label: 'Phòng ban', value: row.dept },
           { label: 'Chức danh', value: row.title },
           { label: 'Loại · bậc', value: `${TYPE_LABEL[position.type] ?? position.type.toUpperCase()} · Bậc ${position.level}` },
           { label: 'Quản lý trực tiếp', value: NONE },
