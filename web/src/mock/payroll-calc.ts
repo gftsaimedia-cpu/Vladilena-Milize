@@ -1,9 +1,11 @@
-// Bản tính của mockup theo luật đã chốt. Phép tính thật nằm ở BE; xoá file này khi FE nối lại BE.
+// Máy tính giả của mockup (chỉ nhánh __MOCK__): làm lại công thức của BE để dữ liệu giả đổi số khi gõ điểm.
+// Phép tính thật nằm ở BE (src/modules/payroll/domain: kpi-pay.ts, insurance.ts, personal-income-tax.ts); màn thật
+// không import file này ngoài kiểu dữ liệu.
 export type KpiPart = 'wework' | 'user' | 'peer' | 'manager' | 'self';
 export type KpiScores = Record<KpiPart, number | null>;
 
-import { KPI_WEIGHTS as MOCK_KPI_WEIGHTS } from '../constants/labels';
-export { MOCK_KPI_WEIGHTS };
+// Trọng số % mặc định của BE (cài đặt kpiWeights); chỉ dữ liệu giả dùng.
+export const MOCK_KPI_WEIGHTS: Record<KpiPart, number> = { wework: 40, user: 24, peer: 18, manager: 12, self: 6 };
 const PARTS: KpiPart[] = ['wework', 'user', 'peer', 'manager', 'self'];
 
 const STANDARD_DAYS = 26;
@@ -47,17 +49,23 @@ export type SlipCalc = {
   net: number;
 };
 
-/** Điểm KPI là phần trăm nguyên 0-100: kẹp vào khoảng, làm tròn về số nguyên; trống hoặc không phải số là thiếu điểm (null), không phải 0. */
+/**
+ * Luật điểm KPI của BE (kpi-pay.ts, PUT .../kpi): điểm 0-100, tối đa 2 chữ số thập phân (lưu điểm × 100 làm tròn),
+ * kẹp vào khoảng; trống hoặc không phải số là thiếu điểm (null), không phải 0.
+ */
 export const normalizeScore = (v: number | null | undefined): number | null =>
-  v == null || !Number.isFinite(v) ? null : Math.min(100, Math.max(0, Math.round(v)));
+  v == null || !Number.isFinite(v) ? null : Math.round(Math.min(100, Math.max(0, v)) * 100) / 100;
 
-/** Điểm trống tính 0 và tên cột vào `missing`. Điểm × trọng số là số nguyên nên tổng không lệch số lẻ. */
-export function kpiScore(scores: KpiScores): { percent: number; missing: KpiPart[] } {
-  const points = PARTS.reduce((sum, p) => sum + (scores[p] ?? 0) * MOCK_KPI_WEIGHTS[p], 0);
-  return { percent: points / 100, missing: PARTS.filter(p => scores[p] == null) };
+/**
+ * Như BE: units = Σ (điểm × 100) × trọng số; tổng điểm % = units / 100 làm tròn 2 chữ số thập phân (chỉ để hiện);
+ * tiền tính trên units chưa làm tròn. Điểm trống tính 0 và tên cột vào `missing`.
+ */
+export function kpiScore(scores: KpiScores): { percent: number; units: number; missing: KpiPart[] } {
+  const units = PARTS.reduce((sum, p) => sum + Math.round((scores[p] ?? 0) * 100) * MOCK_KPI_WEIGHTS[p], 0);
+  return { percent: Math.round(units / 100) / 100, units, missing: PARTS.filter(p => scores[p] == null) };
 }
 
-export const kpiPay = (percent: number, proposal: number): number => Math.round((proposal * percent) / 100);
+export const kpiPay = (units: number, proposal: number): number => Math.round((proposal * units) / 1_000_000);
 
 export const baseActual = (base: number, days: number): number => Math.round((base * days) / STANDARD_DAYS);
 
@@ -77,8 +85,8 @@ export function incomeTax(assessable: number): number {
 export function recomputeSlip<T extends SlipInput>(slip: T): T & { calc: SlipCalc } {
   const actual = baseActual(slip.base, slip.days.work);
   const workPay = actual + slip.leavePay + slip.isatPay;
-  const { percent, missing } = kpiScore(slip.kpi.scores);
-  const pay = kpiPay(percent, slip.kpi.proposal);
+  const { percent, units, missing } = kpiScore(slip.kpi.scores);
+  const pay = kpiPay(units, slip.kpi.proposal);
   const allowanceTotal = slip.allowances.reduce((sum, a) => sum + a.actual, 0);
   const gross = workPay + pay + allowanceTotal + slip.ot.pay - slip.late.cut;
   const taxable = gross - slip.exempt;

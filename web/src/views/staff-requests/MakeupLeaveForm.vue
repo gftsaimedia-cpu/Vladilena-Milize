@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // J14 · Nghỉ có làm bù (spec staff-requests 4.4, brief FE mục 3): Từ ngày – Đến ngày, các dòng khung bù, lý do.
-// Ngày nghỉ như Đơn nghỉ, thêm: tháng chưa có OT, "Đến ngày" cùng tháng, sau đó còn ngày để bù (builder startDates / endDates).
-// Chọn xong ngày nghỉ thì hiện "Khung bù": mỗi dòng là ngày bù (sau ngày nghỉ cuối, cùng tháng, còn giờ trống: slotDates), giờ
-// bắt đầu và giờ kết thúc. Giờ của một dòng không chồng các dòng khác cùng ngày và không vượt số giờ còn thiếu (slotHourOptions),
-// nên không bao giờ xếp quá số giờ phải bù. Đổi giờ bắt đầu thì giờ kết thúc giữ nguyên nếu còn hợp lệ, không thì lấy giờ xa nhất
-// còn xếp được (board J14). Đổi ngày nghỉ hay tải lại request-context thì bỏ giá trị không còn hợp lệ (fitSlots).
-// Bộ đếm "Đã xếp x / 8 giờ" ở đầu khung bù; hộp tóm tắt giữa hai ô ngày và khung bù như board.
-// Bản nháp chỉ gồm các dòng đủ ba ô; xem trước nói còn thiếu bao nhiêu giờ, nút Gửi chỉ bật khi xếp đủ.
+// Ngày nghỉ do BE đưa (request-context choices: tháng chưa có OT, "Đến ngày" cùng tháng, sau đó còn ngày để bù).
+// Chọn xong ngày nghỉ thì hiện "Khung bù": mỗi dòng là ngày bù (BE: slotDates), giờ bắt đầu và giờ kết thúc lấy từ bảng giờ
+// `hours` của BE. Form không tự chặn khung chồng nhau hay quá số giờ phải bù: BE kiểm khi xem trước, câu từ chối hiện ở hộp
+// tóm tắt và nút Gửi chờ xem trước ok. Đổi giờ bắt đầu thì giờ kết thúc giữ nguyên nếu còn trong bảng giờ, không thì lấy giờ xa
+// nhất (board J14). Đổi ngày nghỉ hay tải lại request-context thì bỏ giá trị không còn trong bảng (fitSlots).
+// Bộ đếm "Đã xếp x / y giờ" ở đầu khung bù (y do BE đòi); hộp tóm tắt giữa hai ô ngày và khung bù như board.
+// Bản nháp chỉ gồm các dòng đủ ba ô.
 // Hợp đồng form như LeaveForm: nhận ctx, ngay, preview; phát `draft` đủ trường hoặc null, ngay trong watcher (không chờ).
 import { computed, nextTick, ref, useId, watch } from 'vue';
 import {
@@ -20,7 +20,6 @@ import {
   makeupCounter,
   makeupNeedLine,
   slotDates,
-  slotHourOptions,
   startDates,
   startHours
 } from '@/builders/api/staff-requests';
@@ -60,16 +59,14 @@ const lines = computed(() =>
     ? [leaveSummary(props.ctx, startDate.value, endDate.value), makeupNeedLine(props.ctx, startDate.value, endDate.value)]
     : []
 );
-const canAdd = computed(() => ranged.value && counter.value.planned < counter.value.required);
 
 // Lựa chọn giờ của từng dòng: các dòng khác giữ giờ của chúng.
 function hoursFor(list: MakeupSlot[], i: number) {
   const s = list[i];
-  const day = dayOf(s.date);
-  const opts = slotHourOptions(props.ctx, startDate.value, endDate.value, list, i);
+  const hours = dayOf(s.date)?.hours ?? [];
   return {
-    starts: day ? startHours(day, opts).map(hh) : [],
-    ends: day && s.startTime ? endHours(day, hourOf(s.startTime), opts).map(e => hh(e.end)) : []
+    starts: startHours(hours).map(hh),
+    ends: s.startTime ? endHours(hours, hourOf(s.startTime)).map(e => hh(e.end)) : []
   };
 }
 const rows = computed(() => slots.value.map((s, i) => ({ ...s, key: keys.value[i], n: i + 1, ...hoursFor(slots.value, i) })));
@@ -87,7 +84,7 @@ function fitAll() {
     slots.value = [empty()];
     keys.value = [nextKey++];
   }
-  slots.value = fitSlots(props.ctx, startDate.value, endDate.value, slots.value);
+  slots.value = fitSlots(props.ctx, endDate.value, slots.value);
 }
 watch([startDate, endDate, () => props.ctx], fitAll);
 
@@ -98,12 +95,12 @@ function setRow(i: number, patch: Partial<MakeupSlot>) {
     const ends = hoursFor(next, i).ends;
     if (!ends.includes(next[i].endTime)) next[i] = { ...next[i], endTime: ends[ends.length - 1] ?? '' };
   }
-  slots.value = fitSlots(props.ctx, startDate.value, endDate.value, next);
+  slots.value = fitSlots(props.ctx, endDate.value, next);
 }
 
 const root = ref<HTMLElement | null>(null);
 async function addRow() {
-  if (!canAdd.value) return;
+  if (!ranged.value) return;
   slots.value = [...slots.value, empty()];
   keys.value = [...keys.value, nextKey++];
   await nextTick();
@@ -114,7 +111,6 @@ async function removeRow(i: number) {
   keys.value = keys.value.filter((_, j) => j !== i);
   slots.value = fitSlots(
     props.ctx,
-    startDate.value,
     endDate.value,
     slots.value.filter((_, j) => j !== i)
   );
@@ -135,9 +131,9 @@ const draft = computed<MakeupDraft | null>(() =>
     : null
 );
 watch(draft, d => emit('draft', d), { immediate: true });
-// Dưới nút Gửi khoá (board J14): còn thiếu giờ bù thì nói cần xếp đủ bao nhiêu giờ.
+// Dưới nút Gửi khoá (board J14, chỉ hiện khi chưa gửi được): nói cần xếp đủ bao nhiêu giờ (BE đòi).
 watch(
-  () => (ranged.value && counter.value.planned < counter.value.required ? `Xếp đủ ${counter.value.required / 60} giờ bù thì mới gửi được` : ''),
+  () => (ranged.value ? `Xếp đủ ${counter.value.required / 60} giờ bù thì mới gửi được` : ''),
   t => emit('hint', t),
   { immediate: true }
 );
@@ -220,7 +216,7 @@ watch(
         <PhIcon name="x" :size="16" :stroke="2" />
       </button>
     </div>
-    <button type="button" class="nr-b2" :disabled="!canAdd" @click="addRow">
+    <button type="button" class="nr-b2" @click="addRow">
       <PhIcon name="plus" :size="16" :stroke="2" />Thêm khung bù
     </button>
   </div>

@@ -5,11 +5,12 @@ import { useId } from 'vue';
 import logo from '@/assets/img/gft-logo.png';
 import { kindLevelText } from '@/constants/labels';
 import type { A4Sheet } from '@/mock/payslip-a4';
-import { dm, dowShort, monthLabel, monthShort, vnd } from '@/utils/format';
+import { dm, dowShort, monthLabel, monthShort, num, vnd } from '@/utils/format';
 import { blankNum, inOutText, periodLine, signedText, slipStateText, statCells, titleLine } from './a4-format';
 
 defineProps<{ sheet: A4Sheet }>();
 const headingId = useId();
+const mult = (n: number) => `×${num(n)}`;
 </script>
 
 <template>
@@ -91,8 +92,12 @@ const headingId = useId();
         <span><i class="dot m-pending" aria-hidden="true"></i>Chờ giải trình</span>
       </div>
       <p>
-        Giờ, OT, Làm bù tính bằng giờ. OT ngày thường ×1,5, thứ 7 và Chủ nhật ×2, ngày lễ ×3. Làm bù là giờ làm để bù cho
-        ngày đã nghỉ, không phải OT.
+        Giờ, OT, Làm bù tính bằng giờ.
+        <template v-if="sheet.otRates"
+          >OT ngày thường {{ mult(sheet.otRates.weekday) }}, thứ 7 và Chủ nhật {{ mult(sheet.otRates.weekend) }}, ngày lễ
+          {{ mult(sheet.otRates.holiday) }}.</template
+        >
+        Làm bù là giờ làm để bù cho ngày đã nghỉ, không phải OT.
       </p>
     </div>
   </div>

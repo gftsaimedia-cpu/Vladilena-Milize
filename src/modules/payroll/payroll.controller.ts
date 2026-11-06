@@ -2,7 +2,11 @@ import { Controller, Get, Post, Put, Param, Body, UseFilters, Inject } from '@ne
 import { ApiExceptionFilter, BadRequestError, ConflictError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { AuditEntryError } from '../audit';
 import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
+import { payrollTotalsOf } from './domain/payroll-totals';
 import { KpiScoreBody, PayrollService } from './payroll.service';
+
+// Tháng 01–12: '2026-13' không phải tháng.
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 @Controller('api/v2/payroll')
 @UseFilters(ApiExceptionFilter)
@@ -16,7 +20,7 @@ export class PayrollController {
     @Body() body: { employeeIds?: string[] },
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 
@@ -54,12 +58,12 @@ export class PayrollController {
   @RequireCap('payroll.calculate')
   @Get(':month')
   async listPayslips(@Param('month') month: string): Promise<unknown> {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 
     const items = await this.service.listPayslips(month);
-    return { month, items };
+    return { month, items, totals: payrollTotalsOf(items) };
   }
 
   @RequireCap('payroll.calculate')
@@ -68,7 +72,7 @@ export class PayrollController {
     @Param('month') month: string,
     @Param('employeeId') employeeId: string
   ): Promise<unknown> {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 
@@ -88,7 +92,7 @@ export class PayrollController {
     @Body() body: { decision?: string; note?: string },
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
     const status = body?.decision === 'approve' ? 'approved' : body?.decision === 'reject' ? 'rejected' : null;
@@ -111,7 +115,7 @@ export class PayrollController {
     @Body() body: KpiScoreBody,
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 

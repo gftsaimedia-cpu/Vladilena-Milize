@@ -9,6 +9,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from '../../common';
+import { isValidDateText } from '../../common/date-text';
 import { RequestIdPipe } from '../requests/request-id.pipe';
 import { PunchRefusedError } from '../attendance/attendance.errors';
 import { AttendanceService } from '../attendance/attendance.service';
@@ -208,7 +209,7 @@ export class MeController {
   @Get('attendance/:date')
   async attendanceDay(@Req() req: Request, @Param('date') date: string): Promise<unknown> {
     const me = who(req);
-    if (!DATE.test(date || '')) throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
+    if (!DATE.test(date || '') || !isValidDateText(date)) throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
     // Cài đặt chỉ có từ 2000-01 (tháng gieo), hỏi tuần làm trước đó sẽ thành lỗi 500.
     if (date < '2000-01-01') throw new BadRequestError('Ngày phải từ 01/01/2000 trở đi', { code: 'INVALID_DATE' });
     const [ts, workWeek] = await Promise.all([this.attendance.getTimesheet(me.uuid, date), this.weekOrNull(me.uuid, date.slice(0, 7))]);
@@ -289,17 +290,19 @@ export class MeController {
   @Patch('requests/:id/cancel')
   async cancelRequest(@Req() req: Request, @Param('id', RequestIdPipe) id: string, @Body() body: { reason?: string }): Promise<unknown> {
     const me = who(req);
-    // Đơn của người khác trả 404 như GET /me/requests/:id, không lộ rằng đơn đó tồn tại (hợp đồng API §3.4).
-    const existing = await this.requests.getById(id);
-    if (!existing || (existing.employeeId !== me.username && existing.employeeId !== me.uuid)) {
-      throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
-    }
     try {
       const request = await this.requests.cancelRequest(id, me.username, body?.reason);
       return { updated: true, request };
     } catch (err: any) {
       if (err instanceof HttpError) throw err;
       if (/not found/i.test(err?.message || '')) throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
+      // Đơn của người khác trả 404 như GET /me/requests/:id, không lộ rằng đơn đó tồn tại (hợp đồng API §3.4).
+      const existing = await Promise.resolve()
+        .then(() => this.requests.getById(id))
+        .catch(() => null);
+      if (existing?.employeeId && existing.employeeId !== me.username && existing.employeeId !== me.uuid) {
+        throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
+      }
       throw new ConflictError(err?.message || 'Không huỷ được đơn này', { code: 'REQUEST_NOT_CANCELLABLE' });
     }
   }

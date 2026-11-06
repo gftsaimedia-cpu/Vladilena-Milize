@@ -33,7 +33,7 @@ export type A4Line = {
   bold?: boolean;
 };
 
-export type A4KpiPart = { label: string; weight: number; score: number | null };
+export type A4KpiPart = { label: string; weight: number | null; score: number | null }; // weight null: phiếu BE cũ chưa có tỉ lệ, không in %
 
 export type A4Group = { title: string; kpi?: A4KpiPart[]; lines: A4Line[] };
 
@@ -69,6 +69,7 @@ export type A4Sheet = {
   totals: A4Line[];
   net: number;
   leaveLeft: number | null; // ngày phép năm còn lại; null: loại nhân sự không có tài khoản phép
+  otRates: { weekday: number; weekend: number; holiday: number } | null; // hệ số OT BE áp cho kỳ; null: phiếu BE cũ, không in hệ số
   slipStatus: PayrollStatus; // trạng thái phiếu: tiêu đề "chính thức" / "tạm tính", ô Tình trạng, dòng bản nháp
 };
 
@@ -250,6 +251,7 @@ function buildSheet(): A4Sheet {
     totals,
     net: afterInsurance - tax - advance,
     leaveLeft: 22,
+    otRates: { weekday: 1.5, weekend: 2, holiday: 3 },
     slipStatus: 'draft'
   };
 }

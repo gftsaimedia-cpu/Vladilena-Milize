@@ -38,3 +38,17 @@ Loại B (giữ, chỉ UX): làm sạch ký tự ở SlipKpi, kiểm workdays �
 Đã kiểm, không vi phạm: `AdvanceForm.vue` (chỉ ghép chữ từ `ctx.today`), `stores/period.ts` (dùng `serverNow`), `overview.ts` và `attendance.ts` (chỉ ánh xạ DTO).
 
 Câu hỏi còn mở khi sửa: BE có chặn chấm công ngoài vùng không; `GET /payroll/:month` có tổng không; BE có trả số phút đi muộn trong chi tiết không; BE làm tròn điểm KPI thế nào; `/employees` có thống kê headcount không.
+
+## Đã chuyển sang BE (nhóm lương, 06/11/2026)
+
+Mục 1–7, 17, 19, 21, 26, 27 đã chuyển; 2 và 16 giữ phần UX. Trường mới ở `docs/api/v2-contract.md` (§3.5):
+
+- 1, 26: phiếu (`details.rates`) trả `kpiWeights`, `insurancePct`, `otMultipliers`, `lateGraceMinutes` theo cài đặt của kỳ. FE in nhãn từ đây (màn phiếu, bản in A4); phiếu cũ không có `rates` thì không in tỉ lệ.
+- 3, 4: `GET /payroll/:month` trả `totals` (tổng cả kỳ và từng cột). FE hiện tổng cả kỳ, không cộng theo bộ lọc hay trang.
+- 5, 6, 7, 27: `details.lateMinutes` (chỉ phút quá ân hạn), `rates.lateGraceMinutes`, `leaveSettlementPay`, `holidayPay`, `holidayPaidDays`, `workPay`.
+- 2: nhánh thật gọi BE (PUT KPI rồi POST calculate, đọc lại phiếu); máy tính giả chỉ còn trong `mock/`.
+- 16: giữ. Ẩn nút Tính lương / Duyệt theo trạng thái kỳ chỉ là UX, BE vẫn chặn bằng 409.
+- 17: luật điểm KPI của BE là chuẩn: 0–100, tối đa 2 chữ số thập phân, lưu `điểm × 100` làm tròn; tổng điểm % làm tròn 2 chữ số chỉ để hiện, tiền tính trên tổng chưa làm tròn. FE nhập điểm lẻ và hiện đúng giá trị BE; mock theo cùng luật.
+- 19: `details.deductionTotal` (bản tạm tính của `/me/income` chỉ gồm tạm ứng).
+- 21: `details.calendar` (loại từng ngày do BE quyết); FE không so ngày máy.
+- 12, 25: chưa làm (không chạm cùng file với nhóm lương).

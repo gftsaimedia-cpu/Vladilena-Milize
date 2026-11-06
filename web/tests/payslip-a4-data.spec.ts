@@ -23,7 +23,8 @@ test('header fields follow the sample month', () => {
   expect(head).toEqual({
     month: '2026-10', name: 'NV thử nghiệm', kind: 'NV', level: 1, employmentStatus: 'Chính thức', contract: 'HĐLĐ từ 3 tháng',
     from: '2026-10-01', to: '2026-10-31', periodNote: 'tạm tính cả tháng, số liệu tới 02/11',
-    stdDays: 26, dayRate: 230769, net: 9657922, leaveLeft: 22, slipStatus: 'draft'
+    stdDays: 26, dayRate: 230769, net: 9657922, leaveLeft: 22, slipStatus: 'draft',
+    otRates: { weekday: 1.5, weekend: 2, holiday: 3 }
   });
 });
 

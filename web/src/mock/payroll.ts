@@ -3,7 +3,7 @@
 import { dm, initials } from '../utils/format';
 import { mockAccount, readSessionName } from './accounts';
 import { MOCK_MONTH, MOCK_TODAY } from './clock';
-import { normalizeScore, recomputeSlip, type KpiPart, type KpiScores, type SlipCalc, type SlipInput } from './payroll-calc';
+import { MOCK_KPI_WEIGHTS, normalizeScore, recomputeSlip, type KpiPart, type KpiScores, type SlipCalc, type SlipInput } from './payroll-calc';
 
 export type PayrollStatus = 'draft' | 'pending' | 'done' | 'rejected';
 export type DayKind = 'work' | 'leave' | 'isat' | 'pending' | 'unpaid' | 'sunday' | 'future';
@@ -12,6 +12,15 @@ export type KpiEdit = { date: string; text: string; by: string };
 import { KPI_LABELS } from '../constants/labels';
 export { KPI_LABELS };
 const PARTS = Object.keys(KPI_LABELS) as KpiPart[];
+
+// Tỉ lệ BE áp cho kỳ của phiếu (settings: kpiWeights, insurance, overtime, attendance), để màn chỉ in nhãn từ dữ liệu.
+// null ở Payslip.rates: phiếu BE lưu trước khi có trường này, màn không in tỉ lệ.
+export type SlipRates = {
+  kpiWeights: Record<KpiPart, number>;
+  insurancePct: { bhxh: number; bhyt: number; bhtn: number; total: number };
+  otMultipliers: { weekday: number; weekend: number; holiday: number };
+  lateGraceMinutes: number;
+};
 
 export type Payslip = Omit<SlipInput, 'allowances'> & {
   id: string;
@@ -33,7 +42,11 @@ export type Payslip = Omit<SlipInput, 'allowances'> & {
   pendingDates: string[];
   allowances: { label: string; rule: number; actual: number }[];
   ot: { hours: [number, number, number]; pay: number };
-  late: { minutes: number[]; hours: number; cut: number };
+  // minutes: tổng phút đi muộn quá ân hạn (BE chỉ ghi phút quá ân hạn); hours, cut: giờ và tiền bị trừ.
+  late: { minutes: number; hours: number; cut: number };
+  rates: SlipRates | null;
+  settlementPay: number; // quyết toán phép dư (BE leaveSettlementPay)
+  holiday: { days: number; pay: number }; // nghỉ lễ hưởng lương
   leaveLeft: number | null; // null: loại nhân sự không có tài khoản phép, hiện "—"
   // false: loại nhân sự không có KPI (tts); ngăn kéo không có nhóm KPI. Phiếu giả đều là nv nên luôn có.
   kpiApplicable?: boolean;
@@ -89,6 +102,7 @@ export type PayrollScreen =
       lines: PayrollLine[];
       counts: SlipCounts;
       depts: string[];
+      // Cả kỳ, BE cộng sẵn (GET /payroll/:month → totals); màn chỉ hiện, không cộng lại.
       totals: {
         gross: number;
         insurance: number;
@@ -97,10 +111,23 @@ export type PayrollScreen =
         deductions: number;
         net: number;
         netShare: number;
+        workPay: number; // cột "Tiền ngày công"
+        kpiPay: number;
+        allowance: number;
+        ot: number;
+        lateCut: number; // số dương
       };
     };
 
 const STANDARD = 26;
+const MOCK_GRACE = 15;
+// Cài đặt mặc định của BE.
+const MOCK_RATES: SlipRates = {
+  kpiWeights: MOCK_KPI_WEIGHTS,
+  insurancePct: { bhxh: 8, bhyt: 1.5, bhtn: 1, total: 10.5 },
+  otMultipliers: { weekday: 1.5, weekend: 2, holiday: 3 },
+  lateGraceMinutes: MOCK_GRACE
+};
 const ALLOWANCE_LABELS = ['Chuyên cần', 'Đi lại', 'Linh hoạt (ca Flex)', 'Off Paid (ca đêm)', 'Thưởng ca đêm'];
 const NOTE = 'Từ 01/10 đến 31/10/2026 · tạm tính cả tháng, số liệu tới 28/10 · công chuẩn theo quy chế: 26 ngày';
 
@@ -297,7 +324,15 @@ function buildSlip(r: Raw): Payslip {
     isatPay: r.isatPay,
     allowances: r.allowances.map(([rule, actual], i) => ({ label: ALLOWANCE_LABELS[i], rule, actual })),
     ot: { hours: [...r.otHours], pay: r.otPay },
-    late: { minutes: [...r.lateMinutes], hours: r.lateHours, cut: r.lateCut },
+    // Như BE: chỉ phút muộn quá ân hạn được ghi.
+    late: {
+      minutes: r.lateMinutes.filter(m => m > MOCK_GRACE).reduce((a, b) => a + b, 0),
+      hours: r.lateHours,
+      cut: r.lateCut
+    },
+    rates: MOCK_RATES,
+    settlementPay: 0,
+    holiday: { days: 0, pay: 0 },
     exempt: r.exempt,
     advance: r.advance,
     leaveLeft: r.leaveLeft,
@@ -338,7 +373,8 @@ export function payrollView(month: string): PayrollScreen {
     done: count('done'),
     rejected: count('rejected')
   };
-  const sum = (key: 'gross' | 'insurance' | 'tax' | 'advance') => lines.reduce((a, l) => a + l[key], 0);
+  const sum = (key: 'gross' | 'insurance' | 'tax' | 'advance' | 'workPay' | 'kpiPay' | 'allowance' | 'ot' | 'lateCut') =>
+    lines.reduce((a, l) => a + l[key], 0);
   const gross = REST.gross + sum('gross');
   const insurance = REST.insurance + sum('insurance');
   const tax = REST.tax + sum('tax');
@@ -354,8 +390,27 @@ export function payrollView(month: string): PayrollScreen {
     lines,
     counts,
     depts: [...new Set(lines.map(l => l.dept))],
-    totals: { gross, insurance, tax, advance, deductions, net, netShare: Math.round((net / gross) * 100) }
+    totals: {
+      gross,
+      insurance,
+      tax,
+      advance,
+      deductions,
+      net,
+      netShare: Math.round((net / gross) * 100),
+      workPay: sum('workPay'),
+      kpiPay: sum('kpiPay'),
+      allowance: sum('allowance'),
+      ot: sum('ot'),
+      lateCut: sum('lateCut')
+    }
   };
+}
+
+// Tính lại phiếu theo điểm đang gõ mà chưa ghi (nhánh dữ liệu giả; màn thật để BE tính khi lưu).
+export function previewSlip(slip: Payslip, scores: KpiScores): Payslip {
+  const clean = Object.fromEntries(Object.entries(scores).map(([p, v]) => [p, normalizeScore(v)])) as KpiScores;
+  return recomputeSlip({ ...slip, kpi: { ...slip.kpi, scores: clean } });
 }
 
 export function payslipView(month: string, id: string): Payslip | null {

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
+import { NotEmployedError, assertEmployed } from '../../common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import {
   SystemRequest,
@@ -34,6 +35,13 @@ import {
   requestTitle,
   annualLeaveLeftOf,
   dayHourOptions,
+  filingChoices,
+  leaveCounted,
+  shiftChangeable,
+  overtimeHours,
+  FILING_RULES,
+  MAKEUP_MINUTES_PER_LEAVE_DAY,
+  MONTH_OT_CAP_MINUTES,
   LEAVE_TYPES,
   SHIFT_FRAMES,
   type ClaimPlan,
@@ -60,7 +68,7 @@ import { PeriodLockedError } from '../periods/periods.errors';
 import { SettingsReader } from '../settings';
 import { AuditLog } from '../audit/audit-log';
 import { withPersonWeek } from './staff-week';
-import type { AdvanceQuote } from '../payroll/domain';
+import { ADVANCE_RATE_PCT, type AdvanceQuote } from '../payroll/domain';
 
 /**
  * Loại đơn nộp qua `fileRequest` (nộp và xem trước). iSAT nộp riêng bằng `createIsatRequest`.
@@ -79,7 +87,7 @@ export interface FilingOptions {
  */
 export type PreviewResult =
   | { ok: true; title: string; summary: Record<string, unknown>; warnings: string[] }
-  | { ok: false; message: string; code?: 'DAY_CONFLICT' }
+  | { ok: false; message: string; code?: 'DAY_CONFLICT' | 'NOT_EMPLOYED' }
   | { ok: false; message: string; code: 'PERIOD_LOCKED'; month: string; status: PeriodStatus };
 
 /** Thân đơn nghỉ (§6.1). Số ngày do server đếm: `daysCount` client gửi (nếu có) không được đọc. */
@@ -195,12 +203,6 @@ export interface CreateOvertimeInput {
   startTime?: unknown;
   endTime?: unknown;
 }
-
-/** Mỗi ngày nghỉ của đơn nghỉ có làm bù cần đúng 480 phút (8 giờ) làm bù (§6.2). */
-const MAKEUP_MINUTES_PER_LEAVE_DAY = 480;
-
-/** Trần OT tháng: 40 giờ (Điều 107 Bộ luật Lao động), giữ như v2. */
-const MONTH_OT_CAP_MINUTES = 40 * 60;
 
 /** Đơn OT đang chờ hoặc đã duyệt có ngày OT trong tháng `month` (YYYY-MM). */
 const otRequestsIn = (requests: readonly SystemRequest[], month: string): SystemRequest[] =>
@@ -532,7 +534,7 @@ export class RequestsService {
     kinds.push(advance.kind);
 
     const holidayNames = new Map(holidays.map(h => [h.date, h.name]));
-    const dayStates: FilingDayState[] = eachDate(window.from, window.to).map(date => {
+    const baseDays = eachDate(window.from, window.to).map(date => {
       const shift = days.shiftOf(date);
       const claim = days.claimOn(date);
       return {
@@ -546,6 +548,14 @@ export class RequestsService {
           : dayHourOptions({ date, shifts: days.shiftsAround(date), hasShift: shift !== null, windows: days.windowsOn(date) })
       };
     });
+    const annualLeaveLeft = annualLeaveLeftOfStaff(staff, active);
+    const choices = filingChoices({ days: baseDays, months, annualLeaveLeft });
+    const dayStates: FilingDayState[] = baseDays.map(d => ({
+      ...d,
+      leaveCounted: leaveCounted(d),
+      shiftChangeable: shiftChangeable(d),
+      otHours: overtimeHours(d, months.find(m => m.month === monthOf(d.date)))
+    }));
 
     return {
       today,
@@ -556,11 +566,13 @@ export class RequestsService {
         code,
         label
       })),
-      annualLeaveLeft: annualLeaveLeftOfStaff(staff, active),
+      annualLeaveLeft,
       shiftFrames: SHIFT_FRAMES.map(f => ({ shiftType: f.shiftType, start: f.startTime, end: f.endTime })),
       days: dayStates,
       explanationDays,
-      advance: advance.quote
+      advance: advance.quote,
+      choices,
+      rules: FILING_RULES
     };
   }
 
@@ -574,6 +586,7 @@ export class RequestsService {
           closed: await this.isClosedMonth(month),
           otMinutes: otMinutesOf(ot),
           otCapMinutes: MONTH_OT_CAP_MINUTES as 2400,
+          otLeftMinutes: Math.max(0, MONTH_OT_CAP_MINUTES - otMinutesOf(ot)),
           hasOvertime: ot.length > 0,
           hasMakeupLeave: makeupRequestsIn(active, month).length > 0
         };
@@ -601,7 +614,7 @@ export class RequestsService {
       return locked(ADVANCE_QUOTE_FAILED);
     }
     if (quote.amount === 0) return locked(advanceNoWorkDaysMessage(month));
-    return { kind: { kind: 'advance', enabled: true }, quote: { month, ...quote, windowEnd: `${month}-17`, ordersThisMonth: 1 } };
+    return { kind: { kind: 'advance', enabled: true }, quote: { month, ...quote, windowEnd: `${month}-17`, ordersThisMonth: 1, ratePct: ADVANCE_RATE_PCT } };
   }
 
   async createLeaveRequest(input: CreateLeaveInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
@@ -640,6 +653,9 @@ export class RequestsService {
     } catch (error) {
       if (error instanceof DayConflictError) {
         return { ok: false, message: error.message, code: 'DAY_CONFLICT' };
+      }
+      if (error instanceof NotEmployedError) {
+        return { ok: false, message: error.message, code: 'NOT_EMPLOYED' };
       }
       if (error instanceof PeriodLockedError) {
         const { month, status } = error.details as { month: string; status: PeriodStatus };
@@ -704,6 +720,7 @@ export class RequestsService {
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
     this.assertSelfFiling(opts, [startDate, endDate]);
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
+    assertEmployed(staff, [startDate, endDate]);
     this.requireTypeConfig(staff);
 
     const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
@@ -789,6 +806,7 @@ export class RequestsService {
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
     this.assertSelfFiling(opts, [startDate, endDate]);
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
+    assertEmployed(staff, [startDate, endDate]);
     this.requireTypeConfig(staff);
 
     const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
@@ -887,6 +905,7 @@ export class RequestsService {
     );
     const month = monthOf(startDate);
     const staff = await this.resolveStaff(input.employeeId, month);
+    assertEmployed(staff, [startDate, endDate, ...slots.map(slot => slot.date)]);
     this.requireTypeConfig(staff);
     if (!staff.benefits.makeup) {
       throw new Error('Loại nhân sự này không có làm bù');
@@ -977,6 +996,7 @@ export class RequestsService {
     this.assertSelfFiling(opts, [date], [startTime, endTime]);
     const month = monthOf(date);
     const staff = await this.resolveStaff(input.employeeId, month);
+    assertEmployed(staff, [date]);
     this.requireTypeConfig(staff);
     if (!staff.benefits.ot) {
       throw new Error('Loại nhân sự này không có OT');
@@ -1106,6 +1126,7 @@ export class RequestsService {
       throw new Error('Chưa cấu hình giải trình');
     }
     const staff = await this.resolveStaff(input.employeeId, monthOf(workDate));
+    assertEmployed(staff, [workDate]);
     // Tháng của ngày công do cổng kỳ `explain` trong `fileRequest` xét (trong khoá), không xét ở đây.
     const check = await this.explanations.checkStaffDay(staff, workDate, { period: false });
     if (!check.ok) {
@@ -1122,7 +1143,11 @@ export class RequestsService {
     }
     // R-P5: ca đêm (giờ hết ca không sau giờ vào ca) thì giờ ra rơi vào sáng hôm sau, không so được với giờ vào.
     const overnight = shift.endTime <= shift.startTime;
-    if (!overnight && actualCheckIn !== null && actualCheckOut !== null && actualCheckOut <= actualCheckIn) {
+    // Giờ khai báo còn phải khớp với lần chấm thật còn lại của ngày: khai giờ ra trước giờ vào thật (hay giờ vào sau giờ
+    // ra thật) là ngày công có giờ ra trước giờ vào.
+    const inTime = actualCheckIn ?? check.checkIn;
+    const outTime = actualCheckOut ?? check.checkOut;
+    if (!overnight && inTime !== null && outTime !== null && outTime <= inTime) {
       throw new Error('Giờ ra phải sau giờ vào');
     }
 
@@ -1175,6 +1200,7 @@ export class RequestsService {
       throw new Error('Chỉ đăng ký iSAT cho Thứ Bảy sắp tới');
     }
     const staff = await this.resolveStaff(profile.employeeId, monthOf(saturday));
+    assertEmployed(staff, [saturday]);
 
     return this.underEmployeeLock(staff.employeeId, async (stores, trx) => {
       // Chống trùng Thứ Bảy với các đơn đang chờ hoặc đã duyệt (đơn đã bị từ chối không chặn)

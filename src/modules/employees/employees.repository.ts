@@ -366,9 +366,15 @@ export class EmployeesRepository {
             dependants: eb.ref('excluded.dependants'),
             pass_hash: eb.ref('excluded.pass_hash'),
             // Đổi mật khẩu (kể cả Admin đặt lại) làm mọi phiên cũ hết hiệu lực.
+            // Khoá tài khoản (từ chưa khoá sang khoá) cũng vậy: mở khoá sau đó không hồi sinh phiên cũ.
             session_version: eb
               .case()
-              .when('staff.pass_hash', '<>', eb.ref('excluded.pass_hash'))
+              .when(
+                eb.or([
+                  eb('staff.pass_hash', '<>', eb.ref('excluded.pass_hash')),
+                  eb.and([eb('staff.locked_at', 'is', null), eb('excluded.locked_at', 'is not', null)])
+                ])
+              )
               .then(eb('staff.session_version', '+', 1))
               .else(eb.ref('staff.session_version'))
               .end(),

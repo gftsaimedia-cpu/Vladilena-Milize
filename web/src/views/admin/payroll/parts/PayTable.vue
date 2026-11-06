@@ -1,15 +1,17 @@
 <script setup lang="ts">
 // Bảng lương: cột trái (nhân viên) và hai cột phải (Thực nhận, Trạng thái) đứng yên, phần giữa cuộn ngang.
 // Mỗi ô một giá trị; số 0 hiện "—". Màu nền ô dùng token để chạy đúng ở cả nền Xám và Kem.
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { useRoute } from 'vue-router';
-import type { PayrollLine } from '@/mock/payroll';
+import type { PayrollLine, PayrollScreen } from '@/mock/payroll';
 import { vnd } from '@/utils/format';
 import { useDragScroll } from '../useDragScroll';
 import StatusPill from './StatusPill.vue';
 
 // openId: mã phiếu đang mở trong ngăn kéo; dòng đó đổi nền và gạch chân tên.
-const props = defineProps<{ lines: PayrollLine[]; month: number; openId: string }>();
+type Board = Extract<PayrollScreen, { empty: false }>;
+// totals: dòng tổng cả kỳ do BE cộng sẵn (không theo bộ lọc hay trang đang xem).
+defineProps<{ lines: PayrollLine[]; totals: Board['totals']; month: number; openId: string }>();
 // Mã phiếu đã tích; chỉ dùng cho nút xuất (spec 3.4), dòng được tích không đổi nền.
 const selected = defineModel<string[]>('selected', { required: true });
 
@@ -32,21 +34,6 @@ const slipLink = (line: PayrollLine) => ({ path: route.path, query: { ...route.q
 const money = (n: number) => (n === 0 ? '—' : vnd(n));
 const cut = (n: number) => (n === 0 ? '—' : `−${vnd(n)}`);
 const missing = (line: PayrollLine) => (line.kpiMissing.length ? `Thiếu điểm ${line.kpiMissing.join(', ')}, tính 0` : '');
-
-type Sum = 'workPay' | 'kpiPay' | 'allowance' | 'ot' | 'lateCut' | 'gross' | 'insurance' | 'tax' | 'advance' | 'net';
-const sum = (key: Sum) => props.lines.reduce((a, l) => a + l[key], 0);
-const total = computed(() => ({
-  workPay: sum('workPay'),
-  kpiPay: sum('kpiPay'),
-  allowance: sum('allowance'),
-  ot: sum('ot'),
-  lateCut: sum('lateCut'),
-  gross: sum('gross'),
-  insurance: sum('insurance'),
-  tax: sum('tax'),
-  advance: sum('advance'),
-  net: sum('net')
-}));
 </script>
 
 <template>
@@ -124,18 +111,18 @@ const total = computed(() => ({
         </tbody>
         <tfoot v-if="lines.length">
           <tr>
-            <th scope="row" class="pt-who">Tổng {{ lines.length }} phiếu đang hiện</th>
+            <th scope="row" class="pt-who">Tổng cả kỳ</th>
             <td class="m"></td>
-            <td class="m">{{ money(total.workPay) }}</td>
-            <td class="m">{{ money(total.kpiPay) }}</td>
-            <td class="m">{{ money(total.allowance) }}</td>
-            <td class="m">{{ money(total.ot) }}</td>
-            <td class="m">{{ cut(total.lateCut) }}</td>
-            <td class="m strong">{{ money(total.gross) }}</td>
-            <td class="m ded">{{ money(total.insurance) }}</td>
-            <td class="m ded">{{ money(total.tax) }}</td>
-            <td class="m ded">{{ money(total.advance) }}</td>
-            <td class="m net">{{ money(total.net) }}</td>
+            <td class="m">{{ money(totals.workPay) }}</td>
+            <td class="m">{{ money(totals.kpiPay) }}</td>
+            <td class="m">{{ money(totals.allowance) }}</td>
+            <td class="m">{{ money(totals.ot) }}</td>
+            <td class="m">{{ cut(totals.lateCut) }}</td>
+            <td class="m strong">{{ money(totals.gross) }}</td>
+            <td class="m ded">{{ money(totals.insurance) }}</td>
+            <td class="m ded">{{ money(totals.tax) }}</td>
+            <td class="m ded">{{ money(totals.advance) }}</td>
+            <td class="m net">{{ money(totals.net) }}</td>
             <td class="st"></td>
           </tr>
         </tfoot>

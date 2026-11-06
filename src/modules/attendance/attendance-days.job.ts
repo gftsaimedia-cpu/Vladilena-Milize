@@ -43,9 +43,13 @@ export class AttendanceDaysJob implements OnModuleDestroy {
     return await this.coordinator.withLock(ATTENDANCE_DAYS_JOB_LOCK, async () => {
       let employees = 0;
       let days = 0;
+      // Tháng đã chốt công (hay xa hơn) thì đóng băng: job không được thêm hay đổi dòng ngày của tháng đó.
+      const frozen = await this.repo.frozenMonths(from, to);
       for (const id of await this.repo.activeEmployeeIds(from, to)) {
         try {
-          const dates = await this.repo.datesNeedingRefresh(id, from, to, today);
+          const dates = (await this.repo.datesNeedingRefresh(id, from, to, today)).filter(
+            date => !frozen.has(monthOfDate(date))
+          );
           if (dates.length === 0) continue;
           // Không truyền `trx`: mỗi người một giao dịch riêng với khoá `requests_<uuid>`.
           await this.days.refreshDays(id, dates, { now });

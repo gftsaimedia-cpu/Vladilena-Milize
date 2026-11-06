@@ -1,7 +1,7 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import { PeriodGate } from '../periods/period-gate';
-import { BadRequestError } from '../../common';
+import { BadRequestError, assertEmployed } from '../../common';
 import { businessDateText, businessTimeText } from '../../common/business-date';
 import { isValidDateText } from '../../common/date-text';
 import { checkPunchLocation, isWorkday, SettingsReader, TypeWeekMissingError } from '../settings';
@@ -146,6 +146,10 @@ export class AttendanceService {
       // chốt thì không ghi gì. Giữ khoá chia sẻ của tháng trên chính giao dịch của khoá nhân sự, để Chốt công chờ lượt chấm
       // đang chạy.
       await this.periodGate?.hold(trx, [workDate.slice(0, 7)], 'punch');
+
+      // 0b. Ngày công phải nằm trong thời gian làm việc (vào làm .. nghỉ việc); ngoài khoảng đó thì không ghi gì.
+      const employment = await repo.findEmployment(input.employeeId);
+      if (employment) assertEmployed(employment, [workDate]);
 
       // 1. Chặn chấm công nếu nhân viên đang trong ngày nghỉ phép
       const schedule = await repo.findSchedule(input.employeeId, workDate);

@@ -24,9 +24,6 @@ export const employmentStatusLabel = (s?: string | null): string | null => (s ? 
 export const kindLevelText = (kind: string, level: number | null): string =>
   kind === '—' && level == null ? '—' : `${kind} · Bậc ${level ?? '—'}`;
 
-// Trọng số % của 5 phần KPI.
-export const KPI_WEIGHTS: Record<KpiPart, number> = { wework: 40, user: 24, peer: 18, manager: 12, self: 6 };
-
 export const ATTENDANCE_GROUPS: { key: GroupKey; label: string }[] = [
   { key: 'work', label: 'Đi làm' },
   { key: 'late', label: 'Đi muộn, về sớm' },

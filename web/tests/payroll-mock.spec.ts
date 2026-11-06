@@ -43,7 +43,10 @@ test('period counts and totals match the board tiles', () => {
   if (v.empty) throw new Error('tháng 10 phải có dữ liệu');
   expect(v.lines.map(l => l.id)).toEqual(BOARD.map(b => b[0]));
   expect(v.counts).toEqual({ all: 128, draft: 12, pending: 29, done: 86, rejected: 1 });
-  expect(v.totals).toEqual({ gross: 2480805872, insurance: 260042500, tax: 90003940, advance: 20000000, deductions: 370046440, net: 2110759432, netShare: 85 });
+  expect(v.totals).toEqual({
+    gross: 2480805872, insurance: 260042500, tax: 90003940, advance: 20000000, deductions: 370046440, net: 2110759432, netShare: 85,
+    workPay: 139884617, kpiPay: 20186400, allowance: 24877884, ot: 4039663, lateCut: 182692
+  });
   expect(v.lines.reduce((a, l) => a + l.net, 0)).toBe(171959432);
   expect(v.depts).toEqual(['Tài chính', 'Kỹ thuật', 'Kinh doanh', 'Nhân sự', 'Marketing', 'Sản xuất']);
   expect(payrollView('2026-09')).toEqual({ month: '2026-09', empty: true });
@@ -64,7 +67,10 @@ test('what-if scores recompute KPI, tax and net', () => {
   expect([thinh.kpiPercent, thinh.kpiPay, thinh.tax, thinh.net]).toEqual([84.52, 3380800, 134809, 24261376]);
   const huy = withScore('GFT-0063', 'self', 80);
   expect([huy.kpiPercent, huy.kpiPay, huy.net, huy.kpiMissing]).toEqual([78.86, 1577200, 12351046, []]);
-  expect(kpiScore({ wework: null, user: null, peer: null, manager: null, self: null })).toEqual({ percent: 0, missing: ['wework', 'user', 'peer', 'manager', 'self'] });
+  // Điểm lẻ như BE: tổng điểm làm tròn 2 chữ số, tiền tính trên tổng chưa làm tròn.
+  const decimal = withScore('GFT-0142', 'self', 72.5);
+  expect([decimal.kpiPercent, decimal.kpiPay]).toEqual([65.99, 1319800]);
+  expect(kpiScore({ wework: null, user: null, peer: null, manager: null, self: null })).toEqual({ percent: 0, units: 0, missing: ['wework', 'user', 'peer', 'manager', 'self'] });
 });
 
 test('editing scores writes history and deciding changes the counts', () => {
@@ -81,11 +87,12 @@ test('editing scores writes history and deciding changes the counts', () => {
   expect(v.counts).toEqual({ all: 128, draft: 12, pending: 27, done: 87, rejected: 2 });
 });
 
-test('saved scores are clamped to 0-100 and rounded; empty means missing, not 0', () => {
+test('saved scores are clamped to 0-100 and rounded to 2 decimals like the BE; empty means missing, not 0', () => {
   const scores = (v: number | null) => setKpiScore('2026-10', 'GFT-0156', 'self', v)!.kpi.scores.self;
   expect(scores(150)).toBe(100);
   expect(scores(-5)).toBe(0);
-  expect(scores(72.6)).toBe(73);
+  expect(scores(72.6)).toBe(72.6);
+  expect(scores(72.555)).toBe(72.56);
   expect(scores(Number.NaN)).toBeNull();
   const empty = setKpiScore('2026-10', 'GFT-0156', 'self', null)!;
   expect(empty.kpi.scores.self).toBeNull();

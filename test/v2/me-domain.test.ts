@@ -319,6 +319,7 @@ describe('Thu nhập tạm tính', () => {
     assert.equal(e.incomeAfterInsurance, 15_538_183);
     assert.equal(e.advanceDeduction, 2_000_000);
     assert.equal(e.netIncome, 13_538_183);
+    assert.equal(e.deductionTotal, 2_000_000); // khấu trừ của bản tạm tính chỉ có tạm ứng
     assert.equal(e.baseSalaryActual, 11_076_923);
   });
 });

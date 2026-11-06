@@ -387,8 +387,8 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
     net: vnd(p.netIncome),
     review: official ? 'Admin đã duyệt phiếu' : 'Số tạm tính, có thể đổi tới khi Admin duyệt',
     gross: vnd(p.grossIncome),
-    // BE tạm tính hiện trả bảo hiểm/thuế = 0 (luật 05/11/2026); khi BE trả số thì tính đủ như board.
-    deduction: vnd((p.insuranceDeduction || 0) + (p.personalIncomeTax || 0) + (p.advanceDeduction || 0)),
+    // BE cộng sẵn khấu trừ (bảo hiểm + thuế + tạm ứng); bản tạm tính chưa trừ bảo hiểm và thuế nên chỉ có tạm ứng.
+    deduction: vnd(p.deductionTotal || 0),
     kpi: {
       title: `KPI tháng ${Number(inc.month.slice(5, 7))}`,
       parts: '5 phần',

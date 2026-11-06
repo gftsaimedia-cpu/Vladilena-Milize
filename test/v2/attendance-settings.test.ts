@@ -31,6 +31,10 @@ class FakeRepo extends AttendanceRepository {
   override async findSchedule(employeeId: string, workDate: string): Promise<WorkSchedule | null> {
     return this.schedules.get(`${employeeId}:${workDate}`) ?? null;
   }
+  override async findEmployment(): Promise<{ startDate: string | null; resignedOn: string | null } | null> {
+    return null; // fake không có hồ sơ vào làm/nghỉ việc
+  }
+
   override async savePunch(e: PunchEvent): Promise<void> {
     this.punches.push(e);
   }

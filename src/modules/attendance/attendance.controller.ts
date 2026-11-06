@@ -39,6 +39,9 @@ export class AttendanceController {
     if (!queryEmp || !queryDate) {
       throw new BadRequestError('Thiếu thông số employeeId hoặc workDate', { code: 'MISSING_PARAMS' });
     }
+    if (!isCalendarDate(queryDate)) {
+      throw new BadRequestError(`workDate không hợp lệ (định dạng YYYY-MM-DD): ${queryDate}`, { code: 'INVALID_DATE' });
+    }
     const punches = await this.service.getPunches(queryEmp, queryDate);
     return { punches };
   }
@@ -51,6 +54,11 @@ export class AttendanceController {
     @Query('endDate') queryEnd?: string,
     @Query('status') queryStatus?: string
   ): Promise<unknown> {
+    for (const [name, value] of [['startDate', queryStart], ['endDate', queryEnd]] as const) {
+      if (value !== undefined && !isCalendarDate(value)) {
+        throw new BadRequestError(`${name} không hợp lệ (định dạng YYYY-MM-DD): ${value}`, { code: 'INVALID_DATE' });
+      }
+    }
     const timesheets = await this.service.listTimesheets({
       employeeId: queryEmp,
       startDate: queryStart,
@@ -70,6 +78,9 @@ export class AttendanceController {
       throw new BadRequestError('Thiếu thông số employeeId hoặc workDate', { code: 'MISSING_PARAMS' });
     }
 
+    if (!isCalendarDate(workDate)) {
+      throw new BadRequestError(`workDate không hợp lệ (định dạng YYYY-MM-DD): ${workDate}`, { code: 'INVALID_DATE' });
+    }
     const timesheet = await this.service.getTimesheet(employeeId, workDate);
     if (!timesheet) {
       throw new NotFoundError('Không tìm thấy bảng công', { code: 'TIMESHEET_NOT_FOUND' });

@@ -1,7 +1,7 @@
 import type { AttendanceDayStatus } from '../../attendance/domain/attendance-day';
 import { PayrollAllowancePolicy, type AllowanceRates } from './allowance-rates';
-import { calculateInsurance, InsuranceDeduction } from './insurance';
-import { calculateKpiPay, KpiComponent, KpiPay } from './kpi-pay';
+import { calculateInsurance, DEFAULT_INSURANCE_RATES, insurancePctOf, InsuranceDeduction, type InsurancePct } from './insurance';
+import { calculateKpiPay, KPI_WEIGHTS, KpiComponent, KpiPay } from './kpi-pay';
 import { makeupShortfallDays } from './makeup-shortfall';
 import { OT_MULTIPLIERS, type OtRates } from './overtime-pay';
 import { calculatePersonalIncomeTax, TaxMethod, type TaxRules } from './personal-income-tax';
@@ -43,6 +43,24 @@ export interface DailyAttendanceLineProps {
   makeupPay: number; // makeupMinutes / 60 x hourly rate
 }
 
+/** The rates a payslip was computed with (the month's settings), so a reader prints them instead of hard-coding. */
+export interface PayslipRates {
+  kpiWeights: Record<KpiComponent, number>; // % of the KPI pay per component, sum 100
+  insurancePct: InsurancePct; // bhxh 8, bhyt 1.5, bhtn 1, total 10.5
+  otMultipliers: OtRates; // weekday 1.5, weekend 2, holiday 3
+  lateGraceMinutes: number; // a late check-in within this many minutes is not deducted
+}
+
+/** What a calendar day of the month shows on the payslip strip. */
+export type PayslipDayKind = 'work' | 'leave' | 'isat' | 'unpaid' | 'rest' | 'future';
+export interface PayslipDay {
+  date: string; // YYYY-MM-DD
+  kind: PayslipDayKind;
+}
+
+/** The default rates, for a payslip built without the month's settings. */
+export const DEFAULT_LATE_GRACE_MINUTES = 15;
+
 // Points 0-100 per component (weighted by the month's KPI weights); null = not entered.
 export type KpiScores = Record<KpiComponent, number | null>;
 
@@ -79,6 +97,9 @@ export interface EmployeePayslipProps {
   otHoursByRate?: OtHoursByRate;
   otPayByRate?: OtPayByRate;
   otRates?: OtRates; // the rates the OT was paid at; default OT_MULTIPLIERS
+  rates?: Omit<PayslipRates, 'otMultipliers'>; // default: the domain defaults; otMultipliers always follow otRates
+  calendar?: PayslipDay[]; // one entry per day of the month for the strip; default none
+  lateMinutes?: number; // minutes of late check-in beyond the grace, summed over the lines; default 0
   lateEarlyHours?: number;
   lateEarlyDeductionAmount?: number;
   diligenceLostFromDays?: number; // the attendance allowance is lost from this many absence days; default 5
@@ -134,6 +155,11 @@ export interface EmployeePayslipDTO {
   isatPay: number;
   holidayPay: number;
   makeupPay: number;
+  workPay: number;
+  lateMinutes: number;
+  rates: PayslipRates;
+  calendar: PayslipDay[];
+  deductionTotal: number;
   ot15Hours: number;
   ot20Hours: number;
   ot30Hours: number;
@@ -215,6 +241,13 @@ export class EmployeePayslip {
   readonly isatPay: number;
   readonly holidayPay: number;
   readonly makeupPay: number; // the makeup minutes of the day lines at the hourly rate (L14)
+  // Pay for the days worked and the paid days off: base + paid leave + settlement + iSAT + holiday (no makeup, OT, allowances).
+  readonly workPay: number;
+
+  // The month's rates and the late minutes beyond the grace, for the printed labels and notes.
+  readonly rates: PayslipRates;
+  readonly lateMinutes: number;
+  readonly calendar: PayslipDay[];
 
   // Block 3: Overtime Pay
   readonly ot15Hours: number;
@@ -263,6 +296,7 @@ export class EmployeePayslip {
   readonly taxAssessableIncome: number;
   readonly personalIncomeTax: number;
   readonly advanceDeduction: number;
+  readonly deductionTotal: number; // insurance + income tax + advance
   readonly netIncome: number;
 
   // Block 8: Balance
@@ -348,6 +382,9 @@ export class EmployeePayslip {
     this.isatPay = Math.round(this.isatDays * dayRate);
     this.holidayPay = Math.round(this.holidayPaidDays * dayRate);
     this.makeupPay = this.dailyLines.reduce((sum, line) => sum + line.makeupPay, 0);
+    this.workPay = this.baseSalaryActual + this.paidLeavePay + this.leaveSettlementPay + this.isatPay + this.holidayPay;
+    this.lateMinutes = props.lateMinutes ?? 0;
+    this.calendar = [...(props.calendar ?? [])];
 
     // Block 3: Overtime Pay
     this.ot15Hours = props.otHoursByRate?.x15 ?? 0;
@@ -435,6 +472,12 @@ export class EmployeePayslip {
     // hours worked and the night allowance paid that day (a night day without allowance, e.g. one that is not a work
     // day, exempts nothing).
     const otRates = props.otRates ?? OT_MULTIPLIERS;
+    this.rates = {
+      kpiWeights: props.rates?.kpiWeights ?? KPI_WEIGHTS,
+      insurancePct: props.rates?.insurancePct ?? insurancePctOf(DEFAULT_INSURANCE_RATES),
+      otMultipliers: { ...otRates },
+      lateGraceMinutes: props.rates?.lateGraceMinutes ?? DEFAULT_LATE_GRACE_MINUTES
+    };
     const otExempt = Math.round(
       this.ot15Hours * hourRate * (otRates.weekday - 1) +
         this.ot20Hours * hourRate * (otRates.weekend - 1) +
@@ -469,6 +512,7 @@ export class EmployeePayslip {
     this.personalIncomeTax = tax.tax;
     this.advanceDeduction = props.advanceDeduction ?? 0;
 
+    this.deductionTotal = this.insuranceDeduction + this.personalIncomeTax + this.advanceDeduction;
     this.netIncome = this.grossIncome - this.insuranceDeduction - this.personalIncomeTax - this.advanceDeduction;
 
     // Block 8: Balance
@@ -522,6 +566,11 @@ export class EmployeePayslip {
       isatPay: this.isatPay,
       holidayPay: this.holidayPay,
       makeupPay: this.makeupPay,
+      workPay: this.workPay,
+      lateMinutes: this.lateMinutes,
+      rates: this.rates,
+      calendar: this.calendar,
+      deductionTotal: this.deductionTotal,
       ot15Hours: this.ot15Hours,
       ot20Hours: this.ot20Hours,
       ot30Hours: this.ot30Hours,

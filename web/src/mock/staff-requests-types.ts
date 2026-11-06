@@ -21,6 +21,12 @@ export type ContextDay = {
   holiday: string | null;
   claim: { status: ClaimStatus; pending: boolean } | null;
   hours: HourSlot[];
+  /** Ngày đơn nghỉ giữ khi nằm trong khoảng nghỉ (BE quyết). */
+  leaveCounted: boolean;
+  /** Ngày đơn đổi ca đổi được (BE quyết). */
+  shiftChangeable: boolean;
+  /** Giờ OT chọn được của ngày (BE đã trừ giờ OT còn lại của tháng). */
+  otHours: HourSlot[];
 };
 export type ExplanationDay = {
   date: string;
@@ -36,6 +42,7 @@ export type ContextMonth = {
   closed: boolean;
   otMinutes: number;
   otCapMinutes: number;
+  otLeftMinutes: number;
   hasOvertime: boolean;
   hasMakeupLeave: boolean;
 };
@@ -48,7 +55,23 @@ export type AdvanceInfo = {
   to: string;
   windowEnd: string;
   ordersThisMonth: number;
+  ratePct: number;
 };
+/** Một "Đến ngày" chọn được, kèm số liệu của khoảng do BE tính. */
+export type RangeChoice = {
+  date: string;
+  daysCount: number;
+  annualLeaveLeftAfter?: number | null;
+  makeupMinutesRequired?: number;
+};
+export type RangeChoices = { starts: string[]; ends: Record<string, RangeChoice[]> };
+export type RequestChoices = {
+  leave: RangeChoices;
+  'leave-with-makeup': RangeChoices & { slotDates: Record<string, string[]> };
+  overtime: { dates: string[] };
+  'shift-change': RangeChoices;
+};
+export type RequestRules = { makeupMinutesPerLeaveDay: number; dayCapMinutes: number; monthOtCapMinutes: number };
 export type RequestContext = {
   today: string;
   window: { from: string; to: string };
@@ -60,6 +83,8 @@ export type RequestContext = {
   days: ContextDay[];
   explanationDays: ExplanationDay[];
   advance: AdvanceInfo | null;
+  choices: RequestChoices;
+  rules: RequestRules;
 };
 
 // Thân đơn, dùng đúng tên trường của BE.

@@ -1,6 +1,9 @@
-import { Controller, Get, Inject, Req, Res } from '@nestjs/common';
+import { Controller, Get, Inject, Optional, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { RequireCap, type UserSession } from '../../common';
+import { AuthService } from '../auth/auth.service';
+import { readSessionCookie } from '../auth/auth.guard';
+import { capsOf } from '../auth/domain';
 import { RealtimeBus } from './realtime-bus';
 
 export const HEARTBEAT_MS = 25_000;
@@ -10,7 +13,11 @@ export const MAX_STREAMS_PER_USER = 5;
 export class RealtimeController {
   private readonly open = new Map<string, number>();
 
-  constructor(@Inject(RealtimeBus) private readonly bus: RealtimeBus) {}
+  constructor(
+    @Inject(RealtimeBus) private readonly bus: RealtimeBus,
+    // Kiểm lại phiên trước mỗi sự kiện: tài khoản bị khoá, đổi mật khẩu, hạ quyền hay phiên hết hạn thì luồng đang mở phải đóng.
+    @Optional() @Inject(AuthService) private readonly auth?: AuthService
+  ) {}
 
   // Quyền như xem chấm công của mọi người; nhân viên thường 403, chưa đăng nhập 401 (AuthGuard).
   @RequireCap('attendance.correct')
@@ -37,7 +44,24 @@ export class RealtimeController {
       if (!res.writableEnded && !res.destroyed) res.write(chunk);
     };
     send('retry: 3000\nevent: ready\ndata: {}\n\n');
-    const unsubscribe = this.bus.subscribe(event => send(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`));
+    const token = readSessionCookie(req.headers?.cookie);
+    let queue: Promise<void> = Promise.resolve(); // giữ đúng thứ tự sự kiện dù kiểm phiên bất đồng bộ
+    const frame = (event: { type: string }) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+    const unsubscribe = this.bus.subscribe(event => {
+      const auth = this.auth;
+      if (!auth) {
+        send(frame(event));
+        return;
+      }
+      queue = queue.then(async () => {
+        const current = await auth.verifySession(token).catch(() => null);
+        if (!current || !capsOf(current.role).includes('attendance.correct')) {
+          if (!res.writableEnded) res.end();
+          return;
+        }
+        send(frame(event));
+      });
+    });
     const heartbeat = setInterval(() => send(': ping\n\n'), HEARTBEAT_MS);
 
     let closed = false;

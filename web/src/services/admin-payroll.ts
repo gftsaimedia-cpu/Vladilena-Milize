@@ -6,34 +6,28 @@ import {
   decidePayslip as decideMock,
   payrollView,
   payslipView,
+  previewSlip,
   setKpiScore,
   type Payslip,
   type PayrollScreen
 } from '@/mock/payroll';
-import { normalizeScore, recomputeSlip, type KpiPart, type KpiScores } from '@/mock/payroll-calc';
+import type { KpiPart, KpiScores } from '@/mock/payroll-calc';
 import { respond } from '@/mock/respond';
-import { useSessionStore } from '@/stores/session';
 import { ApiError, api } from './http';
 
 const enc = encodeURIComponent;
 
-// Hôm nay theo giờ Việt Nam (UTC+7) của đồng hồ máy chủ.
-function today(): string {
-  const now = useSessionStore().serverNow;
-  return new Date((now ? Date.parse(now) : Date.now()) + 7 * 3600000).toISOString().slice(0, 10);
-}
-
 export async function getPayroll(month: string): Promise<PayrollScreen> {
   if (__MOCK__) return respond(payrollView(month));
-  const { items = [] } = await api.get(`/payroll/${enc(month)}`);
-  return payrollScreenFromPayslips(items, month);
+  const { items = [], totals } = await api.get(`/payroll/${enc(month)}`);
+  return payrollScreenFromPayslips(items, month, totals);
 }
 
 export async function getPayslip(month: string, id: string): Promise<Payslip | null> {
   if (__MOCK__) return respond(payslipView(month, id));
   try {
     const { payslip } = await api.get(`/payroll/${enc(month)}/${enc(id)}`);
-    return payslipFromRecord(payslip, today());
+    return payslipFromRecord(payslip);
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) return null;
     throw e;
@@ -68,10 +62,9 @@ export async function decidePayslip(
   return getPayslip(month, id);
 }
 
-// Tính lại phiếu theo điểm đang gõ mà chưa ghi: đồng bộ, trên bản sao, để phiếu đổi số ngay khi gõ.
-// Máy chủ thật: không tính bằng công thức của mockup (có thể lệch luật của BE); chỉ hiện điểm mới, số tiền đổi khi lưu.
+// Phiếu theo điểm đang gõ mà chưa ghi, đồng bộ, trên bản sao. Máy chủ thật: không tính gì ở FE, chỉ hiện điểm đang gõ
+// (số tiền do BE tính và đổi khi lưu); dữ liệu giả: máy tính giả trong mock/payroll.ts.
 export function previewPayslip(slip: Payslip, scores: KpiScores): Payslip {
-  const clean = Object.fromEntries(Object.entries(scores).map(([p, v]) => [p, normalizeScore(v)])) as KpiScores;
-  if (!__MOCK__) return { ...slip, kpi: { ...slip.kpi, scores: clean } };
-  return recomputeSlip({ ...slip, kpi: { ...slip.kpi, scores: clean } });
+  if (!__MOCK__) return { ...slip, kpi: { ...slip.kpi, scores } };
+  return previewSlip(slip, scores);
 }

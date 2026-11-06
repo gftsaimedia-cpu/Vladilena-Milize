@@ -27,6 +27,7 @@ import {
   OT_MULTIPLIERS,
   otLinePayByRate,
   type OtRates,
+  type PayslipDayKind,
   type OtShare,
   type OtWindow,
   type PresenceSpan,
@@ -36,6 +37,8 @@ import {
   explanationWarning,
   type ExplanationWarningCode,
   calculateInsurance,
+  insurancePctOf,
+  DEFAULT_LATE_GRACE_MINUTES,
   calculateKpiPay,
   resolveTaxMethod,
   DEFAULT_INSURANCE_RATES,
@@ -56,6 +59,7 @@ interface PayRules {
   taxRules: TaxRules;
   otRates: OtRates;
   diligenceLostFromDays?: number; // undefined = the domain default (lost from 5 absence days)
+  lateGraceMinutes?: number; // undefined = the domain default (15)
 }
 
 /** Without a settings reader (a service built by hand in a test): the domain defaults, the rules before the store. */
@@ -73,7 +77,8 @@ function payRulesOf(s: SettingsSnapshot): PayRules {
     insuranceRates: { bhxh: s.insurance.bhxhPct / 100, bhyt: s.insurance.bhytPct / 100, bhtn: s.insurance.bhtnPct / 100 },
     taxRules: s.tax,
     otRates: { weekday: s.overtime.weekdayRate, weekend: s.overtime.weekendRate, holiday: s.overtime.holidayRate },
-    diligenceLostFromDays: s.attendance.diligenceLostFromDays
+    diligenceLostFromDays: s.attendance.diligenceLostFromDays,
+    lateGraceMinutes: s.attendance.lateGraceMinutes
   };
 }
 
@@ -84,6 +89,28 @@ type PayrollDays = Pick<AttendanceDaysService, 'refreshMonth'>;
 const HIDDEN_KINDS: ReadonlySet<AttendanceDayStatus> = new Set(['OUTSIDE', 'REST', 'PENDING']);
 /** Rows whose real presence is measured for OT (8.1); ABSENT has no punch, its line only shows dashes. */
 const MEASURED_KINDS: ReadonlySet<AttendanceDayStatus> = new Set(['PRESENT', 'EXTRA', 'HOLIDAY']);
+
+/** The strip colour of a calendar day (every day row, including the hidden ones). */
+function calendarKindOf(row: AttendanceDayRecord): PayslipDayKind {
+  switch (row.status) {
+    case 'PRESENT':
+    case 'EXTRA':
+      return row.workHours > 0 ? 'work' : 'unpaid';
+    case 'ISAT':
+      return 'isat';
+    case 'LEAVE_PAID':
+      return 'leave';
+    case 'HOLIDAY':
+    case 'LEAVE_MAKEUP':
+      return row.payUnits === 1 ? 'leave' : 'unpaid';
+    case 'REST':
+      return 'rest';
+    case 'PENDING':
+      return 'future';
+    default: // ABSENT, LEAVE_UNPAID, OUTSIDE
+      return 'unpaid';
+  }
+}
 
 /** Shift code of a line: the shift type on a shift day, else a code for the kind of day. */
 const KIND_CODE: Partial<Record<AttendanceDayStatus, string>> = {
@@ -500,6 +527,7 @@ export class PayrollService {
 
     const dailyLines: DailyAttendanceLineProps[] = [];
     let totalDeductionHours = 0;
+    let lateMinutes = 0;
     const otPayByRate = { x15: 0, x20: 0, x30: 0 };
     const dayWarnings: PayrollWarning[] = [];
 
@@ -514,6 +542,7 @@ export class PayrollService {
       // The deduction is the row's: after the grace, in 30-minute blocks, and only on an approved explanation (L4).
       const deductionHours = row.deductionMinutes / 60;
       totalDeductionHours += deductionHours;
+      lateMinutes += row.lateMinutes;
       const deductionAmount = Math.round(deductionHours * hourRate);
       const makeupPay = Math.round((row.makeupMinutes / 60) * hourRate);
 
@@ -614,6 +643,15 @@ export class PayrollService {
       otHoursByRate,
       otPayByRate,
       otRates: rules.otRates,
+      rates: {
+        kpiWeights: rules.kpiWeights,
+        insurancePct: insurancePctOf(rules.insuranceRates),
+        lateGraceMinutes: rules.lateGraceMinutes ?? DEFAULT_LATE_GRACE_MINUTES
+      },
+      lateMinutes,
+      calendar: [...rows]
+        .sort((a, b) => a.workDate.localeCompare(b.workDate))
+        .map(row => ({ date: row.workDate, kind: calendarKindOf(row) })),
       lateEarlyHours: roundedLateEarlyHours,
       diligenceLostFromDays: rules.diligenceLostFromDays,
       employeeType,

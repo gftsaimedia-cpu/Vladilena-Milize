@@ -40,7 +40,7 @@ const headingId = useId();
           <tr v-if="g.kpi" class="kpi">
             <td colspan="4">
               <div v-for="k in g.kpi" :key="k.label">
-                <span class="lb">{{ k.label }} {{ k.weight }}%</span><b>{{ scoreText(k.score) }}</b>
+                <span class="lb">{{ k.label }}{{ k.weight != null ? ` ${k.weight}%` : '' }}</span><b>{{ scoreText(k.score) }}</b>
               </div>
             </td>
           </tr>

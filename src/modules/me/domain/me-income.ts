@@ -11,6 +11,7 @@ export function estimateIncomeOf(slip: EmployeePayslipDTO): EmployeePayslipDTO {
     insuranceBreakdown: { bhxh: 0, bhyt: 0, bhtn: 0 },
     incomeAfterInsurance: slip.grossIncome,
     personalIncomeTax: 0,
+    deductionTotal: advance,
     netIncome: slip.grossIncome - advance
   };
 }

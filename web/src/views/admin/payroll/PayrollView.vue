@@ -223,7 +223,7 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
           :selected-count="picked.length"
           @export="exportCsv"
         />
-        <PayTable ref="payTable" v-model:selected="selected" :lines="pageLines" :month="monthNo(board.month)" :open-id="slipId" />
+        <PayTable ref="payTable" v-model:selected="selected" :lines="pageLines" :totals="board.totals" :month="monthNo(board.month)" :open-id="slipId" />
         <div class="foot">
           <span class="hint"><Icon name="drag" :size="14" />Kéo ngang để xem các khoản · bấm tên để mở phiếu lương</span>
           <span v-if="missingKpi" class="pl-legend"><i aria-hidden="true" />Thiếu điểm KPI, cột thiếu tính 0 điểm</span>
