@@ -1,6 +1,6 @@
 // Cài đặt › Phân quyền › Tài khoản trên BE thật (playwright.api.config.ts): đổi vai trò Nhân viên ↔ Admin có tác dụng thật
-// (BUG-staff-8), ô vai trò của chính mình bị khoá, Khoá / Mở khoá và Đặt lại mật khẩu chạy đúng, "Tạo tài khoản" khoá cho
-// tới khi FE có màn tạo tài khoản (BUG-staff-5 chờ FE). Tài khoản admin lấy từ PW_ADMIN_USER / PW_ADMIN_PASS. Mỗi lần
+// (BUG-staff-8), ô vai trò của chính mình bị khoá, Khoá / Mở khoá và Đặt lại mật khẩu chạy đúng, "Tạo tài khoản" mở hộp
+// Thêm nhân sự (BUG-staff-5). Tài khoản admin lấy từ PW_ADMIN_USER / PW_ADMIN_PASS. Mỗi lần
 // chạy tạo một nhân sự mới qua API Admin (tên có mã lần chạy), nên chỉ chạy trên DB thử.
 import { expect, request as playwrightRequest, test, type APIRequestContext, type Page } from '@playwright/test';
 
@@ -76,11 +76,14 @@ async function openAccounts(page: Page, q: string) {
 const rowOf = (page: Page, username: string) =>
   page.getByRole('row').filter({ has: page.getByRole('cell', { name: username, exact: true }) });
 
-test('Tạo tài khoản stays locked until FE has a create-account form', async ({ page }) => {
+test('Tạo tài khoản opens the Thêm nhân sự dialog at ?hop=them-nhan-su', async ({ page }) => {
   await signIn(page, ADMIN_USER, ADMIN_PASS);
   await openAccounts(page, HAI.name);
   await expect(rowOf(page, HAI.username)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Tạo tài khoản' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Tạo tài khoản' }).click();
+  await expect(page.getByRole('dialog', { name: 'Thêm nhân sự' })).toBeVisible();
+  await expect(page).toHaveURL(/hop=them-nhan-su/);
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 

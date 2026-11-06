@@ -30,6 +30,9 @@ export function requestDates(req: SystemRequest): string[] {
     case 'EXPLANATION':
       if (req.explanationDate) dates.add(req.explanationDate);
       break;
+    case 'HALF_SHIFT_LEAVE':
+      if (req.halfShiftDate) dates.add(req.halfShiftDate);
+      break;
     default:
       break;
   }

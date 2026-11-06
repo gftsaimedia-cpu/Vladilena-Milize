@@ -8,6 +8,7 @@ export interface RequestDates {
   advancePeriod?: string | null;
   makeupDates?: string[];
   isatSaturday?: string | null;
+  halfShiftDate?: string | null;
 }
 
 function monthIndex(month: string): number {
@@ -29,6 +30,6 @@ export function requestMonths(r: RequestDates): string[] {
   };
   addRange(r.leaveStartDate, r.leaveEndDate);
   addRange(r.changeStartDate, r.changeEndDate);
-  for (const d of [r.otDate, r.explanationDate, r.advancePeriod, r.isatSaturday, ...(r.makeupDates ?? [])]) addRange(d);
+  for (const d of [r.otDate, r.explanationDate, r.advancePeriod, r.isatSaturday, r.halfShiftDate, ...(r.makeupDates ?? [])]) addRange(d);
   return [...indexes].sort((a, b) => a - b).map(monthFromIndex);
 }

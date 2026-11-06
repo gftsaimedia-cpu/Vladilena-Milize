@@ -484,7 +484,8 @@ describe('PayrollRepository.getMonthlyData queries', () => {
       range('ot_date'),
       range('leave_start_date'),
       ['advance_period', '=', '2026-02'],
-      range('explanation_date')
+      range('explanation_date'),
+      range('half_shift_date')
     ];
     assert.deepEqual(where, [['employee_id', '=', 'u1'], ['status', '=', 'APPROVED'], { or: monthMatch }]);
     assert.equal(JSON.stringify(where).includes('like'), false);

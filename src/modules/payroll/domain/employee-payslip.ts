@@ -1,4 +1,5 @@
 import type { AttendanceDayStatus } from '../../attendance/domain/attendance-day';
+import type { HalfShift } from '../../../common/half-shift';
 import { PayrollAllowancePolicy, shiftHoursOf, type AllowanceRates } from './allowance-rates';
 import { calculateInsurance, DEFAULT_INSURANCE_RATES, insurancePctOf, InsuranceDeduction, type InsurancePct } from './insurance';
 import { calculateKpiPay, KPI_WEIGHTS, KpiComponent, KpiPay } from './kpi-pay';
@@ -41,7 +42,9 @@ export interface DailyAttendanceLineProps {
   dailyTotal: number;
   // The day row the line was read from (spec 8.1); the payslip counts by these, never by shiftCode.
   kind: AttendanceDayStatus;
-  payUnits: number; // 0 or 1 day of pay
+  payUnits: number; // 0, 0.5 or 1 day of pay
+  halfShift?: HalfShift | null;
+  repaidMinutes?: number;
   countsAsWorkday: boolean;
   countsAsDayOff: boolean; // a day off for the attendance allowance
   makeupMinutes: number; // minutes worked inside the approved makeup windows of the day (L14)
@@ -113,6 +116,9 @@ export interface EmployeePayslipProps {
   warnings?: PayrollWarning[];
   advanceDeduction?: number;
   remainingAnnualLeaveDays?: number | null; // null = no leave account; default null
+  halfShiftOwedMinutes?: number;
+  halfShiftRepaidMinutes?: number;
+  halfShiftDroppedMinutes?: number;
 }
 
 export interface EmployeePayslipSummaryDTO {
@@ -157,6 +163,10 @@ export interface EmployeePayslipDTO {
   isatPay: number;
   holidayPay: number;
   makeupPay: number;
+  halfShiftRepaidPay: number;
+  halfShiftOwedMinutes: number;
+  halfShiftRepaidMinutes: number;
+  halfShiftDroppedMinutes: number;
   workPay: number;
   lateMinutes: number;
   rates: PayslipRates;
@@ -243,6 +253,10 @@ export class EmployeePayslip {
   readonly isatPay: number;
   readonly holidayPay: number;
   readonly makeupPay: number; // base x (the month's makeup minutes / 60) / (std x 8), rounded once (L14, D1)
+  readonly halfShiftRepaidPay: number;
+  readonly halfShiftOwedMinutes: number;
+  readonly halfShiftRepaidMinutes: number;
+  readonly halfShiftDroppedMinutes: number;
   // Pay for the days worked and the paid days off: base + paid leave + settlement + iSAT + holiday (no makeup, OT, allowances).
   readonly workPay: number;
 
@@ -358,21 +372,27 @@ export class EmployeePayslip {
     let nightExemptHours = 0; // Σ min(30% of the hours worked, the night allowance in hours) of the night work days
 
     for (const line of this.dailyLines) {
+      const w = line.kind === 'PRESENT' && line.halfShift ? 0.5 : 1;
       if (line.countsAsWorkday) {
-        workDaysCount++;
+        workDaysCount += w;
         // D13: the makeup minutes of the line are paid x1 on their own; the premiums read the shift hours only.
         const shiftHours = shiftHoursOf(line.workHours, line.makeupMinutes);
         if (line.shiftCode === 'FLEX') {
-          flexCount++;
+          flexCount += w;
           flexHours += rates.flexHours(shiftHours);
         }
         if (line.shiftCode === 'NIGHT') {
-          nightCount++;
-          nightBreakHours += rates.nightBreakHours(shiftHours, line.deductionMinutes / 60);
-          nightExemptHours += Math.min(shiftHours * 0.3, 8 * rates.nightRate);
+          nightCount += w;
+          if (!line.halfShift) {
+            nightBreakHours += rates.nightBreakHours(shiftHours, line.deductionMinutes / 60);
+          }
+          nightExemptHours += Math.min(shiftHours * 0.3, 8 * rates.nightRate * w);
         }
       }
-      if (line.countsAsDayOff) dayOffCount++;
+      if (line.countsAsDayOff) {
+        const offWeight = line.kind === 'PRESENT' && line.halfShift ? 0.5 : 1;
+        dayOffCount += offWeight;
+      }
       const paid = line.payUnits === 1;
       if (line.kind === 'LEAVE_PAID' && paid) paidLeaveCount++;
       else if (line.kind === 'ISAT' && paid) isatCount++;
@@ -401,6 +421,12 @@ export class EmployeePayslip {
     this.isatPay = pay(this.isatDays);
     this.holidayPay = pay(this.holidayPaidDays);
     this.makeupPay = pay(makeupMinutes / 60, { perHour: true });
+    this.halfShiftOwedMinutes = props.halfShiftOwedMinutes ?? 0;
+    this.halfShiftRepaidMinutes =
+      props.halfShiftRepaidMinutes ?? this.dailyLines.reduce((sum, line) => sum + (line.repaidMinutes ?? 0), 0);
+    this.halfShiftDroppedMinutes =
+      props.halfShiftDroppedMinutes ?? Math.max(0, this.halfShiftOwedMinutes - this.halfShiftRepaidMinutes);
+    this.halfShiftRepaidPay = pay(this.halfShiftRepaidMinutes / 60, { perHour: true });
     this.workPay = this.baseSalaryActual + this.paidLeavePay + this.leaveSettlementPay + this.isatPay + this.holidayPay;
     this.lateMinutes = props.lateMinutes ?? 0;
     this.calendar = [...(props.calendar ?? [])];
@@ -474,6 +500,7 @@ export class EmployeePayslip {
       this.isatPay +
       this.holidayPay +
       this.makeupPay +
+      this.halfShiftRepaidPay +
       this.otPayTotal +
       this.totalAllowanceActual +
       this.kpiActualPay +
@@ -574,6 +601,10 @@ export class EmployeePayslip {
       isatPay: this.isatPay,
       holidayPay: this.holidayPay,
       makeupPay: this.makeupPay,
+      halfShiftRepaidPay: this.halfShiftRepaidPay,
+      halfShiftOwedMinutes: this.halfShiftOwedMinutes,
+      halfShiftRepaidMinutes: this.halfShiftRepaidMinutes,
+      halfShiftDroppedMinutes: this.halfShiftDroppedMinutes,
       workPay: this.workPay,
       lateMinutes: this.lateMinutes,
       rates: this.rates,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Màn Nhân sự (nhan-su) trên dữ liệu giả: bốn thẻ chỉ số và thẻ danh sách 10 hồ sơ đầu của 131.
+// Màn Nhân sự (nhan-su): bốn thẻ chỉ số, thẻ danh sách và nút Thêm nhân sự (hộp StaffFormDialog ở ?hop=them-nhan-su).
+// Sửa hồ sơ và Cho nghỉ việc nằm ở ngăn kéo hồ sơ (?nv=<id>); lưu xong màn báo và tải lại danh sách.
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
@@ -8,8 +9,11 @@ import SelectBar from '@/components/select-mode/SelectBar.vue';
 import { useSelectMode } from '@/components/select-mode/useSelectMode';
 import { deptOptions, useMineDepts, type StaffPst } from '@/components/staff-scope/staffScope';
 import { toast } from '@/components/shell/toast';
+import Icon from '@/components/ui/Icon.vue';
 import { SHIFT_OPTIONS, STAFF_BULK, assignShift, getDepartments, getShiftOptions, getStaffList, moveStaffToDept, type ShiftOption } from '@/services/admin-hr';
+import { useHop } from '../settings/lib/useHop';
 import StaffDrawer from './StaffDrawer.vue';
+import StaffFormDialog from './StaffFormDialog.vue';
 import StaffStats from './parts/StaffStats.vue';
 import StaffTable from './parts/StaffTable.vue';
 import StaffToolbar from './parts/StaffToolbar.vue';
@@ -19,6 +23,19 @@ import { filterStaff, isFiltered } from './staffFilter';
 const route = useRoute();
 const router = useRouter();
 const { data, reload } = useLoad(() => getStaffList());
+
+// Hộp Thêm nhân sự ở ?hop=them-nhan-su; tạo xong thì đóng, báo và tải lại danh sách.
+const { hop, open: openHop, close: closeHop } = useHop(['them-nhan-su']);
+function added(who: { name: string; username: string }) {
+  closeHop();
+  toast.ok(`Đã thêm ${who.name} (${who.username})`);
+  reload();
+}
+// Ngăn kéo vừa lưu hồ sơ hoặc cho nghỉ việc.
+function changed(message: string) {
+  toast.ok(message);
+  reload();
+}
 
 const asText = (v: unknown) => (typeof v === 'string' ? v : '');
 const q = ref(asText(route.query.q));
@@ -123,6 +140,9 @@ const footer = computed(() =>
   <div class="staff">
     <div class="title">
       <h1>Nhân sự</h1>
+      <div class="acts">
+        <button type="button" class="btn pri" @click="openHop('them-nhan-su')"><Icon name="plus" />Thêm nhân sự</button>
+      </div>
     </div>
 
     <template v-if="data">
@@ -185,7 +205,9 @@ const footer = computed(() =>
       @close="router.replace(withNv())"
       @prev="go(-1)"
       @next="go(1)"
+      @changed="changed"
     />
+    <StaffFormDialog v-if="hop === 'them-nhan-su'" @close="closeHop" @saved="added" />
   </div>
 </template>
 

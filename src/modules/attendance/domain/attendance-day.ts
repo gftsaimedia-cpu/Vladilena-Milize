@@ -1,5 +1,6 @@
 import { LEAVE_TYPES, type LeaveType } from '../../requests/domain/leave-types';
-import { vnInstant, weekdayOf } from './calendar';
+import type { HalfShift } from '../../../common/half-shift';
+import { addDaysText, vnInstant, weekdayOf } from './calendar';
 import {
   detectCases,
   expectedBounds,
@@ -38,6 +39,13 @@ export interface ShiftFacts {
   allowancePct: number;
 }
 
+export interface HalfShiftFacts {
+  half: HalfShift;
+  start: string;
+  end: string;
+  requestId: string;
+}
+
 export interface ScheduleFacts {
   scheduleType: ScheduleType;
   status: ScheduleStatus;
@@ -63,6 +71,7 @@ export interface DayFacts {
   punches: ReadonlyArray<{ type: 'IN' | 'OUT'; at: Date }>;
   otWindows: ReadonlyArray<{ start: string; end: string }>;
   makeupWindows: ReadonlyArray<{ start: string; end: string }>;
+  halfShift?: HalfShiftFacts | null;
   explanation: ExplanationFacts | null;
   isHoliday: boolean;
 }
@@ -87,6 +96,7 @@ export interface AttendanceDay {
   workDate: string;
   status: AttendanceDayStatus;
   shift: ShiftFacts | null;
+  halfShift: HalfShift | null;
   checkIn: Date | null;
   checkOut: Date | null;
   workHours: number;
@@ -97,7 +107,7 @@ export interface AttendanceDay {
   cases: DetectedCase[];
   explanationStatus: ExplanationStatus;
   explanationRequestId: string | null;
-  payUnits: 0 | 1;
+  payUnits: 0 | 0.5 | 1;
   deductionMinutes: number;
   countsAsWorkday: boolean;
   countsAsDayOff: boolean;
@@ -190,6 +200,7 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
     workDate: date,
     status: 'REST',
     shift: null,
+    halfShift: null,
     checkIn,
     checkOut,
     workHours: checkIn && checkOut ? roundHours(checkOut.getTime() - checkIn.getTime()) : 0,
@@ -212,14 +223,15 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
   };
 
   /** Dò trường hợp; `shift` null trên ngày EXTRA/HOLIDAY nên mọi mã chỉ để biết. */
-  const detect = (shift: ShiftFacts | null) => {
+  const detect = (shift: (ShiftFacts & { startDate?: string }) | null) => {
     const bounds = expectedBounds(date, shift, windows);
     const evaluated =
       (checkIn !== null && checkOut !== null) ||
       (bounds !== null && src.now.getTime() >= bounds.end.getTime() + EVALUATE_AFTER_MS);
     const firstOutInShift = shift
       ? (() => {
-          const span = spanOf(date, shift.start, shift.end);
+          const shiftStartDate = shift.startDate ?? date;
+          const span = spanOf(shiftStartDate, shift.start, shift.end);
           // Lần ra trước giờ vào ca (hết khung bù/OT đứng trước ca) chỉ là ra sớm khi sau đó
           // không còn lần vào nào: người đó rời đi trước ca và không quay lại.
           const early = outs.filter(o => o < span.end && (o >= span.start || !ins.some(i => i > o)));
@@ -334,12 +346,39 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
   }
 
   // 5. Ngày làm.
-  const shift = shiftOf(src);
-  row.shift = shift;
+  const baseShift = shiftOf(src);
+  let shift: ShiftFacts & { startDate?: string } = baseShift;
+  if (src.halfShift) {
+    const isOvernightBase = baseShift.end <= baseShift.start;
+    const startsNextDay = isOvernightBase && src.halfShift.start < baseShift.start;
+    shift = {
+      type: baseShift.type,
+      start: src.halfShift.start,
+      end: src.halfShift.end,
+      allowancePct: baseShift.allowancePct,
+      ...(startsNextDay ? { startDate: addDaysText(date, 1) } : {})
+    };
+    row.halfShift = src.halfShift.half;
+  }
+  row.shift = {
+    type: shift.type,
+    start: shift.start,
+    end: shift.end,
+    allowancePct: shift.allowancePct
+  };
+
   const { evaluated, result } = detect(shift);
   row.cases = result.cases;
   row.lateMinutes = result.lateMinutes;
   row.earlyMinutes = result.earlyMinutes;
+
+  if (src.halfShift && checkIn && checkOut) {
+    const shiftStartDate = shift.startDate ?? date;
+    const shiftSpan = spanOf(shiftStartDate, shift.start, shift.end);
+    const overlapStart = Math.max(checkIn.getTime(), shiftSpan.start.getTime());
+    const overlapEnd = Math.min(checkOut.getTime(), shiftSpan.end.getTime());
+    row.workHours = overlapEnd > overlapStart ? roundHours(overlapEnd - overlapStart) : 0;
+  }
 
   const hasPunch = checkIn !== null || checkOut !== null;
   if (!evaluated) {
@@ -358,15 +397,18 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
   row.makeupCreditMinutes = makeup.credit;
   const payAffecting = result.cases.some(c => c.affectsPay);
   if (!payAffecting) {
-    row.payUnits = 1;
+    row.payUnits = src.halfShift ? 0.5 : 1;
   } else if (explanation?.status === 'APPROVED') {
-    row.payUnits = 1;
+    row.payUnits = src.halfShift ? 0.5 : 1;
     row.deductionMinutes = Math.min(
       MAX_DEDUCTION_MINUTES,
       deductionBlock(result.lateMinutes) + deductionBlock(result.earlyMinutes)
     );
   }
-  row.countsAsWorkday = row.payUnits === 1;
+  row.countsAsWorkday = row.payUnits > 0;
+  if (src.halfShift) {
+    row.countsAsDayOff = true;
+  }
   return finish();
 }
 

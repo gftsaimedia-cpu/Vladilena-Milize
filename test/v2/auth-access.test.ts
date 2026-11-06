@@ -79,6 +79,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
     'createAdvance',
     'createExplanation',
     'createIsat',
+    'createHalfShiftLeave',
     'listIsatConditions',
     'listLeaveTypes',
     'createLeaveWithMakeup',
