@@ -18,9 +18,10 @@ import MonthTiles from '@/views/staff-phone/components/MonthTiles.vue';
 import RecentDays from '@/views/staff-phone/components/RecentDays.vue';
 
 const props = defineProps<{ stamp: number }>();
+// Tháng đang xem, dùng chung với cột Thu nhập (v-model:month ở trang cha).
+const month = defineModel<string | null>('month', { default: null });
 
 const router = useRouter();
-const month = ref<string | null>(null); // null = tháng hiện tại
 const load = useLoad(() => getAttendance(7, month.value), () => month.value);
 const { data, error, loading, reload } = load;
 const head = ref<HTMLElement | null>(null);

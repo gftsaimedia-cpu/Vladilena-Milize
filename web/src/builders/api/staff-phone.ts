@@ -20,7 +20,7 @@ import { dmy, initials, num, vnd } from '../../utils/format';
 import type { RequestDTO } from './inbox';
 import type { Zone } from './settings';
 
-export type MeLeave = 'paid' | 'unpaid' | 'holiday';
+export type MeLeave = 'paid' | 'unpaid' | 'holiday' | 'isat' | 'makeup';
 // halfShift: ngày nghỉ giữa ca (BE), nửa nhân viên làm; khi có thì `shift` của ngày là nửa ca làm.
 export type MeHalfShift = 'FIRST' | 'SECOND';
 export type MeDay = {
@@ -91,7 +91,13 @@ const KIND_TEXT: Record<CellKind, string> = {
 };
 const DAY_STATUS: Record<DayKind, string> = { work: 'Đi làm', late: 'Đi muộn', leave: 'Nghỉ có lương', absent: 'Vắng', todo: 'Cần xử lý' };
 // Ngày nghỉ gọi đúng loại theo bảng công; thiếu loại thì giữ nhãn chung.
-const LEAVE_KIND: Record<MeLeave, string> = { paid: 'Nghỉ có lương', unpaid: 'Nghỉ không lương', holiday: 'Nghỉ lễ' };
+const LEAVE_KIND: Record<MeLeave, string> = {
+  paid: 'Nghỉ có lương',
+  unpaid: 'Nghỉ không lương',
+  holiday: 'Nghỉ lễ',
+  isat: 'Nghỉ iSAT',
+  makeup: 'Nghỉ có làm bù'
+};
 const statusOf = (d: MeDay) => (d.kind === 'leave' && d.leave ? LEAVE_KIND[d.leave] : DAY_STATUS[d.kind as DayKind]);
 
 const dowOf = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay();
