@@ -115,6 +115,30 @@ export function staffListView(): StaffListView {
   return { stats: STATS, total: 131, rows: ROWS };
 }
 
+// Chọn nhiều (06/11): đổi phòng ban ghi thẳng vào dòng giả; ca mới ghi đè ô "Ca làm" của hồ sơ. Người đã nghỉ việc bị bỏ qua
+// (giao diện đã khoá họ). Trả id những người đã đổi.
+const SHIFT_OF: Record<string, string> = {};
+
+export function moveStaffDept(ids: string[], dept: string): string[] {
+  const done: string[] = [];
+  for (const r of ROWS) {
+    if (!ids.includes(r.id) || r.status === 'out') continue;
+    r.dept = dept;
+    done.push(r.id);
+  }
+  return done;
+}
+
+export function assignStaffShift(ids: string[], label: string): string[] {
+  const done: string[] = [];
+  for (const r of ROWS) {
+    if (!ids.includes(r.id) || r.status === 'out') continue;
+    SHIFT_OF[r.id] = label;
+    done.push(r.id);
+  }
+  return done;
+}
+
 export function staffProfile(id: string): StaffProfile | null {
   const p = ROWS.find(r => r.id === id);
   if (!p) return null;
@@ -138,7 +162,7 @@ export function staffProfile(id: string): StaffProfile | null {
           { label: 'Chức danh', value: p.title },
           { label: 'Loại · bậc', value: level },
           { label: 'Quản lý trực tiếp', value: manager },
-          { label: 'Ca làm', value: shift },
+          { label: 'Ca làm', value: SHIFT_OF[id] ?? shift },
           { label: 'Ngày vào làm', value: since }
         ]
       },

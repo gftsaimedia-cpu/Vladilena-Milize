@@ -3,7 +3,12 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
-import { getStaffList } from '@/services/admin-hr';
+import ResultLine from '@/components/select-mode/ResultLine.vue';
+import SelectBar from '@/components/select-mode/SelectBar.vue';
+import { useSelectMode } from '@/components/select-mode/useSelectMode';
+import { deptOptions, useMineDepts, type StaffPst } from '@/components/staff-scope/staffScope';
+import { toast } from '@/components/shell/toast';
+import { SHIFT_OPTIONS, STAFF_BULK, assignShift, getStaffList, moveStaffToDept } from '@/services/admin-hr';
 import StaffDrawer from './StaffDrawer.vue';
 import StaffStats from './parts/StaffStats.vue';
 import StaffTable from './parts/StaffTable.vue';
@@ -13,11 +18,13 @@ import { filterStaff, isFiltered } from './staffFilter';
 
 const route = useRoute();
 const router = useRouter();
-const { data } = useLoad(() => getStaffList());
+const { data, reload } = useLoad(() => getStaffList());
 
 const asText = (v: unknown) => (typeof v === 'string' ? v : '');
 const q = ref(asText(route.query.q));
-const inactiveOnly = ref(false);
+const pst = ref<StaffPst>('all');
+const dept = ref('');
+const mine = useMineDepts();
 
 // ?q hai chiều: URL đổi (ô tìm trên thanh trên) thì cập nhật ô tìm; gõ thì thay URL, ô trống bỏ q.
 watch(
@@ -30,22 +37,56 @@ watch(q, v => {
   if (asText(route.query.q) !== v) router.replace({ query: { ...route.query, q: v || undefined } });
 });
 
-const inactiveCount = computed(() => (data.value?.rows ?? []).filter(r => !r.activated).length);
-const opts = computed(() => ({ q: q.value, inactiveOnly: inactiveOnly.value }));
+const opts = computed(() => ({ q: q.value, scope: { pst: pst.value, dept: dept.value }, mine }));
 const shown = computed(() => filterStaff(data.value?.rows ?? [], opts.value));
-// Chọn theo id, giữ qua mọi lần đổi tìm hay công tắc; số đếm và CSV chỉ tính các dòng đang hiện.
-const selected = ref<string[]>([]);
-const picked = computed(() => shown.value.filter(r => selected.value.includes(r.id)));
-function toggle(id: string) {
-  selected.value = selected.value.includes(id) ? selected.value.filter(x => x !== id) : [...selected.value, id];
+const depts = computed(() => deptOptions(data.value?.rows ?? []));
+const exportCsv = () => downloadStaffCsv(shown.value);
+
+// Chế độ chọn (06/11): "Gán ca" và "Đổi phòng ban" mới hiện cột ô chọn. Người đã nghỉ việc mờ và không chọn được.
+// Số đếm và danh sách gửi đi chỉ tính người đang hiện; đổi bộ lọc trong lúc chọn vẫn được.
+type BulkMode = 'shift' | 'move';
+const sel = useSelectMode<BulkMode>();
+const result = ref('');
+const shiftCode = ref<string>(SHIFT_OPTIONS[0].code);
+const toDept = ref('');
+const pickable = computed(() => shown.value.filter(r => r.status !== 'out').map(r => r.id));
+const chosen = computed(() => sel.pickedIn(pickable.value));
+function start(mode: BulkMode) {
+  sel.enter(mode);
+  result.value = '';
+  shiftCode.value = SHIFT_OPTIONS[0].code;
+  toDept.value = '';
 }
-function toggleAll() {
-  const ids = shown.value.map(r => r.id);
-  selected.value = ids.every(id => selected.value.includes(id))
-    ? selected.value.filter(id => !ids.includes(id))
-    : [...selected.value, ...ids.filter(id => !selected.value.includes(id))];
+const barTitle = computed(() => (sel.mode.value === 'shift' ? 'Gán ca' : 'Đổi phòng ban'));
+const goLabel = computed(() => {
+  const n = chosen.value.length;
+  if (!n) return 'Chọn ít nhất 1 người';
+  if (sel.mode.value === 'move' && !toDept.value) return 'Chọn phòng ban mới';
+  return `${barTitle.value} cho ${n} người`;
+});
+const goDisabled = computed(() => !chosen.value.length || (sel.mode.value === 'move' && !toDept.value));
+const running = ref(false);
+async function run() {
+  if (goDisabled.value || running.value) return;
+  running.value = true;
+  const ids = chosen.value;
+  try {
+    if (sel.mode.value === 'move') {
+      const done = await moveStaffToDept(ids, toDept.value);
+      result.value = `Đã chuyển ${done.length} người sang phòng ${toDept.value}.`;
+    } else {
+      const label = SHIFT_OPTIONS.find(s => s.code === shiftCode.value)!.label;
+      const done = await assignShift(ids, shiftCode.value);
+      result.value = `Đã gán ca ${label} cho ${done.length} người.`;
+    }
+    sel.quit();
+    await reload();
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    running.value = false;
+  }
 }
-const exportCsv = () => downloadStaffCsv(picked.value.length ? picked.value : shown.value);
 
 // Hồ sơ mở bằng ?nv=<id>. Người trước / sau đi trong các dòng đang hiện lúc mở và không đổi theo tìm hay công tắc.
 const openId = computed(() => (typeof route.query.nv === 'string' ? route.query.nv : ''));
@@ -85,12 +126,42 @@ const footer = computed(() =>
         </div>
         <StaffToolbar
           v-model:q="q"
-          v-model:inactive-only="inactiveOnly"
-          :inactive-count="inactiveCount"
-          :selected-count="picked.length"
+          v-model:pst="pst"
+          v-model:dept="dept"
+          :depts="depts"
+          :bulk="STAFF_BULK && !sel.mode.value"
           @export="exportCsv"
+          @shift="start('shift')"
+          @move="start('move')"
         />
-        <StaffTable :rows="shown" :selected="selected" @toggle="toggle" @toggle-all="toggleAll" />
+        <SelectBar
+          v-if="sel.mode.value"
+          :title="barTitle"
+          :count="chosen.length"
+          :total="pickable.length"
+          unit="người"
+          :go-label="goLabel"
+          :go-disabled="goDisabled"
+          @quit="sel.quit()"
+          @run="run"
+        >
+          <select v-if="sel.mode.value === 'shift'" v-model="shiftCode" aria-label="Ca làm">
+            <option v-for="o in SHIFT_OPTIONS" :key="o.code" :value="o.code">{{ o.label }}</option>
+          </select>
+          <select v-else v-model="toDept" aria-label="Phòng ban mới">
+            <option value="" disabled>Chuyển sang phòng…</option>
+            <option v-for="d in depts" :key="d" :value="d">{{ d }}</option>
+          </select>
+        </SelectBar>
+        <ResultLine v-else :text="result" />
+        <StaffTable
+          :rows="shown"
+          :selecting="!!sel.mode.value"
+          :picked="sel.picked.value"
+          :all-state="sel.stateOf(pickable)"
+          @toggle="sel.toggle"
+          @toggle-all="sel.toggleAll(pickable)"
+        />
         <div class="lc-f">{{ footer }}</div>
       </section>
     </template>
