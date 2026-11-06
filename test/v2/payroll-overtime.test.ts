@@ -48,7 +48,7 @@ describe('OT measured from the approved window and the real presence', () => {
   it('pays the minutes inside the window on a weekday (80 minutes at x1.5)', () => {
     const shares = measureOne('2026-10-07', '19:20');
     assert.deepEqual(shares, [
-      { lineDate: '2026-10-07', otDate: '2026-10-07', hours: 80 / 60, kind: 'weekday', multiplier: 1.5 }
+      { lineDate: '2026-10-07', otDate: '2026-10-07', start: '18:00', hours: 80 / 60, kind: 'weekday', multiplier: 1.5 }
     ]);
     assert.equal(otPayOf(shares[0].hours, HOUR_RATE, shares[0].multiplier), 57_692);
   });
@@ -106,7 +106,7 @@ describe('OT measured from the approved window and the real presence', () => {
       [span('2026-10-05', '22:00', '06:30', '2026-10-06')],
       NO_HOLIDAYS
     );
-    assert.deepEqual(shares, [{ lineDate: '2026-10-05', otDate: '2026-10-06', hours: 1.5, kind: 'weekday', multiplier: 1.5 }]);
+    assert.deepEqual(shares, [{ lineDate: '2026-10-05', otDate: '2026-10-06', start: '05:00', hours: 1.5, kind: 'weekday', multiplier: 1.5 }]);
   });
 
   it('counts the minutes of the union of presence, not span by span, when two spans overlap', () => {
@@ -117,7 +117,7 @@ describe('OT measured from the approved window and the real presence', () => {
       [span('2026-10-07', '08:12', '07:30', '2026-10-08'), span('2026-10-08', '06:00', '17:00')],
       NO_HOLIDAYS
     );
-    assert.deepEqual(shares, [{ lineDate: '2026-10-08', otDate: '2026-10-08', hours: 1, kind: 'weekday', multiplier: 1.5 }]);
+    assert.deepEqual(shares, [{ lineDate: '2026-10-08', otDate: '2026-10-08', start: '06:00', hours: 1, kind: 'weekday', multiplier: 1.5 }]);
   });
 
   it('merges two spans that partly overlap inside one window', () => {

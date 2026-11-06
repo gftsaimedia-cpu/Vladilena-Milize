@@ -116,6 +116,9 @@ export interface EmployeePayslipProps {
   warnings?: PayrollWarning[];
   advanceDeduction?: number;
   remainingAnnualLeaveDays?: number | null; // null = no leave account; default null
+  halfShiftOwedMinutes?: number;
+  halfShiftRepaidMinutes?: number;
+  halfShiftDroppedMinutes?: number;
 }
 
 export interface EmployeePayslipSummaryDTO {
@@ -160,6 +163,10 @@ export interface EmployeePayslipDTO {
   isatPay: number;
   holidayPay: number;
   makeupPay: number;
+  halfShiftRepaidPay: number;
+  halfShiftOwedMinutes: number;
+  halfShiftRepaidMinutes: number;
+  halfShiftDroppedMinutes: number;
   workPay: number;
   lateMinutes: number;
   rates: PayslipRates;
@@ -246,6 +253,10 @@ export class EmployeePayslip {
   readonly isatPay: number;
   readonly holidayPay: number;
   readonly makeupPay: number; // base x (the month's makeup minutes / 60) / (std x 8), rounded once (L14, D1)
+  readonly halfShiftRepaidPay: number;
+  readonly halfShiftOwedMinutes: number;
+  readonly halfShiftRepaidMinutes: number;
+  readonly halfShiftDroppedMinutes: number;
   // Pay for the days worked and the paid days off: base + paid leave + settlement + iSAT + holiday (no makeup, OT, allowances).
   readonly workPay: number;
 
@@ -410,6 +421,12 @@ export class EmployeePayslip {
     this.isatPay = pay(this.isatDays);
     this.holidayPay = pay(this.holidayPaidDays);
     this.makeupPay = pay(makeupMinutes / 60, { perHour: true });
+    this.halfShiftOwedMinutes = props.halfShiftOwedMinutes ?? 0;
+    this.halfShiftRepaidMinutes =
+      props.halfShiftRepaidMinutes ?? this.dailyLines.reduce((sum, line) => sum + (line.repaidMinutes ?? 0), 0);
+    this.halfShiftDroppedMinutes =
+      props.halfShiftDroppedMinutes ?? Math.max(0, this.halfShiftOwedMinutes - this.halfShiftRepaidMinutes);
+    this.halfShiftRepaidPay = pay(this.halfShiftRepaidMinutes / 60, { perHour: true });
     this.workPay = this.baseSalaryActual + this.paidLeavePay + this.leaveSettlementPay + this.isatPay + this.holidayPay;
     this.lateMinutes = props.lateMinutes ?? 0;
     this.calendar = [...(props.calendar ?? [])];
@@ -483,6 +500,7 @@ export class EmployeePayslip {
       this.isatPay +
       this.holidayPay +
       this.makeupPay +
+      this.halfShiftRepaidPay +
       this.otPayTotal +
       this.totalAllowanceActual +
       this.kpiActualPay +
@@ -583,6 +601,10 @@ export class EmployeePayslip {
       isatPay: this.isatPay,
       holidayPay: this.holidayPay,
       makeupPay: this.makeupPay,
+      halfShiftRepaidPay: this.halfShiftRepaidPay,
+      halfShiftOwedMinutes: this.halfShiftOwedMinutes,
+      halfShiftRepaidMinutes: this.halfShiftRepaidMinutes,
+      halfShiftDroppedMinutes: this.halfShiftDroppedMinutes,
       workPay: this.workPay,
       lateMinutes: this.lateMinutes,
       rates: this.rates,
