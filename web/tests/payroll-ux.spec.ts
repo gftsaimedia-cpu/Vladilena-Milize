@@ -71,9 +71,9 @@ test('status filter, department and accent-free search', async ({ page }) => {
     await expect(rows(page).nth(i)).toContainText(name);
   await expect(page.getByText('Hiển thị 1–4 trong 29 phiếu')).toBeVisible();
   await filters(page).getByRole('button', { name: /^Tất cả/ }).click();
-  await page.getByLabel('Phòng ban').selectOption({ label: 'Phòng ban: Sản xuất' });
+  await page.getByRole('combobox', { name: 'Phòng ban', exact: true }).selectOption({ label: 'Sản xuất' });
   await expect(rows(page)).toHaveCount(4);
-  await page.getByLabel('Phòng ban').selectOption({ label: 'Phòng ban: Tất cả' });
+  await page.getByRole('combobox', { name: 'Phòng ban', exact: true }).selectOption({ label: 'Tất cả phòng ban' });
   const search = page.getByLabel('Tìm theo tên', { exact: true });
   await search.fill('hoang nam');
   await expect(rows(page)).toHaveCount(1);
@@ -87,13 +87,13 @@ test('status filter, department and accent-free search', async ({ page }) => {
 test('filters stack and search folds đ and spaces', async ({ page }) => {
   await page.goto(URL10);
   await filters(page).getByRole('button', { name: /^Chờ duyệt/ }).click();
-  await page.getByLabel('Phòng ban').selectOption({ label: 'Phòng ban: Sản xuất' });
+  await page.getByRole('combobox', { name: 'Phòng ban', exact: true }).selectOption({ label: 'Sản xuất' });
   await expect(rows(page)).toHaveCount(2);
   await expect(rows(page).nth(0)).toContainText('Trịnh Văn Long');
   await expect(rows(page).nth(1)).toContainText('Ngô Gia Bảo');
   await expect(page.getByText('Hiển thị 1–2 trong 29 phiếu')).toBeVisible();
   await filters(page).getByRole('button', { name: /^Tất cả/ }).click();
-  await page.getByLabel('Phòng ban').selectOption({ label: 'Phòng ban: Tất cả' });
+  await page.getByRole('combobox', { name: 'Phòng ban', exact: true }).selectOption({ label: 'Tất cả phòng ban' });
   await page.getByLabel('Tìm theo tên', { exact: true }).fill('  do mai ');
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page).first()).toContainText('Đỗ Mai Linh');
@@ -228,7 +228,7 @@ test('a press released outside the table does not start a drag later', async ({ 
   expect(await table(page).evaluate(el => el.scrollLeft)).toBe(0);
 });
 
-test('export downloads the shown rows, or only the selected ones', async ({ page }) => {
+test('export downloads the rows the filters show', async ({ page }) => {
   await page.goto(URL10);
   const read = async (name: string) => {
     const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name, exact: true }).click()]);
@@ -241,11 +241,11 @@ test('export downloads the shown rows, or only the selected ones', async ({ page
   expect(all[0]).toBe('Mã;Họ tên;Phòng ban;Chức danh;Ngày công;Tiền ngày công;Lương KPI;Phụ cấp;Làm thêm;Trừ giờ;Tổng thu nhập;Bảo hiểm;Thuế TNCN;Tạm ứng;Thực nhận;Trạng thái');
   expect(all).toHaveLength(11);
   expect(all).toContain('GFT-0142;Lê Hoàng Nam;Kinh doanh;Nhân viên kinh doanh;24;11999999;1322800;2215384;0;0;15538183;1260000;0;0;14278183;Chờ duyệt');
-  await page.getByLabel('Chọn phiếu của Lê Hoàng Nam').check();
-  await page.getByLabel('Chọn phiếu của Đỗ Mai Linh').check();
-  const two = await read('Xuất 2 phiếu đã chọn ra Excel');
+  await page.getByRole('combobox', { name: 'Trạng thái nhân sự', exact: true }).selectOption({ label: 'Đang thử việc' });
+  await expect(rows(page)).toHaveCount(2);
+  const two = await read('Xuất bảng lương ra Excel');
   expect(two).toHaveLength(3);
-  expect(two[2]).toBe('GFT-0156;Đỗ Mai Linh;Marketing;Thiết kế đồ hoạ;22;12000000;1443200;1692308;0;-125000;15010508;1365000;0;0;13645508;Từ chối');
+  expect(two[1]).toBe('GFT-0156;Đỗ Mai Linh;Marketing;Thiết kế đồ hoạ;22;12000000;1443200;1692308;0;-125000;15010508;1365000;0;0;13645508;Từ chối');
 });
 
 test('payroll fits 375px and the table scrolls in its own region', async ({ page }) => {
@@ -944,11 +944,14 @@ test('board controls show the 2px ink focus ring', async ({ page }) => {
   await page.goto(URL10);
   await expectInkRing(page, filters(page).getByRole('button', { name: /^Chờ duyệt/ }));
   await expectInkRing(page, page.getByLabel('Tìm theo tên', { exact: true }), page.locator('label.find'));
-  await expectInkRing(page, page.getByLabel('Phòng ban'));
+  await expectInkRing(page, page.getByRole('combobox', { name: 'Trạng thái nhân sự', exact: true }));
+  await expectInkRing(page, page.getByRole('combobox', { name: 'Phòng ban', exact: true }));
   await expectInkRing(page, page.getByRole('button', { name: /^Xuất/ }));
   await expectInkRing(page, page.getByRole('region', { name: 'Các bước kỳ lương' }));
   await expectInkRing(page, nameLink(page, 'Lê Hoàng Nam'));
-  await expectInkRing(page, rows(page).first().getByRole('checkbox'));
+  await page.getByRole('button', { name: 'Tính lại lương' }).press('Enter');
+  // Dòng đầu (Nguyễn Thu Hà) đã duyệt nên ô chọn khoá; lấy ô của Lê Hoàng Nam.
+  await expectInkRing(page, page.getByRole('checkbox', { name: 'Chọn phiếu của Lê Hoàng Nam' }));
 });
 
 test('payslip drawer controls show the 2px ink focus ring', async ({ page }) => {

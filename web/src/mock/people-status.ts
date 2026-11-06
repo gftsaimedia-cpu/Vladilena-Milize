@@ -5,6 +5,7 @@ import type { PersonStatus } from '@/components/staff-scope/staffScope';
 const NOT_OK: Record<string, PersonStatus> = {
   'Đỗ Mai Linh': 'try',
   'Phan Minh Khoa': 'try',
+  'Lý Thanh Tâm': 'try', // phiếu lương giả ghi đang thử việc
   'Hoàng Thị Mai': 'off',
   'Đặng Văn Phúc': 'out'
 };

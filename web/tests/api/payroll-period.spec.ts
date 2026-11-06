@@ -63,7 +63,14 @@ test('lock, calculate, approve slips, then approve the period (or see why it is 
   await expect(strip(page).getByRole('button', { name: 'Mở lại công' })).toBeVisible();
 
   // Tính lương cả kỳ: kỳ sang "calculated", nút Phê duyệt hiện nhưng còn khoá vì phiếu chưa duyệt.
-  await page.getByRole('button', { name: /^Tính( lại| lương)$/ }).click();
+  // Tháng chưa có phiếu: nút "Tính lương" trên tiêu đề. Đã có bảng (lần chạy trước để lại): chọn mọi phiếu rồi "Tính lại N phiếu".
+  const whole = page.locator('.title').getByRole('button', { name: 'Tính lương' });
+  if (await whole.count()) await whole.click();
+  else {
+    await page.getByRole('button', { name: 'Tính lại lương' }).click();
+    await page.getByRole('checkbox', { name: 'Chọn tất cả phiếu tính lại được đang hiện' }).click();
+    await page.getByRole('button', { name: /^Tính lại \d+ phiếu$/ }).click();
+  }
   await expect(strip(page)).toContainText('Chờ phê duyệt');
   await expect(approveBtn(page)).toBeDisabled();
   await expect(page.locator('.title .why')).toContainText('phiếu chưa duyệt');

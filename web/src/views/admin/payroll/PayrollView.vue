@@ -1,14 +1,19 @@
 <script setup lang="ts">
 // Bảng lương (board G) trên dữ liệu giả: tiêu đề, dải các bước, bốn ô số, rồi thẻ bảng gồm hàng công cụ, bảng và chân thẻ.
-// Lọc trạng thái, phòng ban và chữ tìm thuộc về màn, không ghi lên đường dẫn.
+// Lọc trạng thái phiếu, cặp bộ lọc nhân sự và chữ tìm thuộc về màn, không ghi lên đường dẫn.
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import ResultLine from '@/components/select-mode/ResultLine.vue';
+import SelectBar from '@/components/select-mode/SelectBar.vue';
+import { useSelectMode } from '@/components/select-mode/useSelectMode';
+import { deptOptions, matchScope, useMineDepts, type StaffPst } from '@/components/staff-scope/staffScope';
 import PeriodActions from '@/components/shell/PeriodActions.vue';
 import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import type { KpiPart } from '@/mock/payroll-calc';
 import type { PayrollLine, PayrollScreen, PayrollStatus, Payslip } from '@/mock/payroll';
+import { personStatusOf } from '@/mock/people-status';
 import { toast } from '@/components/shell/toast';
 import { calculatePayroll, decidePayslip, getPayroll, getPayslip, saveKpiScore } from '@/services/admin-payroll';
 import { usePeriodStore } from '@/stores/period';
@@ -28,8 +33,9 @@ const { data: loaded, reload } = useLoad(
 const data = computed(() => loaded.value as PayrollScreen | null);
 const board = computed(() => (data.value && !data.value.empty ? data.value : null));
 
-// Tính (lại) lương cả kỳ (bản mockup trả ngay); người tính lỗi (thiếu cấu hình bậc…) báo thành một thông báo.
-// Kỳ đã phê duyệt hoặc đã trả thì không tính lại được (BE trả PAYROLL_FINALIZED), nên ẩn nút.
+// Tính lương cả kỳ khi tháng chưa có phiếu (bản mockup trả ngay); người tính lỗi (thiếu cấu hình bậc…) báo thành một thông báo.
+// Đã có bảng thì tính lại qua chế độ chọn "Tính lại lương" ở thẻ bảng (board G2), không có nút trên tiêu đề.
+// Kỳ đã phê duyệt hoặc đã trả thì không tính lại được (BE trả PAYROLL_FINALIZED), nên ẩn cả hai nút.
 const canCalculate = computed(() => !['approved', 'paid'].includes(period.view?.status ?? ''));
 const calculating = ref(false);
 async function calculate() {
@@ -61,23 +67,62 @@ const printAll = () =>
 
 const filter = ref<'all' | PayrollStatus>('all');
 const query = ref('');
+const pst = ref<StaffPst>('all');
 const dept = ref('');
+const mine = useMineDepts();
+// Phòng ban lấy theo các phiếu đang có (R6).
+const depts = computed(() => deptOptions(board.value?.lines ?? []));
 
-// Ba bộ lọc chạy cùng lúc; tìm so trên tên đã bỏ dấu.
+// Các bộ lọc chạy cùng lúc; tìm so trên tên đã bỏ dấu. Trạng thái nhân sự: mock tra theo họ tên; máy chủ thật chưa trả nên coi
+// là đang làm chính thức (R7).
 const shown = computed<PayrollLine[]>(() => {
   const q = foldText(query.value);
+  const scope = { pst: pst.value, dept: dept.value };
   return (board.value?.lines ?? []).filter(
     l =>
       (filter.value === 'all' || l.status === filter.value) &&
-      (!dept.value || l.dept === dept.value) &&
+      matchScope({ dept: l.dept, ps: __MOCK__ ? personStatusOf(l.name) : undefined }, scope, mine) &&
       (!q || foldText(l.name).includes(q))
   );
 });
-// Ô chọn chỉ để xuất. Dòng đã chọn mà đang bị lọc ẩn không tính và không xuất, nên số trên nút khớp với file.
-const selected = ref<string[]>([]);
-const picked = computed(() => shown.value.filter(l => selected.value.includes(l.id)));
-const exportCsv = () =>
-  downloadCsv(`bang-luong-${board.value!.month}.csv`, payrollCsv(picked.value.length ? picked.value : shown.value));
+// Xuất các dòng đang lọc (06/11: không còn ô chọn để xuất).
+const exportCsv = () => downloadCsv(`bang-luong-${board.value!.month}.csv`, payrollCsv(shown.value));
+
+// Chế độ "Tính lại lương" (board G2): cột ô chọn chỉ hiện khi đang chọn; phiếu đã duyệt khoá. Số đếm và danh sách gửi đi chỉ
+// tính các phiếu đang lọc (mọi trang); đổi bộ lọc trong lúc chọn vẫn được.
+const sel = useSelectMode<'recalc'>();
+const result = ref('');
+const pickable = computed(() => shown.value.filter(l => l.status !== 'done').map(l => l.id));
+const chosen = computed(() => sel.pickedIn(pickable.value));
+function startRecalc() {
+  sel.enter('recalc');
+  result.value = '';
+}
+const goLabel = computed(() => (chosen.value.length ? `Tính lại ${chosen.value.length} phiếu` : 'Chọn ít nhất 1 phiếu'));
+async function recalc() {
+  if (!chosen.value.length || calculating.value) return;
+  calculating.value = true;
+  try {
+    const ids = chosen.value;
+    const res = await calculatePayroll(period.month, ids);
+    const errors = (res && res.errors) || [];
+    const n = res.count ?? res.calculated ?? ids.length;
+    result.value = errors.length
+      ? `Đã tính lại ${n} phiếu lương, ${errors.length} người lỗi: ${errors.map(e => e.message || e.employeeId).join('; ')}`
+      : `Đã tính lại ${n} phiếu lương.`;
+    sel.quit();
+    await reload();
+    period.refresh();
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    calculating.value = false;
+  }
+}
+// Kỳ vừa phê duyệt trong lúc đang chọn thì thoát chế độ.
+watch(canCalculate, ok => {
+  if (!ok) sel.quit();
+});
 const missingKpi = computed(() => shown.value.some(l => l.kpiMissing.length));
 
 // Phân trang phía máy khách: PAGE_SIZE phiếu một trang, trên kết quả đã lọc/tìm/sắp xếp. Đổi bộ lọc, chữ tìm hay tháng thì về trang 1.
@@ -89,7 +134,15 @@ const PAGE_SIZE = computed(() => {
 const page = ref(1);
 const pages = computed(() => Math.max(1, Math.ceil(shown.value.length / PAGE_SIZE.value)));
 const pageLines = computed(() => shown.value.slice((page.value - 1) * PAGE_SIZE.value, page.value * PAGE_SIZE.value));
-watch([filter, query, dept, () => period.month, PAGE_SIZE], () => (page.value = 1));
+watch([filter, query, pst, dept, () => period.month, PAGE_SIZE], () => (page.value = 1));
+// Đổi tháng thì bỏ chế độ chọn và dòng kết quả của tháng cũ.
+watch(
+  () => period.month,
+  () => {
+    sel.quit();
+    result.value = '';
+  }
+);
 watch(pages, n => {
   if (page.value > n) page.value = n;
 });
@@ -197,8 +250,8 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
         >
           <Icon name="print" />In tất cả
         </button>
-        <button v-if="canCalculate" type="button" class="btn" :disabled="calculating" @click="calculate">
-          <Icon name="clock" />{{ calculating ? 'Đang tính…' : board ? 'Tính lại' : 'Tính lương' }}
+        <button v-if="canCalculate && !board" type="button" class="btn" :disabled="calculating" @click="calculate">
+          <Icon name="clock" />{{ calculating ? 'Đang tính…' : 'Tính lương' }}
         </button>
         <PeriodActions only="approve" />
       </div>
@@ -217,13 +270,39 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
         <PayToolbar
           v-model:filter="filter"
           v-model:query="query"
+          v-model:pst="pst"
           v-model:dept="dept"
           :counts="board.counts"
-          :depts="board.depts"
-          :selected-count="picked.length"
+          :depts="depts"
+          :recalc="canCalculate && !sel.mode.value"
           @export="exportCsv"
+          @recalc="startRecalc"
         />
-        <PayTable ref="payTable" v-model:selected="selected" :lines="pageLines" :totals="board.totals" :month="monthNo(board.month)" :open-id="slipId" />
+        <SelectBar
+          v-if="sel.mode.value"
+          title="Tính lại lương"
+          :count="chosen.length"
+          :total="pickable.length"
+          unit="phiếu"
+          note="Phiếu đã duyệt không tính lại được"
+          :go-label="calculating ? 'Đang tính…' : goLabel"
+          :go-disabled="!chosen.length || calculating"
+          @quit="sel.quit()"
+          @run="recalc"
+        />
+        <ResultLine v-else :text="result" />
+        <PayTable
+          ref="payTable"
+          :lines="pageLines"
+          :totals="board.totals"
+          :month="monthNo(board.month)"
+          :open-id="slipId"
+          :selecting="!!sel.mode.value"
+          :picked="sel.picked.value"
+          :all-state="sel.stateOf(pickable)"
+          @toggle="sel.toggle"
+          @toggle-all="sel.toggleAll(pickable)"
+        />
         <div class="foot">
           <span class="hint"><Icon name="drag" :size="14" />Kéo ngang để xem các khoản · bấm tên để mở phiếu lương</span>
           <span v-if="missingKpi" class="pl-legend"><i aria-hidden="true" />Thiếu điểm KPI, cột thiếu tính 0 điểm</span>

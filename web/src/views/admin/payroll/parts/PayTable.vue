@@ -3,6 +3,8 @@
 // Mỗi ô một giá trị; số 0 hiện "—". Màu nền ô dùng token để chạy đúng ở cả nền Xám và Kem.
 import { ref } from 'vue';
 import { useRoute } from 'vue-router';
+import SelectCheck from '@/components/select-mode/SelectCheck.vue';
+import type { CheckState } from '@/components/select-mode/useSelectMode';
 import type { PayrollLine, PayrollScreen } from '@/mock/payroll';
 import { vnd } from '@/utils/format';
 import { useDragScroll } from '../useDragScroll';
@@ -11,9 +13,20 @@ import StatusPill from './StatusPill.vue';
 // openId: mã phiếu đang mở trong ngăn kéo; dòng đó đổi nền và gạch chân tên.
 type Board = Extract<PayrollScreen, { empty: false }>;
 // totals: dòng tổng cả kỳ do BE cộng sẵn (không theo bộ lọc hay trang đang xem).
-defineProps<{ lines: PayrollLine[]; totals: Board['totals']; month: number; openId: string }>();
-// Mã phiếu đã tích; chỉ dùng cho nút xuất (spec 3.4), dòng được tích không đổi nền.
-const selected = defineModel<string[]>('selected', { required: true });
+// Chế độ chọn (06/11, board G2): không có ô chọn mặc định; khi đang chọn "Tính lại lương" mỗi dòng có ô chọn trong cột nhân
+// viên, phiếu đã duyệt mờ và khoá; ô ở đầu cột chọn mọi phiếu tính lại được đang hiện.
+defineProps<{
+  lines: PayrollLine[];
+  totals: Board['totals'];
+  month: number;
+  openId: string;
+  selecting: boolean;
+  picked: Set<string>;
+  allState: CheckState;
+}>();
+defineEmits<{ toggle: [id: string]; 'toggle-all': [] }>();
+/** Phiếu đã duyệt không tính lại được. */
+const locked = (line: PayrollLine) => line.status === 'done';
 
 const scr = ref<HTMLElement | null>(null);
 useDragScroll(scr);
@@ -57,7 +70,13 @@ const missing = (line: PayrollLine) => (line.kpiMissing.length ? `Thiếu điể
         </colgroup>
         <thead>
           <tr>
-            <th rowspan="2" scope="col" class="pt-who">Nhân viên</th>
+            <th rowspan="2" scope="col" class="pt-who">
+              <span v-if="selecting" class="cell">
+                <SelectCheck :state="allState" label="Chọn tất cả phiếu tính lại được đang hiện" @toggle="$emit('toggle-all')" />
+                Nhân viên
+              </span>
+              <template v-else>Nhân viên</template>
+            </th>
             <th rowspan="2" scope="col" class="m">Ngày công</th>
             <th colspan="6" scope="colgroup" class="gh"><span>Thu nhập</span></th>
             <th colspan="3" scope="colgroup" class="gh ded-h"><span>Khấu trừ</span></th>
@@ -77,10 +96,25 @@ const missing = (line: PayrollLine) => (line.kpiMissing.length ? `Thiếu điể
           </tr>
         </thead>
         <tbody>
-          <tr v-for="line in lines" :key="line.id" :class="{ open: line.id === openId }">
+          <tr
+            v-for="line in lines"
+            :key="line.id"
+            :class="{
+              open: !selecting && line.id === openId,
+              on: selecting && picked.has(line.id),
+              bkoff: selecting && locked(line)
+            }"
+          >
             <th scope="row" class="pt-who">
               <span class="cell">
-                <input v-model="selected" type="checkbox" class="pk" :value="line.id" :aria-label="`Chọn phiếu của ${line.name}`" />
+                <SelectCheck
+                  v-if="selecting"
+                  :state="picked.has(line.id) ? 'true' : 'false'"
+                  :label="`Chọn phiếu của ${line.name}`"
+                  :disabled="locked(line)"
+                  why="Phiếu đã duyệt, không tính lại được"
+                  @toggle="$emit('toggle', line.id)"
+                />
                 <span class="pt-av" aria-hidden="true">{{ line.initials }}</span>
                 <span class="id">
                   <RouterLink :to="slipLink(line)" replace draggable="false" class="nn" :data-id="line.id">{{ line.name }}</RouterLink>
@@ -245,17 +279,19 @@ const missing = (line: PayrollLine) => (line.kpiMissing.length ? `Thiếu điể
   width: 128px;
   text-align: left;
 }
-.pk {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  flex: none;
-  accent-color: var(--surface-dark);
-  cursor: pointer;
+/* Phiếu không chọn được: chữ nhạt thay cho opacity cả ô, vì cột nhân viên, Thực nhận và Trạng thái dính khi cuộn ngang
+   (ô trong suốt sẽ để lộ các cột cuộn bên dưới). */
+.tp tbody tr.bkoff > td,
+.tp tbody tr.bkoff .nn,
+.tp tbody tr.bkoff .dp {
+  color: #9e9e9e;
 }
-.pk:focus-visible {
-  outline: 2px solid var(--text);
-  outline-offset: 2px;
+.tp tbody tr.bkoff .pt-av,
+.tp tbody tr.bkoff td > * {
+  opacity: 0.45;
+}
+.tp tbody tr.on > * {
+  background: var(--gold-pale);
 }
 .pt-av {
   width: 32px;
