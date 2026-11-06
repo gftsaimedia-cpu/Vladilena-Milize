@@ -17,11 +17,19 @@ import {
 
 export type StaffRow = Selectable<DB['staff']>;
 
-/** Ngày vào làm / nghỉ việc ('YYYY-MM-DD' hoặc null) của một người, kèm mã `uuid` dòng ngày công dùng làm khoá. */
+/**
+ * Ngày vào làm / nghỉ việc ('YYYY-MM-DD' hoặc null) của một người, kèm mã `uuid` dòng ngày công dùng làm khoá,
+ * và ba trường còn lại làm đổi cách dựng dòng ngày (loại, bậc, ca mặc định): năm trường của T4.
+ */
 export interface EmploymentDates {
   uuid: string;
   startDate: string | null;
   resignedOn: string | null;
+  type: string;
+  level: number;
+  shiftType: string;
+  shiftStart: string;
+  shiftEnd: string;
 }
 
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -326,7 +334,7 @@ export class EmployeesRepository {
   async employmentDates(idOrUsername: string): Promise<EmploymentDates | null> {
     const row = await this.qb
       .selectFrom('staff')
-      .select(['uuid', 'start_date', 'resigned_on'])
+      .select(['uuid', 'start_date', 'resigned_on', 'type', 'level', 'shift_type', 'shift_start_time', 'shift_end_time'])
       .where(eb => eb.or([eb('username', '=', idOrUsername), eb('uuid', '=', idOrUsername)]))
       .executeTakeFirst();
     const uuid = row?.uuid?.trim();
@@ -335,7 +343,16 @@ export class EmployeesRepository {
       const t = value?.trim();
       return t && DATE_REGEX.test(t) ? t : null;
     };
-    return { uuid, startDate: text(row.start_date), resignedOn: text(row.resigned_on) };
+    return {
+      uuid,
+      startDate: text(row.start_date),
+      resignedOn: text(row.resigned_on),
+      type: row.type,
+      level: row.level,
+      shiftType: row.shift_type,
+      shiftStart: row.shift_start_time,
+      shiftEnd: row.shift_end_time
+    };
   }
 
   /**

@@ -222,7 +222,7 @@ Mỗi lần gọi:
 | T1 | Chấm công (`recordPunch`) | ngày công đó (ngày công của lần ra ca đêm theo L21) | `attendance.service.ts`: bỏ `timesheet.calculate`, gọi `refreshDays` trong transaction có khoá |
 | T2 | Nộp, duyệt, từ chối, huỷ đơn | ngày đơn giữ trong `day_status`; ngày OT (`ot_date`); ngày của khung bù; khoảng đổi ca; Thứ Bảy iSAT; ngày giải trình | `requests.service.ts`, trên cùng `trx`. Bỏ `updateDayStatus(..., 'VALID')` của giải trình. |
 | T3 | Thêm, thêm nhanh, xoá ngày lễ | ngày đó, cho mọi người còn làm việc ngày đó | `holidays.service.ts` |
-| T4 | Lưu hồ sơ nhân sự (ngày vào làm, nghỉ việc, loại, bậc, ca mặc định) | các tháng từ tháng nhỏ nhất của ngày vào làm hay nghỉ việc (cũ và mới) tới hết tháng hiện tại; các tháng đã khoá giữ nguyên nhờ `is_locked` | `employees.service.ts` |
+| T4 | Lưu hồ sơ nhân sự (ngày vào làm, nghỉ việc, loại, bậc, ca mặc định) | các tháng từ tháng nhỏ nhất của ngày vào làm hay nghỉ việc (cũ và mới) tới hết tháng hiện tại; chỉ khi sửa một trong năm trường này (khi sửa hồ sơ) và bỏ qua tháng có kỳ lương đã rời `open` (FP5 I1) | `employees.service.ts` |
 | T5 | Job mỗi giờ (mục 7.3) | ngày còn thiếu dòng của tháng hiện tại và tháng trước; dòng `PENDING` đã tới mốc xét | `attendance-days.job.ts` |
 | T6 | Tính lương một người một tháng | cả tháng | `payroll.service.ts` |
 | T7 | Admin bấm tính lại (`POST /attendance/recalculate`, nhận `workDate` hoặc `month`) | ngày hoặc tháng đó | `attendance.controller.ts` |

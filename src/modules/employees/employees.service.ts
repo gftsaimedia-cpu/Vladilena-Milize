@@ -52,10 +52,23 @@ export function verifyPassword(password: string, stored: string): boolean {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
+/** Năm trường của T4 làm đổi cách dựng dòng ngày; sửa tên, mật khẩu, vai trò, số điện thoại… không đổi trường nào. */
+export function attendanceFieldsChanged(before: EmploymentDates, after: EmploymentDates): boolean {
+  return (
+    before.startDate !== after.startDate ||
+    before.resignedOn !== after.resignedOn ||
+    before.type !== after.type ||
+    before.level !== after.level ||
+    before.shiftType !== after.shiftType ||
+    before.shiftStart !== after.shiftStart ||
+    before.shiftEnd !== after.shiftEnd
+  );
+}
+
 /**
  * Các tháng cần ghi lại dòng ngày công sau khi lưu hồ sơ: từ tháng nhỏ nhất trong bốn ngày
  * (cũ và mới x vào làm và nghỉ việc, ngày rỗng bỏ qua) và tháng hiện tại, tới tháng hiện tại.
- * Luôn tính, kể cả khi hai ngày không đổi: loại, bậc, ca mặc định cũng đổi cách dựng dòng ngày (spec T4).
+ * Hàm này chỉ tính khoảng tháng; có ghi lại hay không do `attendanceFieldsChanged` và tháng đóng băng quyết định.
  */
 export function monthsAffectedByEmployment(
   before: EmploymentDates | null,
@@ -71,7 +84,8 @@ export function monthsAffectedByEmployment(
 /**
  * Tạo, sửa, xoá hồ sơ chạy trong một transaction; các dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả lần lưu.
  * Sau khi transaction đó đã commit, các dòng ngày công của người đó được ghi lại từ tháng sớm nhất bị ảnh hưởng
- * tới tháng hiện tại (mỗi tháng một giao dịch riêng). Ghi lại lỗi thì lỗi trả về cho Admin và hồ sơ vẫn đã lưu
+ * tới tháng hiện tại (mỗi tháng một giao dịch riêng), bỏ qua tháng đã chốt công trở đi, và khi sửa hồ sơ chỉ ghi lại nếu
+ * một trong năm trường T4 đổi (vào làm, nghỉ việc, loại, bậc, ca mặc định). Ghi lại lỗi thì lỗi trả về cho Admin và hồ sơ vẫn đã lưu
  * (không làm lại được thao tác tạo); dòng ngày được sửa bằng "Tính lại" của Admin
  * (POST /api/v2/attendance/recalculate) hoặc tác vụ chạy mỗi giờ (chỉ dòng thiếu hoặc PENDING).
  */
@@ -85,16 +99,26 @@ export class EmployeesService {
     @Inject(EmployeesRepository) private readonly repo: EmployeesRepository,
     @Inject(TransactionCoordinator) private readonly tx: Pick<TransactionCoordinator, 'run'>,
     @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>,
-    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: Pick<AttendanceDaysService, 'refreshMonth'>
+    @Optional()
+    @Inject(AttendanceDaysService)
+    private readonly attendanceDays?: Pick<AttendanceDaysService, 'refreshMonth' | 'frozenMonths'>
   ) {}
 
-  /** Đọc lại ngày vào làm / nghỉ việc sau commit rồi ghi lại các tháng bị ảnh hưởng (P4: ngoài giao dịch lưu hồ sơ). */
-  private async refreshAfterSave(id: string, before: EmploymentDates | null): Promise<void> {
+  /**
+   * Đọc lại hồ sơ sau commit rồi ghi lại các tháng bị ảnh hưởng (P4: ngoài giao dịch lưu hồ sơ).
+   * Sửa hồ sơ chỉ ghi lại khi một trong năm trường T4 đổi; tạo mới và deactivate (`always`) luôn ghi.
+   * Tháng có kỳ lương đã rời `open` bị bỏ qua, giống job mỗi giờ: hồ sơ hôm nay không viết lại tháng đã chốt.
+   */
+  private async refreshAfterSave(id: string, before: EmploymentDates | null, always = false): Promise<void> {
     if (!this.attendanceDays) return;
     const after = await this.repo.employmentDates(id);
     if (!after) return;
+    if (!always && before && !attendanceFieldsChanged(before, after)) return;
     const currentMonth = businessDateText(this.now()).slice(0, 7);
-    for (const month of monthsAffectedByEmployment(before, after, currentMonth)) {
+    const months = monthsAffectedByEmployment(before, after, currentMonth);
+    const frozen = await this.attendanceDays.frozenMonths(`${months[0]}-01`, `${currentMonth}-01`);
+    for (const month of months) {
+      if (frozen.has(month)) continue;
       await this.attendanceDays.refreshMonth(after.uuid, month, { now: this.now() });
     }
   }
@@ -128,7 +152,7 @@ export class EmployeesService {
       await this.log(trx, actor, saved.username, staffSaveRows(null, stored.toDTO(), passwordSet));
       return saved;
     });
-    await this.refreshAfterSave(saved.username, null);
+    await this.refreshAfterSave(saved.username, null, true);
     return saved;
   }
 
@@ -176,7 +200,7 @@ export class EmployeesService {
       return { username: updated.username, before };
     });
     if (!outcome) return false;
-    await this.refreshAfterSave(outcome.username, outcome.before);
+    await this.refreshAfterSave(outcome.username, outcome.before, true);
     return true;
   }
 
