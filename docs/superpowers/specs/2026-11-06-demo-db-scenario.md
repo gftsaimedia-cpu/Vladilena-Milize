@@ -129,8 +129,9 @@ Cố ý để tháng 10 chưa trả: để thử và thấy lỗi "chưa tới n
 - Một test `seed-demo.pg.test.ts` chạy script trên DB tạm, rồi đếm từng dòng của bảng ở mục 4–6 (mỗi trường hợp ≥ 1 dòng) và gọi `audit/verify`.
 - Sau khi nạp lên `luong_demo`, đăng nhập `boss` và `an` bằng API thật, đọc: lưới tuần, chuông, tab Yêu cầu, bảng lương tháng 10, phiếu của `an`. Báo số thật đã thấy.
 
-## 10. Câu hỏi còn mở
+## 10. Luật lấy theo code (không hỏi lại)
 
-1. (Các câu hỏi luật) làm ở bước viết script, mỗi câu kèm tình huống và ví dụ số: OT có miễn thuế không, OT Thứ Bảy, ngày lễ trúng ngày nghỉ, check-in Chủ nhật, lương nửa tháng cho người vào giữa tháng (chia 26 hay 25 công chuẩn?), nghỉ BHXH dài trừ thế nào, tăng lương giữa tháng.
-2. Hôm nay của app luôn là giờ thật. Kịch bản neo vào 06/11/2026; mở app sau ngày đó thì mục "sắp tới" và "hôm nay" lệch. Muốn thêm công tắc đóng băng ngày cho riêng môi trường demo không?
-3. Tháng 9 "Đã trả", tháng 10 "Đã phê duyệt kỳ", tháng 11 mở: chấp nhận không?
+- Công chuẩn: `standardWorkdays` của tuần làm từng người (mặc định 26; `oanh` T2–T6 có số khác). Lương ngày = lương × công / công chuẩn.
+- OT: phần miễn thuế = (hệ số − 1) × giờ × đơn giá giờ cho từng loại ngày; ngày lễ thắng cuối tuần. Ca đêm: min(30% lương giờ, phụ cấp đêm).
+- Người vào giữa tháng, nghỉ BHXH, tăng lương: kịch bản chỉ dựng dữ liệu, số tiền do chính BE tính; test đọc số BE trả, không tự đặt đáp án.
+- Còn lại là quyết định tôi tự lấy: tháng 9 Đã trả, tháng 10 Đã phê duyệt kỳ, tháng 11 mở; ngày demo neo 06/11/2026 (không thêm công tắc đóng băng).
