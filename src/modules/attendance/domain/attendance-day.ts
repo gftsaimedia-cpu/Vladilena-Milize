@@ -216,8 +216,10 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
       (bounds !== null && src.now.getTime() >= bounds.end.getTime() + EVALUATE_AFTER_MS);
     const firstOutInShift = shift
       ? (() => {
-          const end = spanOf(date, shift.start, shift.end).end;
-          const early = outs.filter(o => o < end);
+          const span = spanOf(date, shift.start, shift.end);
+          // Lần ra trước giờ vào ca (hết khung bù/OT đứng trước ca) chỉ là ra sớm khi sau đó
+          // không còn lần vào nào: người đó rời đi trước ca và không quay lại.
+          const early = outs.filter(o => o < span.end && (o >= span.start || !ins.some(i => i > o)));
           return early.length ? new Date(Math.min(...early.map(d => d.getTime()))) : null;
         })()
       : null;
