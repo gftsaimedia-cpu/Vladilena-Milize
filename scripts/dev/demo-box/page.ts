@@ -40,6 +40,20 @@ export const PAGE = `<!doctype html>
     <p class="mute">Đổi giờ xong hộp chạy lại job ngày công, nên ngày vắng, chờ giải trình… cập nhật ngay. Đi lùi quá xa có thể làm phiên đăng nhập hết hạn: đăng nhập lại.</p>
   </section>
   <section>
+    <h2>Vị trí chấm công của nhân viên</h2>
+    <div class="row">
+      <button data-where="office">Trong văn phòng</button>
+      <button data-where="far">Ngoài vùng (cách 2 km)</button>
+      <button data-where="real">Vị trí thật của trình duyệt</button>
+    </div>
+    <p class="mute" id="where">…</p>
+    <p class="mute">Hộp sửa toạ độ trong lượt Check-in / Check-out nên không cần bật định vị trên trình duyệt. Vùng văn phòng: tâm 10.8000, 106.7000, bán kính 500 m.</p>
+  </section>
+  <section>
+    <h2>Cách dùng</h2>
+    <p class="mute">1) Giữ trang này ở một tab, mở app ở tab khác. 2) Đặt giờ và vị trí ở đây. 3) Sang tab app, tải lại (F5) rồi đăng nhập nhân viên và bấm Check-in / Check-out. Muốn chấm ngày tiếp theo thì quay lại đây bấm +1 ngày.</p>
+  </section>
+  <section>
     <h2>Dữ liệu</h2>
     <div class="row"><button id="reset">Nạp lại dữ liệu demo (về 06/11/2026 10:30)</button></div>
     <p class="mute">Xoá mọi thay đổi bạn đã làm trong hộp và dựng lại 3 tháng kịch bản, mất khoảng 1 phút.</p>
@@ -67,12 +81,15 @@ export const PAGE = `<!doctype html>
     try {
       const s = await (await fetch('/__box/state')).json();
       $('now').textContent = vn(s.now);
+      const names = { office: 'Đang đặt: trong văn phòng', far: 'Đang đặt: ngoài vùng, cách 2 km', real: 'Đang dùng vị trí thật của trình duyệt' };
+      $('where').textContent = names[s.where] || '';
       say(s.error ? 'Lỗi nạp dữ liệu: ' + s.error : s.busy ? 'Hộp đang bận: ' + s.busy : 'Sẵn sàng', !!s.error);
       for (const b of document.querySelectorAll('button')) b.disabled = !!s.busy;
     } catch { $('status').textContent = 'Không nối được hộp'; }
   }
   document.querySelectorAll('[data-min]').forEach(b => b.onclick = async () => { await call('advance', { minutes: Number(b.dataset.min) }); refresh(); });
   document.querySelectorAll('[data-at]').forEach(b => b.onclick = async () => { await call('clock', { at: b.dataset.at + ':00+07:00' }); refresh(); });
+  document.querySelectorAll('[data-where]').forEach(b => b.onclick = async () => { await call('where', { mode: b.dataset.where }); refresh(); });
   $('set').onclick = async () => { if ($('at').value) { await call('clock', { at: $('at').value + ':00+07:00' }); refresh(); } };
   $('reset').onclick = async () => { if (confirm('Xoá mọi thay đổi và nạp lại dữ liệu demo?')) { await call('reset'); refresh(); } };
   refresh(); setInterval(refresh, 1000);

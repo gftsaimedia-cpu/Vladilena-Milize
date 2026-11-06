@@ -22,6 +22,15 @@ let busy = 'đang nạp dữ liệu lần đầu';
 let lastError = '';
 let jobDb: ReturnType<typeof createKysely> | null = null;
 
+// Vị trí giả cho nút Check-in / Check-out của nhân viên: hộp đứng trước app nên sửa toạ độ trong lượt chấm gửi lên.
+// 'office' = trong văn phòng, 'far' = cách văn phòng khoảng 2 km, 'real' = giữ nguyên vị trí của trình duyệt.
+const PLACES: Record<string, { lat: number; lng: number } | null> = {
+  office: { lat: 10.8, lng: 106.7 },
+  far: { lat: 10.818, lng: 106.7 },
+  real: null
+};
+let where = 'office';
+
 // Nạp lại DB làm các kết nối cũ của app bị cắt (mã 57P01): đó là việc dự kiến, không làm sập hộp.
 process.on('uncaughtException', err => {
   if ((err as any)?.code === '57P01') return;
@@ -80,6 +89,13 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Hộp demo đang nạp dữ liệu, mở /__box để xem tiến độ' }));
       return;
     }
+    const place = PLACES[where];
+    if (place && req.method === 'POST' && path === '/api/v2/me/punches') {
+      // Đọc thân rồi đặt sẵn req.body: express.json bỏ qua khi req._body đã đặt.
+      const body = await readBody(req);
+      (req as any).body = { ...body, lat: place.lat, lng: place.lng, accuracyM: 10 };
+      (req as any)._body = true;
+    }
     app.emit('request', req, res);
     return;
   }
@@ -89,7 +105,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (path === '/__box/state' && req.method === 'GET') {
-    json(res, 200, { now: new Date().toISOString(), busy, error: lastError });
+    json(res, 200, { now: new Date().toISOString(), busy, error: lastError, where });
     return;
   }
   if (busy) return json(res, 409, { error: `Hộp đang bận: ${busy}` });
@@ -108,6 +124,12 @@ const server = http.createServer(async (req, res) => {
     setRunningClock(new Date(Date.now() + minutes * 60000).toISOString());
     await runDayJob().catch(e => console.error('job ngày công:', e));
     return json(res, 200, { now: new Date().toISOString() });
+  }
+  if (path === '/__box/where' && req.method === 'POST') {
+    const body = await readBody(req);
+    if (!(body.mode in PLACES)) return json(res, 400, { error: 'Vị trí không có' });
+    where = body.mode;
+    return json(res, 200, { where });
   }
   if (path === '/__box/reset' && req.method === 'POST') {
     void reset();
