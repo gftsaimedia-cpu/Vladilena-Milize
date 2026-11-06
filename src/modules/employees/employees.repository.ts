@@ -169,7 +169,10 @@ export class EmployeesRepository {
       isUnionMember: row.deduct_on === 1,
       hasTax: row.tax_on !== 0,
       canAdvance: row.advance_on !== 0,
-      isDormResident: row.idorm === 1
+      isDormResident: row.idorm === 1,
+      departmentId: row.department_id,
+      onLeaveFrom: row.on_leave_from && DATE_REGEX.test(row.on_leave_from) ? row.on_leave_from : null,
+      onLeaveTo: row.on_leave_to && DATE_REGEX.test(row.on_leave_to) ? row.on_leave_to : null
     });
 
     return new Employee({ profile, account, contract });
@@ -227,8 +230,18 @@ export class EmployeesRepository {
       tax_on: employee.contract.hasTax ? 1 : 0,
       advance_on: employee.contract.canAdvance ? 1 : 0,
       idorm: employee.contract.isDormResident ? 1 : 0,
-      payroll_subject: 1
+      payroll_subject: 1,
+      department_id: employee.contract.departmentId,
+      on_leave_from: employee.contract.onLeaveFrom,
+      on_leave_to: employee.contract.onLeaveTo
     };
+  }
+
+  /** Tên các phòng ban theo mã; mã không có thì không xuất hiện trong kết quả. */
+  async departmentNames(ids: readonly number[]): Promise<Map<number, string>> {
+    if (ids.length === 0) return new Map();
+    const rows = await this.qb.selectFrom('departments').select(['id', 'name']).where('id', 'in', [...ids]).execute();
+    return new Map(rows.map(r => [r.id, r.name]));
   }
 
   /**
@@ -419,6 +432,9 @@ export class EmployeesRepository {
             advance_on: eb.ref('excluded.advance_on'),
             idorm: eb.ref('excluded.idorm'),
             payroll_subject: eb.ref('excluded.payroll_subject'),
+            department_id: eb.ref('excluded.department_id'),
+            on_leave_from: eb.ref('excluded.on_leave_from'),
+            on_leave_to: eb.ref('excluded.on_leave_to'),
             uuid: eb.ref('excluded.uuid')
           }))
         )

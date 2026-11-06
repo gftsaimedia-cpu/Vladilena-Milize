@@ -67,7 +67,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
   [HolidaysController, 'create', cap('config.write')],
   [HolidaysController, 'quickAdd', cap('config.write')],
   [HolidaysController, 'remove', cap('config.write')],
-  ...['getPositionsCatalog', 'getShiftsCatalog', 'listEmployees', 'getEmployee', 'createEmployee', 'putEmployee', 'deleteEmployee'].map(
+  ...['getPositionsCatalog', 'getShiftsCatalog', 'listEmployees', 'getEmployee', 'createEmployee', 'putEmployee', 'deleteEmployee', 'assignShift', 'assignDepartment'].map(
     m => [EmployeesController, m, cap('staff.manage')] as [any, string, AccessRule]
   ),
   ...['recordPunch', 'getPunches', 'listTimesheets', 'getTimesheet', 'recalculateTimesheet'].map(

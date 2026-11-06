@@ -1,11 +1,15 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import crypto from 'node:crypto';
 import { businessDateText } from '../../common/business-date';
+import { BadRequestError } from '../../common/exceptions/http.exception';
+import { bulkFailureOf, runBulk } from '../../common/bulk';
 import { DEFAULT_SHIFT, shiftByCode } from '../../common/shift-catalog';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database/transaction';
 import { AttendanceDaysService } from '../attendance/attendance-days.service';
 import { monthOfDate, monthsBetween } from '../attendance/domain/calendar';
 import { AuditLog } from '../audit/audit-log';
+import { DepartmentNotFoundError } from '../departments/departments.errors';
+import { foldText, matchesStaffStatus, staffStatusOf, type StaffFilter, type StaffStatus } from '../departments/domain';
 import { staffDeleteRows, staffSaveRows, type StaffAuditRow } from './domain/staff-audit';
 import { EmployeesRepository, type EmploymentDates } from './employees.repository';
 import {
@@ -25,6 +29,25 @@ import {
 
 const SALT_BYTES = 16;
 const KEY_BYTES = 64;
+export type EmployeeView = EmployeeDTO & { departmentId: number | null; departmentName: string | null; staffStatus: StaffStatus };
+export interface BulkResult<T> {
+  done: T[];
+  failed: Array<{ id: string; code: string; message: string }>;
+}
+
+class BulkEmployeeError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+  }
+}
+
+function parseDepartmentId(value: unknown): number | null {
+  if (value === null || value === '') return null;
+  const n = typeof value === 'number' ? value : typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : NaN;
+  if (!Number.isSafeInteger(n) || n < 1) throw new Error('Phòng ban không hợp lệ');
+  return n;
+}
+
 /** pass_hash của người chưa đặt mật khẩu. */
 const NO_PASSWORD = 'none';
 
@@ -123,9 +146,18 @@ export class EmployeesService {
     }
   }
 
-  async list(filter: { shiftType?: string; status?: string; q?: string } = {}): Promise<Employee[]> {
+  async list(filter: { shiftType?: string; status?: string; q?: string; staff?: StaffFilter } = {}): Promise<Employee[]> {
     const list = await this.repo.findAll();
+    const today = businessDateText(this.now());
+    const staff = filter.staff;
+    const needle = staff ? foldText(staff.q) : '';
     return list.filter((emp) => {
+      if (staff) {
+        if (!matchesStaffStatus(staff.staffStatus, this.staffStatusOf(emp, today))) return false;
+        const dept = emp.contract.departmentId;
+        if (staff.departmentId === 'none' ? dept !== null : staff.departmentId !== undefined && dept !== staff.departmentId) return false;
+        if (needle && !foldText(emp.username).includes(needle) && !foldText(emp.profile.name.fullName).includes(needle)) return false;
+      }
       if (filter.status && emp.contract.status !== filter.status) return false;
       if (filter.shiftType && emp.contract.shift.type !== filter.shiftType) return false;
       if (filter.q) {
@@ -142,10 +174,85 @@ export class EmployeesService {
     return await this.repo.findByUsernameOrUuid(id);
   }
 
+  private staffStatusOf(emp: Employee, today: string): StaffStatus {
+    return staffStatusOf(
+      { contractStatus: emp.contract.status, onLeaveFrom: emp.contract.onLeaveFrom, onLeaveTo: emp.contract.onLeaveTo },
+      today
+    );
+  }
+
+  /** Hồ sơ kèm tên phòng ban và staffStatus tính sẵn (hôm nay theo giờ Việt Nam), đúng thứ tự đầu vào. */
+  async views(employees: readonly Employee[]): Promise<EmployeeView[]> {
+    const ids = [...new Set(employees.flatMap(e => (e.contract.departmentId === null ? [] : [e.contract.departmentId])))];
+    const names = await this.repo.departmentNames(ids);
+    const today = businessDateText(this.now());
+    return employees.map(emp => {
+      const departmentId = emp.contract.departmentId;
+      return {
+        ...emp.toDTO(),
+        departmentId,
+        departmentName: departmentId === null ? null : (names.get(departmentId) ?? null),
+        staffStatus: this.staffStatusOf(emp, today)
+      };
+    });
+  }
+
+  /** Phòng ban được gán phải có thật; kiểm trong cùng giao dịch với lần lưu. */
+  private async requireDepartment(repo: EmployeesRepository, employee: Employee): Promise<void> {
+    const id = employee.contract.departmentId;
+    if (id !== null && !(await repo.departmentNames([id])).has(id)) throw new DepartmentNotFoundError();
+  }
+
+  /** Gán một trong sáu ca cố định cho nhiều người; mã ca lạ thì cả lô bị từ chối. */
+  async assignShift(usernames: readonly string[], shiftCode: string, actor: string): Promise<BulkResult<EmployeeView>> {
+    const fixed = shiftByCode(shiftCode);
+    if (!fixed) throw new BadRequestError(`Mã ca không hợp lệ: ${String(shiftCode)}`, { code: 'INVALID_SHIFT_CODE' });
+    return this.assignMany(usernames, actor, (existing) => {
+      const allowancePct =
+        fixed.shiftType === 'NIGHT'
+          ? existing.contract.shift.type === 'NIGHT'
+            ? existing.contract.shift.allowancePct
+            : 30
+          : fixed.shiftType === 'FLEX'
+            ? 10
+            : 0;
+      return { contract: { shift: { type: fixed.shiftType, startTime: fixed.startTime, endTime: fixed.endTime, allowancePct } } };
+    });
+  }
+
+  /** Đổi phòng ban cho nhiều người (null = bỏ phòng); phòng không có thì cả lô bị từ chối. */
+  async assignDepartment(usernames: readonly string[], departmentId: number | null, actor: string): Promise<BulkResult<EmployeeView>> {
+    if (departmentId !== null && !(await this.repo.departmentNames([departmentId])).has(departmentId)) throw new DepartmentNotFoundError();
+    return this.assignMany(usernames, actor, () => ({ contract: { departmentId } }));
+  }
+
+  /** Mỗi người một lần lưu như `update` (giao dịch, nhật ký, ghi lại ngày công); người nghỉ việc hay không có thì vào failed. */
+  private async assignMany(
+    usernames: readonly string[],
+    actor: string,
+    patchOf: (existing: Employee) => Record<string, unknown>
+  ): Promise<BulkResult<EmployeeView>> {
+    const out = await runBulk(
+      usernames,
+      (username) => username,
+      async (username) => {
+        const current = await this.repo.findByUsernameOrUuid(username);
+        if (!current) throw new BulkEmployeeError('EMPLOYEE_NOT_FOUND', 'Không tìm thấy nhân viên');
+        if (current.contract.status === 'nghiviec') throw new BulkEmployeeError('EMPLOYEE_RESIGNED', 'Nhân viên đã thôi việc');
+        const saved = await this.update(username, patchOf(current), actor);
+        if (!saved) throw new BulkEmployeeError('EMPLOYEE_NOT_FOUND', 'Không tìm thấy nhân viên');
+        return saved;
+      },
+      (err) => (err instanceof BulkEmployeeError ? { code: err.code, message: err.message } : { code: 'BAD_EMPLOYEE_INPUT', message: bulkFailureOf(err).message })
+    );
+    return { done: await this.views(out.done), failed: out.failed };
+  }
+
   async create(body: any, actor: string): Promise<Employee> {
     const employee = this.buildEmployeeFromInput(body);
     const saved = await this.tx.run(async trx => {
       const repo = this.repo.withTransaction(trx);
+      await this.requireDepartment(repo, employee);
       const saved = await repo.save(employee, actor, { createOnly: true });
       const stored = await this.reload(repo, saved);
       const passwordSet = stored.account.passwordHash !== NO_PASSWORD;
@@ -168,6 +275,7 @@ export class EmployeesService {
       if (built.username !== existing.username || built.profile.uuid !== existing.profile.uuid) {
         throw new Error('Không đổi được tên đăng nhập hoặc mã nhân sự');
       }
+      await this.requireDepartment(repo, built);
       const saved = await repo.save(built, actor);
       const stored = await this.reload(repo, saved);
       const passwordChanged = stored.account.passwordHash !== existing.account.passwordHash;
@@ -460,6 +568,14 @@ export class EmployeesService {
           ? Boolean(body.isDormResident)
           : (existing?.contract.isDormResident ?? false);
 
+    const departmentInput =
+      body.contract?.departmentId !== undefined ? body.contract.departmentId : body.departmentId;
+    const departmentId = departmentInput !== undefined ? parseDepartmentId(departmentInput) : (existing?.contract.departmentId ?? null);
+    const onLeaveFrom =
+      body.contract?.onLeaveFrom !== undefined ? body.contract.onLeaveFrom : body.onLeaveFrom !== undefined ? body.onLeaveFrom : (existing?.contract.onLeaveFrom ?? null);
+    const onLeaveTo =
+      body.contract?.onLeaveTo !== undefined ? body.contract.onLeaveTo : body.onLeaveTo !== undefined ? body.onLeaveTo : (existing?.contract.onLeaveTo ?? null);
+
     return new Employee({
       profile: new EmployeeProfile({
         uuid,
@@ -489,6 +605,9 @@ export class EmployeesService {
         hasTax,
         canAdvance,
         isDormResident,
+        departmentId,
+        onLeaveFrom,
+        onLeaveTo,
       }),
     });
   }
