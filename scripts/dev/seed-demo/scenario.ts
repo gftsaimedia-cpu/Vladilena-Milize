@@ -42,7 +42,12 @@ export class Script {
 
   // ---- đơn từ ----
   async file(user: string, kind: string, body: unknown, name?: string): Promise<string> {
-    const out = must(await this.demo.as(user).post(`/api/v2/me/requests/${kind}`, body), `${user} nộp ${kind} ${name ?? ''}`);
+    // Người chưa kích hoạt (chưa có mật khẩu) không đăng nhập được: Admin nộp hộ qua /requests.
+    const proxy = PEOPLE.find(p => p.username === user)?.activated === false;
+    const res = proxy
+      ? await this.demo.admin.post(`/api/v2/requests/${kind}`, { ...(body as object), employeeId: user })
+      : await this.demo.as(user).post(`/api/v2/me/requests/${kind}`, body);
+    const out = must(res, `${user} nộp ${kind} ${name ?? ''}`);
     const id = out.request.id as string;
     if (name) this.ids.set(name, id);
     return id;

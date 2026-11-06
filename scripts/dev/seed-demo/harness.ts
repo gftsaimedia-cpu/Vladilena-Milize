@@ -49,6 +49,7 @@ export class Demo {
   base = '';
   db!: Client;
   uuids = new Map<string, string>();
+  depts = new Map<string, number>();
   private server: any;
   private jar = new Map<string, string>();
   private apis = new Map<string, Api>();

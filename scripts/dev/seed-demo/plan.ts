@@ -1,4 +1,5 @@
 import { must } from './harness';
+import { planQ4 } from './plan-q4';
 import { HOLIDAYS, Script } from './scenario';
 
 const ALL = { NO_VIOLATION: true, REPORTS_DONE: true, WORK_COMPLETED: true, OFFICIAL_EMPLOYEE: true };
@@ -29,7 +30,7 @@ export function closeMonth(
   });
   s.on(`${day}T11:30`, `KPI ${month}`, async () => {
     for (const u of opts.kpiUsers) {
-      const body = u === 'binh' ? { wework: 70, user: 65 } : KPI_FULL;
+      const body = u === 'binh' ? { wework: 70, user: 65, proposedAmount: 800000 } : { ...KPI_FULL, proposedAmount: 1000000 };
       must(await d.admin.put(`/api/v2/payroll/${month}/kpi/${u}`, body), `KPI ${u}`);
     }
   });
@@ -125,4 +126,5 @@ export function plan(s: Script): void {
     await s.approve('chi-adv-9');
   });
   closeMonth(s, '2026-09', '2026-10-01', { kpiUsers: ['an', 'binh', 'chi', 'dung'], pay: '2026-10-10T09:00' });
+  planQ4(s);
 }

@@ -20,18 +20,18 @@ export interface Person {
 
 const N = { shiftType: 'NORMAL' as const, start: '08:00', end: '17:00' };
 export const PEOPLE: Person[] = [
-  { username: 'an', name: 'Nguyễn Văn An', status: 'nv', type: 'nv', level: 2, dept: 'Phòng ban 1', ...N, from: '2026-01-05' },
-  { username: 'binh', name: 'Trần Thị Bình', status: 'nv', type: 'nv', level: 1, dept: 'Phòng ban 1', ...N, from: '2026-01-05' },
-  { username: 'chi', name: 'Lê Thu Chi', status: 'nv', type: 'nv', level: 3, dept: 'Phòng ban 2', shiftType: 'FLEX', start: '06:00', end: '15:00', from: '2026-01-05' },
-  { username: 'dung', name: 'Phạm Văn Dũng', status: 'nv', type: 'nv', level: 2, dept: 'Phòng ban 2', shiftType: 'NIGHT', start: '22:00', end: '07:00', from: '2026-01-05' },
-  { username: 'em', name: 'Hoàng Thị Em', status: 'tts', type: 'tts', level: 1, dept: 'Phòng ban 1', ...N, from: '2026-03-02' },
-  { username: 'phuc', name: 'Đặng Văn Phúc', status: 'nv', type: 'nv', level: 1, dept: 'Phòng ban 1', ...N, from: '2026-01-05' },
-  { username: 'giang', name: 'Vũ Hương Giang', status: 'nv', type: 'nv', level: 2, dept: 'Phòng ban 2', ...N, from: '2026-01-05' },
-  { username: 'hanh', name: 'Bùi Thị Hạnh', status: 'nv', type: 'nv', level: 2, dept: 'Phòng ban 1', ...N, from: '2026-01-05' },
+  { username: 'an', name: 'Nguyễn Văn An', status: 'nv', type: 'nv', level: 2, dept: 'Phòng ban 1', ...N, from: '2026-09-01' },
+  { username: 'binh', name: 'Trần Thị Bình', status: 'nv', type: 'nv', level: 1, dept: 'Phòng ban 1', ...N, from: '2026-09-01' },
+  { username: 'chi', name: 'Lê Thu Chi', status: 'nv', type: 'nv', level: 3, dept: 'Phòng ban 2', shiftType: 'FLEX', start: '06:00', end: '15:00', from: '2026-09-01' },
+  { username: 'dung', name: 'Phạm Văn Dũng', status: 'nv', type: 'nv', level: 2, dept: 'Phòng ban 2', shiftType: 'NIGHT', start: '22:00', end: '07:00', from: '2026-09-01' },
+  { username: 'em', name: 'Hoàng Thị Em', status: 'tts', type: 'tts', level: 1, dept: 'Phòng ban 1', ...N, from: '2026-09-01' },
+  { username: 'phuc', name: 'Đặng Văn Phúc', status: 'nv', type: 'nv', level: 1, dept: 'Phòng ban 1', ...N, from: '2026-09-01' },
+  { username: 'giang', name: 'Vũ Hương Giang', status: 'nv', type: 'nv', level: 2, dept: 'Phòng ban 2', ...N, from: '2026-09-01' },
+  { username: 'hanh', name: 'Bùi Thị Hạnh', status: 'nv', type: 'nv', level: 2, dept: 'Phòng ban 1', ...N, from: '2026-09-01' },
   { username: 'khoa', name: 'Phan Minh Khoa', status: 'thuviec', type: 'nv', level: 1, dept: 'Phòng ban 2', ...N, from: '2026-09-15' },
-  { username: 'lan', name: 'Đỗ Mai Lan', status: 'nv', type: 'nv', level: 2, dept: 'Phòng ban 1', ...N, from: '2026-01-05' },
-  { username: 'minh', name: 'Ngô Quốc Minh', status: 'nv', type: 'nv', level: 1, dept: 'Phòng ban 2', ...N, from: '2026-01-05' },
-  { username: 'nam', name: 'Trịnh Văn Nam', status: 'ctv', type: 'ctv', level: 1, dept: 'Phòng ban 2', ...N, from: '2026-02-02' },
+  { username: 'lan', name: 'Đỗ Mai Lan', status: 'nv', type: 'nv', level: 2, dept: 'Phòng ban 1', ...N, from: '2026-09-01' },
+  { username: 'minh', name: 'Ngô Quốc Minh', status: 'nv', type: 'nv', level: 1, dept: 'Phòng ban 2', ...N, from: '2026-09-01' },
+  { username: 'nam', name: 'Trịnh Văn Nam', status: 'ctv', type: 'ctv', level: 1, dept: 'Phòng ban 2', ...N, from: '2026-09-01' },
   { username: 'oanh', name: 'Lý Kim Oanh', status: 'nv', type: 'nv', level: 1, dept: null, ...N, from: '2026-09-21', activated: false }
 ];
 

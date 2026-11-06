@@ -22,6 +22,7 @@ export async function seedDemo(url: string, log: SeedLog = () => {}): Promise<De
     deptIds.set('Phòng ban 3', (d3.department ?? d3).id);
     log(`phòng ban: ${[...deptIds.keys()].join(', ')}`);
 
+    for (const [k, v] of deptIds) demo.depts.set(k, v);
     for (const p of PEOPLE) await createPerson(demo, p, deptIds);
     log(`nhân sự: ${demo.uuids.size}`);
 
