@@ -22,6 +22,8 @@ const { day, request, password, tao, closeDetail, reloadRequest } = useDesktopDe
 const username = computed(() => (session.user ? String(session.user.username) : ''));
 // Tăng sau mỗi Check-out ở cột 1; cột 2 nhận làm :stamp để tải lại "Gần đây" (R7, P3).
 const stamp = ref(0);
+// Tháng đang xem ('YYYY-MM'; null = tháng hiện tại): cột Chấm công chọn, cột Thu nhập đi theo.
+const month = ref<string | null>(null);
 // Tăng sau mỗi lần gửi yêu cầu ở K3 hay huỷ đơn; cột 1 nhận làm :requests-stamp để tải lại danh sách yêu cầu và phần Hôm nay.
 const requestsStamp = ref(0);
 const flowTitle = ref('Tạo yêu cầu');
@@ -40,8 +42,8 @@ function onRequestChanged(id: string) {
     <DesktopBar />
     <main class="sd-pg">
       <TodayColumn :requests-stamp="requestsStamp" @checked-out="stamp++" />
-      <AttendanceColumn :stamp="stamp" />
-      <IncomeColumn />
+      <AttendanceColumn v-model:month="month" :stamp="stamp" />
+      <IncomeColumn :month="month" />
     </main>
     <SideDrawer v-if="day" :title="day.title" :sub="day.shiftLine" @close="closeDetail">
       <template #badge>
