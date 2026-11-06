@@ -2,8 +2,8 @@ import { vnInstant } from './presence';
 
 /**
  * Overtime as settled on 04/11: the pay is the real presence inside the approved OT window x the hourly rate x a
- * multiplier. The hours are counted in whole minutes and are not rounded; the money is rounded once per day line and
- * kind of day, from the summed hours of that group.
+ * multiplier. The hours are counted in whole minutes and are not rounded. Per-line and per-kind money here is display
+ * only; the payslip's OT items are each one formula on the exact summed hours, rounded once (D1, `moneyOf`).
  */
 
 /** The kind of an OT day: a company holiday (wins over the weekend), Saturday or Sunday, or any other day. */

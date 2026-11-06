@@ -184,22 +184,6 @@ export class AttendanceRepository {
   }
 
   /**
-   * Khóa bảng công nhật trong khoảng thời gian để chốt kỳ lương
-   */
-  async lockTimesheets(employeeId: string, startDate: string, endDate: string): Promise<number> {
-    const result = await this.qb
-      .updateTable('timesheet_entries')
-      .set({ is_locked: true, updated_at: new Date() })
-      .where('employee_id', '=', employeeId)
-      .where('work_date', '>=', startDate)
-      .where('work_date', '<=', endDate)
-      .where('is_locked', '=', false)
-      .executeTakeFirst();
-
-    return Number(result.numUpdatedRows ?? 0);
-  }
-
-  /**
    * Lưu hoặc cập nhật lịch làm việc vào bảng work_schedules on conflict (employee_id, work_date)
    */
   async saveSchedule(schedule: WorkSchedule): Promise<void> {

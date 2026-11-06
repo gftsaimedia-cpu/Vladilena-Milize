@@ -125,8 +125,16 @@ describe('Ví dụ đầu–cuối tháng 11/2026 của Bình (spec 13) trên Po
       await approve(requests, makeup.id);
       await approve(requests, annual.id);
 
-      // D5: luật loại trừ OT và nghỉ có làm bù trong cùng tháng giữ nguyên, nên OT Chủ nhật 15/11 là của Chi (cùng cách
-      // trả lương với Bình), nộp và duyệt qua dịch vụ như đơn của Bình. Bình không có OT.
+      // D5: luật loại trừ OT và nghỉ có làm bù trong cùng tháng giữ nguyên: Bình đã có đơn nghỉ có làm bù tháng 11 nên
+      // không đăng ký OT được (FP5 #24).
+      await assert.rejects(
+        requests.createOvertimeRequest(
+          { employeeId: 'binh', reason: 'Chốt số', otDate: '2026-11-15', startTime: '08:00', endTime: '12:00' },
+          self
+        ),
+        /Tháng 2026-11 đã có đơn nghỉ có làm bù, không đăng ký OT được/
+      );
+      // Vì vậy OT Chủ nhật 15/11 là của Chi (cùng cách trả lương với Bình), nộp và duyệt qua dịch vụ như đơn của Bình.
       const overtime = await requests.createOvertimeRequest(
         { employeeId: 'chi', reason: 'Chốt số', otDate: '2026-11-15', startTime: '08:00', endTime: '12:00' },
         self
@@ -148,7 +156,7 @@ describe('Ví dụ đầu–cuối tháng 11/2026 của Bình (spec 13) trên Po
       // 04/11 trễ như 03/11 nhưng không giải trình; 05/11 không chấm.
       await punch('2026-11-04', '08:40', '17:00');
 
-      // Các ngày làm sau đó: 12/11 và 16/11 làm tới hết khung bù, 15/11 làm hết khung OT, còn lại 08:00–17:00.
+      // Các ngày làm sau đó: 12/11 và 16/11 làm tới hết khung bù, còn lại 08:00–17:00 (Chủ nhật nghỉ; OT 15/11 là của Chi, chấm riêng bên dưới).
       const special: Record<string, [string, string]> = {
         '2026-11-12': ['08:00', '22:00'],
         '2026-11-16': ['08:00', '22:00']
@@ -213,8 +221,8 @@ describe('Ví dụ đầu–cuối tháng 11/2026 của Bình (spec 13) trên Po
       // D1: tiền bù của phiếu = 6.000.000 x (480 / 60) / (26 x 8) = 230.769,23, làm tròn một lần (không cộng 2 x 115.385).
       assert.equal(slip.makeupPay, 230_769);
 
-      // Bình không có OT (luật loại trừ OT và nghỉ có bù cùng tháng, D5): phiếu không có tiền OT, ngày 15/11 là Chủ nhật
-      // Bình không chấm công nên không có OT ở dòng nào.
+      // Bình không có OT (luật loại trừ OT và nghỉ có bù cùng tháng, D5): phiếu không có tiền OT ở dòng nào; 15/11 là Chủ nhật
+      // nên Bình nghỉ (không có đơn OT, không chấm).
       assert.equal(slip.otPayTotal, 0);
       assert.deepEqual([slip.ot15Hours, slip.ot20Hours, slip.ot30Hours], [0, 0, 0]);
       assert.ok(slip.dailyLines.every(l => l.otPay === 0));

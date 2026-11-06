@@ -60,7 +60,7 @@ export interface EmployeeMonthlyRawData {
   }>;
   holidayDates?: string[]; // company holidays of the month, 'YYYY-MM-DD' (the holiday OT rate)
   // Makeup windows of the approved leave-with-makeup requests that fall in the month (D10: the estimate counts the ones ahead).
-  makeupWindows?: Array<{ date: string; start: string; end: string; workMinutes: number }>;
+  makeupWindows?: Array<{ date: string; end: string; workMinutes: number }>;
   kpi: KpiInput | null;
 }
 
@@ -168,7 +168,6 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
     holidayDates: (rows.holidays ?? []).map(dateText),
     makeupWindows: (rows.makeupSlots ?? []).map(slot => ({
       date: dateText(slot.work_date),
-      start: slot.start_time.slice(0, 5),
       end: slot.end_time.slice(0, 5),
       workMinutes: Number(slot.work_minutes)
     })),

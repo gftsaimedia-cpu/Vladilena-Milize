@@ -4,6 +4,7 @@ import 'reflect-metadata';
 import { beforeEach, describe, it } from 'node:test';
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
 import { AttendanceService } from '../../src/modules/attendance/attendance.service';
+import { BadRequestError } from '../../src/common';
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { DailyTimesheet, PunchEvent, WorkSchedule } from '../../src/modules/attendance/domain';
 import { employeeLockKey } from '../../src/modules/attendance/attendance-days.service';
@@ -282,5 +283,16 @@ describe('Attendance punches against settings', () => {
     const plain = new AttendanceService(repo, days.asService());
     await plain.recordPunch({ employeeId: u('old'), type: 'IN', workDate: '2026-12-13' }, { checkZone: true });
     assert.equal(await plain.workdayOf(u('old'), '2026-12-13'), true);
+  });
+
+  it('recalculateMonth with a malformed month throws the typed 400 the controller uses, not a plain Error (FP5 #6)', async () => {
+    for (const month of ['2026-13', '2026-1', 'abc', '']) {
+      await assert.rejects(svc.recalculateMonth(u('m'), month), (e: any) => {
+        assert.ok(e instanceof BadRequestError, String(e));
+        assert.equal(e.status, 400);
+        assert.equal(e.details.code, 'INVALID_MONTH');
+        return true;
+      });
+    }
   });
 });

@@ -22,6 +22,7 @@ import {
   datesOfMonth,
   workDateOfPunch,
 } from './domain';
+import { MONTH_PATTERN } from './domain/calendar';
 
 export interface RecordPunchInput {
   employeeId: string;
@@ -42,8 +43,6 @@ export interface RecordPunchResult {
   punch: PunchEventDTO;
   timesheet: DailyTimesheetDTO;
 }
-
-const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 @Injectable()
 export class AttendanceService {
@@ -306,7 +305,7 @@ export class AttendanceService {
   /** Admin tính lại cả tháng 'YYYY-MM' (T7): trả mọi dòng ngày của tháng theo ngày tăng. */
   async recalculateMonth(employeeId: string, month: string): Promise<DailyTimesheetDTO[]> {
     if (!MONTH_PATTERN.test(month)) {
-      throw new Error(`Tháng không hợp lệ (YYYY-MM): ${month}`);
+      throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
     const dates = datesOfMonth(month);
 
@@ -342,9 +341,5 @@ export class AttendanceService {
   async listTimesheets(filter: TimesheetFilter = {}): Promise<DailyTimesheetDTO[]> {
     const timesheets = await this.repo.listTimesheets(filter);
     return timesheets.map((t) => t.toJSON());
-  }
-
-  async lockTimesheets(employeeId: string, startDate: string, endDate: string): Promise<number> {
-    return await this.repo.lockTimesheets(employeeId, startDate, endDate);
   }
 }

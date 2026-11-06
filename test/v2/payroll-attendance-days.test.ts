@@ -372,6 +372,19 @@ describe('PayrollService reads the shared day rows (T6, spec 8.1)', () => {
     ]);
   });
 
+  it('warns about nothing on an EXTRA or HOLIDAY row, even when it carries cases (FP5 #10)', async () => {
+    const info = [{ code: 'MISSING_CHECK_OUT' as const, minutes: 0, affectsPay: false }];
+    // Defensive: even a case flagged as pay-affecting never asks for an explanation outside PRESENT and ABSENT.
+    const flagged = [{ code: 'EARLY_CHECK_OUT' as const, minutes: 60, affectsPay: true }];
+    const slip = await slipOf([
+      dayRow('EXTRA', '2026-11-08', { cases: info, explanationStatus: 'NONE' }),
+      dayRow('EXTRA', '2026-11-15', { cases: flagged, explanationStatus: 'NONE' }),
+      dayRow('HOLIDAY', '2026-11-09', { cases: info, explanationStatus: 'PENDING' }),
+      dayRow('HOLIDAY', '2026-11-10', { cases: flagged, explanationStatus: 'REJECTED' })
+    ]);
+    assert.deepEqual(slip.warnings.filter(w => w.code.startsWith('EXPLANATION_')), []);
+  });
+
   it('measures OT on PRESENT, EXTRA and HOLIDAY rows, not on a leave day with stray punches', async () => {
     const ot = (date: string, start: string, end: string) => ({
       id: `ot-${date}`,

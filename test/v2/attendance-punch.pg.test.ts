@@ -110,7 +110,9 @@ describe('AttendanceService.recordPunch trên PostgreSQL (T1)', () => {
     });
   });
 
-  it('chấm Chủ nhật 15/11 không có OT: dòng REST, work_schedules không có dòng ngày đó (P5)', async t => {
+  // Đường không có SettingsReader (`build` dựng service không truyền cài đặt): dịch vụ không kiểm ngày làm nên nhận lần vào, và dòng
+  // ngày của Chủ nhật không khung là REST. Ở app thật (có SettingsReader) lần vào này bị từ chối NOT_A_WORKDAY (test "NOT_A_WORKDAY" bên dưới trong file này).
+  it('không có SettingsReader, chấm Chủ nhật 15/11 không có OT: dòng REST, work_schedules không có dòng ngày đó (P5)', async t => {
     await withTempDb(t, 'att_punch_sun', async (db, client) => {
       await seed(client);
       const { service } = build(db);

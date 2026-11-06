@@ -137,8 +137,8 @@ export class MeController {
       .filter(r => r.workDate < today && open.has(r.workDate.slice(0, 7)))
       .map(r => daySummaryOf(r as any, r.workDate, today))
       .filter(d => d.kind === 'todo' && d.explanationStatus !== 'pending')
-      .map(d => ({ date: d.date, kind: 'todo' as const }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+      // `listTimesheets` đã trả theo `work_date` tăng, nên danh sách đã cũ nhất trước.
+      .map(d => ({ date: d.date, kind: 'todo' as const }));
   }
 
   // Số ngày phép còn lại do server tính từ đơn; lỗi thì giữ nguyên số trong hợp đồng để hồ sơ vẫn mở được.

@@ -16,9 +16,9 @@ import { FakeDays, SEED_RATES, dayRow, payslipLine } from './payroll-fixtures';
 //   owed 480 minutes: nothing made up -> shortfall ceil(480/480) = 1 -> 4 + 1 = 5 >= 5 -> diligence LOST
 //                     480 planned     -> shortfall ceil(0/480)   = 0 -> 4 + 0 = 4 <  5 -> diligence KEPT
 const BINH = 'u-binh';
-const win = (date: string, start: string, end: string, workMinutes: number) => ({ date, start, end, workMinutes });
+const win = (date: string, end: string, workMinutes: number) => ({ date, end, workMinutes });
 // Two evening windows of 4 h: 18:00-22:00 -> 240 work minutes each = the 480 owed by the one leave with makeup.
-const TWO_EVENINGS = [win('2026-11-14', '18:00', '22:00', 240), win('2026-11-16', '18:00', '22:00', 240)];
+const TWO_EVENINGS = [win('2026-11-14', '22:00', 240), win('2026-11-16', '22:00', 240)];
 
 const binhData = (makeupWindows: EmployeeMonthlyRawData['makeupWindows']): EmployeeMonthlyRawData => ({
   staff: {
@@ -45,6 +45,24 @@ const binhData = (makeupWindows: EmployeeMonthlyRawData['makeupWindows']): Emplo
   makeupWindows,
   kpi: null
 });
+
+/** BinhRepository that also serves a period run: Bình is the one eligible person and the stored payslips are captured. */
+class PeriodRunRepository extends PayrollRepository {
+  saved: EmployeePayslip[] = [];
+  constructor(private readonly data: EmployeeMonthlyRawData) {
+    super({} as any);
+  }
+  override async getMonthlyData() {
+    return this.data;
+  }
+  override async listEligibleEmployees() {
+    return [{ uuid: BINH, username: 'nv-binh', name: 'Bình' }];
+  }
+  override async savePayrollRunAndSlips(_month: string, _actor: string, payslips: EmployeePayslip[]) {
+    this.saved = payslips;
+    return 1;
+  }
+}
 
 class BinhRepository extends PayrollRepository {
   constructor(private readonly data: EmployeeMonthlyRawData) {
@@ -78,15 +96,15 @@ describe('plannedMakeupMinutes (D10)', () => {
   });
 
   it('ignores a window that has ended, and one that ends exactly now', () => {
-    const w = win('2026-11-12', '08:00', '12:00', 240);
+    const w = win('2026-11-12', '12:00', 240);
     assert.equal(plannedMakeupMinutes([w], noon), 0); // ended 12:00 = now: end is not after now
     assert.equal(plannedMakeupMinutes([w], new Date('2026-11-12T04:59:00Z')), 240); // 11:59, still running
-    assert.equal(plannedMakeupMinutes([win('2026-11-11', '18:00', '22:00', 240)], noon), 0);
+    assert.equal(plannedMakeupMinutes([win('2026-11-11', '22:00', 240)], noon), 0);
   });
 
   it('reads the window on the Vietnam clock, not UTC', () => {
     // 18:00-22:00 on 12/11 in Vietnam ends at 15:00Z: at 14:59Z it still counts, at 15:00Z it does not.
-    const w = win('2026-11-12', '18:00', '22:00', 240);
+    const w = win('2026-11-12', '22:00', 240);
     assert.equal(plannedMakeupMinutes([w], new Date('2026-11-12T14:59:00Z')), 240);
     assert.equal(plannedMakeupMinutes([w], new Date('2026-11-12T15:00:00Z')), 0);
   });
@@ -167,5 +185,36 @@ describe('the mid-month estimate counts planned makeup for the diligence shortfa
     assert.equal(make(480).attendanceAllowanceActual, KEPT);
     assert.equal(make(480).makeupPay, 0);
     assert.equal(make(480).grossIncome - make().grossIncome, KEPT);
+  });
+});
+
+describe('the period run counts no planned makeup (D10, FP5 #18)', () => {
+  // `calculatePeriodPayslips` runs `payslipOf` with the service clock too. A run needs the month closed (the lock waits for
+  // the month to end), so every window is past: only the minutes really worked on the rows count for the diligence.
+  const runAt = async (now: Date, rows: AttendanceDayRecord[]) => {
+    const repo = new PeriodRunRepository(binhData(TWO_EVENINGS));
+    const service = new PayrollService(repo, undefined, new FakeDays(() => rows));
+    service.now = () => now;
+    const result = await service.calculatePeriodPayslips('2026-11', undefined, 'admin');
+    assert.deepEqual(result.errors, []);
+    assert.equal(repo.saved.length, 1);
+    return repo.saved[0];
+  };
+
+  it('nothing made up on the rows -> shortfall 1, diligence lost, though two windows were planned', async () => {
+    // 1 leave with makeup owes 480; the rows carry 0 makeup minutes -> ceil(480 / 480) = 1, absence days 4 + 1 = 5 >= 5.
+    const slip = await runAt(new Date('2026-12-01T03:00:00Z'), november());
+    assert.equal(slip.attendanceAllowanceActual, 0);
+    assert.equal(slip.makeupPay, 0);
+  });
+
+  it('480 real makeup minutes on the rows -> shortfall 0, diligence kept', async () => {
+    const rows = november();
+    rows.push({ ...dayRow('EXTRA', '2026-11-14', { makeupMinutes: 240, workHours: 4 }), employeeId: BINH });
+    rows.push({ ...dayRow('EXTRA', '2026-11-16', { makeupMinutes: 240, workHours: 4 }), employeeId: BINH });
+    const slip = await runAt(new Date('2026-12-01T03:00:00Z'), rows);
+    assert.equal(slip.attendanceAllowanceActual, KEPT);
+    // 6.000.000 x (480 / 60) / 208 = 230.769,23 paid for the real minutes, from the rows alone.
+    assert.equal(slip.makeupPay, 230_769);
   });
 });

@@ -349,7 +349,6 @@ export class EmployeePayslip {
     let makeupLeaveCount = 0;
     let makeupMinutes = 0;
     let deductionMinutes = 0;
-    let totalLineOtHours = 0;
     let flexHours = 0; // Σ min(8, shift hours) of the flex work days (shift hours = workHours - makeup, D13)
     let nightBreakHours = 0; // Σ the exact night break pay of the night work days, in hours of pay
     let nightExemptHours = 0; // Σ min(30% of the hours worked, the night allowance in hours) of the night work days
@@ -378,7 +377,6 @@ export class EmployeePayslip {
       else if (line.kind === 'LEAVE_MAKEUP') makeupLeaveCount++;
       makeupMinutes += line.makeupMinutes;
       deductionMinutes += line.deductionMinutes;
-      totalLineOtHours += line.otHours;
     }
 
     this.actualWorkDays = workDaysCount;
@@ -407,7 +405,7 @@ export class EmployeePayslip {
     this.ot15Hours = props.otHoursByRate?.x15 ?? 0;
     this.ot20Hours = props.otHoursByRate?.x20 ?? 0;
     this.ot30Hours = props.otHoursByRate?.x30 ?? 0;
-    this.totalOtHours = this.ot15Hours + this.ot20Hours + this.ot30Hours || totalLineOtHours;
+    this.totalOtHours = this.ot15Hours + this.ot20Hours + this.ot30Hours;
     this.ot15Pay = pay(this.ot15Hours, { perHour: true, rate: otRates.weekday });
     this.ot20Pay = pay(this.ot20Hours, { perHour: true, rate: otRates.weekend });
     this.ot30Pay = pay(this.ot30Hours, { perHour: true, rate: otRates.holiday });
@@ -477,8 +475,8 @@ export class EmployeePayslip {
 
     // Tax-exempt part of the pay: the OT premium over the normal hourly rate (rate - 1 of each kind of day: by default
     // 150% -> 50%, 200% -> 100%, 300% -> 200%) plus, for each night line, the lower of 30% of the hourly pay for the
-    // hours worked and the night allowance of that day (a night day without allowance, e.g. one that is not a work
-    // day, exempts nothing). Both parts are summed exact and rounded once; the night part never reads the rounded
+    // shift hours (D13) and the night allowance of that day (a night day without allowance, e.g. one that is not a work
+    // day, exempts nothing). Each part is summed exact and rounded once; the night part never reads the rounded
     // allowance of the line (D1).
     this.rates = {
       kpiWeights: props.rates?.kpiWeights ?? KPI_WEIGHTS,

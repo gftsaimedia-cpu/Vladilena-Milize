@@ -12,13 +12,15 @@ export function makeupShortfallDays(lwmDays: number, makeupMinutes: number): num
   return Math.min(lwmDays, Math.ceil(missing / MINUTES_PER_DAY));
 }
 
-/** Khung làm bù đã duyệt của một đơn nghỉ có làm bù: ngày, giờ 'HH:mm' (giờ Việt Nam) và số phút làm thực của khung. */
-export type MakeupWindow = { date: string; start: string; end: string; workMinutes: number };
+/** Khung làm bù đã duyệt của một đơn nghỉ có làm bù: ngày, giờ kết thúc 'HH:mm' (giờ Việt Nam) và số phút làm thực của khung. */
+export type MakeupWindow = { date: string; end: string; workMinutes: number };
 
 /**
  * Phút làm bù đã xếp mà chưa tới (D10, 06/11): tổng phút làm thực của các khung kết thúc SAU `now`. Chỉ dùng để xét
  * chuyên cần ở thu nhập tạm tính giữa tháng, không bao giờ để trả tiền. Khung đã kết thúc không còn ở đây vì số phút
  * thật đã nằm trên dòng ngày (`makeup_minutes`); sang tháng sau thì mọi khung của tháng đã kết thúc nên còn 0.
+ * Khung đang diễn ra (bắt đầu trước `now`, kết thúc sau `now`) được tính đủ `workMinutes`, dù dòng ngày có thể đã giữ
+ * một phần số phút đó: ước lượng giữa tháng chấp nhận lệch tạm thời, hết khung thì số phút thật thay thế.
  */
 export function plannedMakeupMinutes(windows: readonly MakeupWindow[] | undefined, now: Date): number {
   let minutes = 0;

@@ -527,7 +527,6 @@ export class PayrollService {
     }
 
     const dailyLines: DailyAttendanceLineProps[] = [];
-    let totalDeductionHours = 0;
     let lateMinutes = 0;
     const dayWarnings: PayrollWarning[] = [];
 
@@ -543,7 +542,6 @@ export class PayrollService {
       const daySalary = Math.round(row.payUnits * dayRate);
       // The deduction is the row's: after the grace, in 30-minute blocks, and only on an approved explanation (L4).
       const deductionHours = row.deductionMinutes / 60;
-      totalDeductionHours += deductionHours;
       lateMinutes += row.lateMinutes;
       const deductionAmount = Math.round(deductionHours * hourRate);
       const makeupPay = Math.round((row.makeupMinutes / 60) * hourRate);
@@ -631,8 +629,6 @@ export class PayrollService {
     // The KPI warnings, then one per day whose pay-affecting case is not approved yet (in date order).
     const warnings: PayrollWarning[] = [...kpi.warnings, ...dayWarnings];
 
-    const roundedLateEarlyHours = Math.round(totalDeductionHours * 100) / 100;
-
     return new EmployeePayslip({
       employeeId: staff.uuid,
       username: staff.username,
@@ -654,7 +650,6 @@ export class PayrollService {
       calendar: [...rows]
         .sort((a, b) => a.workDate.localeCompare(b.workDate))
         .map(row => ({ date: row.workDate, kind: calendarKindOf(row) })),
-      lateEarlyHours: roundedLateEarlyHours,
       diligenceLostFromDays: rules.diligenceLostFromDays,
       // D10: the makeup windows still ahead of the service clock count as worked for the diligence shortfall only.
       plannedMakeupMinutes: plannedMakeupMinutes(data.makeupWindows, this.now()),
