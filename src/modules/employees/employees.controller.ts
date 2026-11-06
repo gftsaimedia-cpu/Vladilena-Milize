@@ -27,10 +27,19 @@ export class EmployeesController {
   async listEmployees(
     @Query('shiftType') shiftType?: string,
     @Query('status') status?: string,
-    @Query('q') q?: string
+    @Query('q') q?: string,
+    @Query('month') month?: string
   ): Promise<unknown> {
+    if (month !== undefined && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
+    }
     const employees = await this.service.list({ shiftType, status, q });
-    return { employees: employees.map((e) => e.toDTO()) };
+    // `work` và `summary` do BE tính theo tháng `month` (mặc định tháng này); `summary` luôn tính trên toàn bộ hồ sơ.
+    return {
+      employees: employees.map((e) => ({ ...e.toDTO(), work: this.service.workOf(e, month) })),
+      total: employees.length,
+      summary: await this.service.summary(month)
+    };
   }
 
   @RequireCap('staff.manage')
@@ -40,7 +49,7 @@ export class EmployeesController {
     if (!employee) {
       throw new NotFoundError('Không tìm thấy nhân viên', { code: 'EMPLOYEE_NOT_FOUND' });
     }
-    return { employee: employee.toDTO() };
+    return { employee: { ...employee.toDTO(), work: this.service.workOf(employee) } };
   }
 
   @RequireCap('staff.manage')

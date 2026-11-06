@@ -135,7 +135,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   - `status`: Lọc theo trạng thái hợp đồng (`tts`, `ctv`, `thuviec`, `nv`, `nghiviec`).
   - `shiftType`: Lọc theo ca (`NORMAL`, `FLEX`, `NIGHT`).
   - `q`: Tìm kiếm theo username hoặc họ tên.
-- **Response 200**:
+  - `month`: `YYYY-MM`, tháng đang xem cho `work` và `summary` (mặc định tháng này theo giờ Việt Nam). Sai định dạng: `400 INVALID_MONTH`. Bộ lọc `status`/`shiftType`/`q` chỉ thu hẹp `employees`, `summary` luôn tính trên toàn bộ hồ sơ.
+- **Response 200** (rút gọn; `work` và `summary` mô tả ngay dưới):
   ```json
   {
     "employees": [
@@ -179,9 +180,21 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
         }
       }
     ],
-    "total": 1
+    "total": 1,
+    "summary": { "month": "2026-11", "asOf": "2026-11-06", "...": "xem bên dưới" }
   }
   ```
+- `total`: số phần tử của `employees` sau bộ lọc.
+- `employees[].work` (FE chỉ hiện, không tự tính): `{ active, status, statusLabel, joinedOn, tenure }`.
+  - `active`: đang làm vào `summary.asOf` (đã vào làm và chưa nghỉ việc; `resignedOn` > `asOf`; trạng thái `nghiviec` không ghi ngày nghỉ thì coi như đã nghỉ).
+  - `status` ∈ `ok | try | off | out` (`out` = `nghiviec`; `off` = tài khoản đang khoá; `try` = `thuviec`; còn lại `ok`) và `statusLabel` tương ứng "Chính thức", "Thử việc", "Tạm nghỉ", "Đã nghỉ việc".
+  - `joinedOn`: `contract.effectiveFrom`, thiếu thì ngày tạo tài khoản theo giờ Việt Nam.
+  - `tenure`: thâm niên đến `asOf` dạng chữ ("1 năm 10 tháng", "4 ngày"); rỗng khi đã nghỉ việc (`out`) hoặc chưa tới ngày vào làm.
+- `summary` (cho thẻ chỉ số màn Nhân sự và số người mỗi loại ở màn Chế độ theo loại):
+  - `month`, `prevMonth` (tháng trước `month`), `asOf` (hôm nay nếu `month` là tháng này, ngược lại ngày cuối `month`), `compareYear` (năm trước năm của `asOf`), `total` (mọi hồ sơ).
+  - `active`, `joined`, `left`, `tenure`: mỗi mục `{ value, prev, delta: { dir: "up" | "down", value } }`. `active`: người đang làm ở `asOf` so với cuối `prevMonth`. `joined`/`left`: vào làm / nghỉ việc trong `month` so với `prevMonth`. `tenure`: thâm niên trung bình (năm, 1 chữ số thập phân) của người đang làm, so với cuối `compareYear`. `delta.dir` = `up` khi `value` >= `prev`; `delta.value` là chênh lệch tuyệt đối.
+  - `inactiveAccounts`: số tài khoản chưa kích hoạt (đang khoá) trong mọi hồ sơ.
+  - Đếm người đang làm ở `asOf`: `byType` (`{ "nv": 3 }`, theo `position.type`), `byLevel` (`{ "nv": { "1": 2 } }`), `byTerm` (`{ long, short, unset }`), `byStatus` (`{ ok, try, off, out }`).
 - `contract.term`: nhãn hợp đồng lưu ở cột `staff.contract`. `"long"` = HĐLĐ từ 3 tháng, `"short"` = dưới 3 tháng, `null` = theo loại nhân sự.
 - `contract.hasInsurance`: cột `staff.insured`. `true` / `false`; `null` = theo mặc định của hợp đồng.
 
@@ -216,7 +229,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 #### `GET /api/v2/employees/:username`
 - **Mục đích**: Hồ sơ đầy đủ của một nhân sự (mở ngăn kéo hồ sơ). `:username` nhận cả `username` lẫn `uuid`.
 - **Quyền**: `staff.manage`.
-- **Response 200**: `{ "employee": { ... } }`, `employee` cùng cấu trúc một phần tử của `GET /api/v2/employees` (`profile`, `account`, `contract`):
+- **Response 200**: `{ "employee": { ... } }`, `employee` cùng cấu trúc một phần tử của `GET /api/v2/employees` (`profile`, `account`, `contract`, `work` tính đến hôm nay; `POST`/`PUT` không trả `work`):
   ```json
   {
     "employee": {
@@ -228,7 +241,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
         "leave": { "totalDays": 0, "usedDays": 0, "remainingDays": 0 },
         "status": "nv", "term": null, "effectiveFrom": null, "resignedOn": null,
         "hasInsurance": null, "isUnionMember": false, "hasTax": true, "canAdvance": true, "isDormResident": false
-      }
+      },
+      "work": { "active": true, "status": "ok", "statusLabel": "Chính thức", "joinedOn": "2026-11-05", "tenure": "1 ngày" }
     }
   }
   ```

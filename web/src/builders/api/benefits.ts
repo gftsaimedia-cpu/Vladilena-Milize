@@ -1,8 +1,7 @@
 // Màn "Chế độ theo loại nhân sự" từ GET /api/v2/employees/meta/positions: một dòng mỗi loại (TTS, CTV, NV) theo
-// phiên bản có hiệu lực ở tháng đang xem. Khi lưu, chỉ gửi ô đã sửa và khác phiên bản đang hiệu lực ở tháng áp dụng.
-// Import tương đối để chạy được bằng node:test.
+// phiên bản có hiệu lực ở tháng đang xem. Số người mỗi loại (`headcount`) là `summary.byType` của GET /employees, do BE
+// tính. Khi lưu, chỉ gửi ô đã sửa và khác phiên bản đang hiệu lực ở tháng áp dụng. Import tương đối để chạy được bằng node:test.
 import { inForce, type TypeRow } from './catalog';
-import { activeOn, type EmployeeDTO } from './staff';
 
 export type BenefitCell = { key: string; label: string; kind: 'pct' | 'check' };
 export type BenefitType = {
@@ -113,14 +112,4 @@ export function mergeStale(oldBase: BenefitsView, draft: BenefitsView, fresh: Be
     for (const k of Object.keys(t.req)) if (mine.req[k] !== was.req[k]) t.req[k] = mine.req[k];
   }
   return merged;
-}
-
-export function headcountFromEmployees(list: EmployeeDTO[], today: string): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const e of list) {
-    if (!activeOn(e, today)) continue;
-    const code = e.contract.position.type;
-    counts[code] = (counts[code] ?? 0) + 1;
-  }
-  return counts;
 }

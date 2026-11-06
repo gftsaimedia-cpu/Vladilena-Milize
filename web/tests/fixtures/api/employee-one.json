@@ -1,0 +1,58 @@
+{
+  "employee": {
+    "profile": {
+      "uuid": "00000000-0000-4000-8000-0000000000aa",
+      "familyName": "",
+      "givenName": "A",
+      "fullName": "A",
+      "birthday": null,
+      "dependants": 0
+    },
+    "account": {
+      "username": "a",
+      "roles": [
+        "staff"
+      ],
+      "primaryRole": "staff",
+      "isLocked": false,
+      "lockedAt": null,
+      "lockedBy": null,
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    "contract": {
+      "position": {
+        "type": "nv",
+        "level": 1,
+        "jobTitle": null
+      },
+      "shift": {
+        "type": "NORMAL",
+        "startTime": "08:00",
+        "endTime": "17:00",
+        "allowancePct": 0,
+        "isOvernight": false
+      },
+      "leave": {
+        "totalDays": 0,
+        "usedDays": 0,
+        "remainingDays": 0
+      },
+      "status": "nv",
+      "term": "long",
+      "effectiveFrom": "2025-01-01",
+      "resignedOn": null,
+      "hasInsurance": null,
+      "isUnionMember": false,
+      "hasTax": true,
+      "canAdvance": true,
+      "isDormResident": false
+    },
+    "work": {
+      "active": true,
+      "status": "ok",
+      "statusLabel": "Chính thức",
+      "joinedOn": "2025-01-01",
+      "tenure": "1 năm 10 tháng"
+    }
+  }
+}

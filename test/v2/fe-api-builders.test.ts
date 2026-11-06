@@ -1,6 +1,8 @@
 // Hàm chuyển dữ liệu BE v2 sang dạng màn hình của FE (web/src/builders/api). Hàm thuần, chạy được bằng node:test.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { staffListFromEmployees, staffProfileFromEmployee } from '../../web/src/builders/api/staff';
 import { calendarFromHolidays } from '../../web/src/builders/api/calendar';
 import { inboxFromDue, inboxFromRequests } from '../../web/src/builders/api/inbox';
@@ -29,58 +31,55 @@ function employee(over: { username: string; name?: string; status?: string; from
 const TODAY = '2026-11-05';
 
 describe('Nhân sự từ /employees', () => {
-  const list = [
-    employee({ username: 'nam', name: 'Lê Hoàng Nam', job: 'Nhân viên kinh doanh' }),
-    employee({ username: 'linh', name: 'Đỗ Mai Linh', status: 'thuviec', from: '2026-11-02' }),
-    employee({ username: 'mai', name: 'Hoàng Thị Mai', locked: true }),
-    employee({ username: 'quan', name: 'Trần Minh Quân', status: 'nghiviec', resigned: '2026-11-03' })
-  ];
+  // Phản hồi thật của BE (test/v2/employees-summary.pg.test.ts ghi lại): BE đã tính work và summary, FE chỉ ánh xạ.
+  const res = JSON.parse(readFileSync(join(__dirname, '..', '..', 'web', 'tests', 'fixtures', 'api', 'employees.json'), 'utf8'));
+  const one = JSON.parse(readFileSync(join(__dirname, '..', '..', 'web', 'tests', 'fixtures', 'api', 'employee-one.json'), 'utf8'));
 
-  it('maps each employee to a row with status from the contract', () => {
-    const view = staffListFromEmployees(list as any, TODAY);
-    assert.equal(view.total, 4);
+  it('maps each employee to a row with the status BE computed', () => {
+    const view = staffListFromEmployees(res);
+    assert.equal(view.total, res.summary.total);
     const by = Object.fromEntries(view.rows.map(r => [r.id, r]));
-    assert.equal(by.nam.name, 'Lê Hoàng Nam');
-    assert.equal(by.nam.initials, 'HN');
-    assert.equal(by.nam.title, 'Nhân viên kinh doanh');
-    assert.equal(by.nam.status, 'ok');
-    assert.equal(by.nam.statusLabel, 'Chính thức');
-    assert.equal(by.nam.joined, '2024-03-04');
-    assert.equal(by.linh.status, 'try');
-    assert.equal(by.mai.status, 'off');
-    assert.equal(by.mai.activated, false);
-    assert.equal(by.quan.status, 'out');
-    assert.equal(by.nam.dept, '—');
+    assert.equal(by.a.name, 'A');
+    assert.equal(by.a.status, 'ok');
+    assert.equal(by.a.statusLabel, 'Chính thức');
+    assert.equal(by.a.joined, '2025-01-01');
+    assert.equal(by.c.status, 'out');
+    assert.equal(by.c.statusLabel, 'Đã nghỉ việc');
+    assert.equal(by.d.status, 'off');
+    assert.equal(by.d.activated, false);
+    assert.equal(by.a.dept, '—');
   });
 
-  it('counts the four stats for the current month', () => {
-    const stats = Object.fromEntries(staffListFromEmployees(list as any, TODAY).stats.map(s => [s.key, s]));
-    assert.equal(stats.active.value, '3'); // nam, linh, mai (khoá vẫn còn hợp đồng)
+  it('shows the four stats exactly as the summary says', () => {
+    const stats = Object.fromEntries(staffListFromEmployees(res).stats.map(s => [s.key, s]));
+    assert.equal(stats.active.value, '4');
     assert.equal(stats.active.label, 'Nhân sự đang làm');
     assert.equal(stats.active.dark, true);
-    assert.equal(stats.joined.label, 'Vào làm tháng 11');
-    assert.equal(stats.joined.value, '1');
-    assert.equal(stats.left.value, '1');
-    // Cuối tháng 10 đang làm: nam, mai, quân = 3; hôm nay: nam, linh, mai = 3.
     assert.deepEqual(stats.active.delta, { dir: 'up', text: '0' });
     assert.equal(stats.active.note, 'so với tháng 10');
+    assert.equal(stats.joined.label, 'Vào làm tháng 11');
+    assert.equal(stats.joined.value, '1');
+    assert.deepEqual(stats.joined.delta, { dir: 'down', text: '1' });
+    assert.equal(stats.left.value, '1');
+    assert.equal(stats.tenure.value, '0,7');
+    assert.deepEqual(stats.tenure.delta, { dir: 'down', text: '0,3 năm' });
+    assert.equal(stats.tenure.note, 'so với năm 2025');
   });
 
-  it('builds the profile drawer from one employee', () => {
-    const p = staffProfileFromEmployee(employee({ username: 'nam', name: 'Lê Hoàng Nam', job: 'Kinh doanh' }) as any, TODAY);
-    assert.equal(p.id, 'nam');
+  it('builds the profile drawer from one employee with BE tenure', () => {
+    const p = staffProfileFromEmployee(one.employee);
+    assert.equal(p.id, 'a');
     assert.deepEqual(
       p.groups.map(g => g.title),
       ['Công việc', 'Hợp đồng', 'Tài khoản']
     );
     const facts = Object.fromEntries(p.groups.flatMap(g => g.facts.map(f => [f.label, f.value])));
-    assert.equal(facts['Loại · bậc'], 'NV · Bậc 2');
+    assert.equal(facts['Loại · bậc'], 'NV · Bậc 1');
     assert.equal(facts['Ca làm'], 'Hành chính · 08:00–17:00');
-    assert.equal(facts['Ngày vào làm'], '04/03/2024 · 2 năm 8 tháng');
+    assert.equal(facts['Ngày vào làm'], '01/01/2025 · 1 năm 10 tháng');
     assert.equal(facts['Loại hợp đồng'], 'HĐLĐ từ 3 tháng');
-    assert.equal(facts['Đóng bảo hiểm'], 'Có');
-    assert.equal(facts['Người phụ thuộc'], '1');
-    assert.equal(facts['Tên đăng nhập'], 'nam');
+    assert.equal(facts['Người phụ thuộc'], '0');
+    assert.equal(facts['Tên đăng nhập'], 'a');
     assert.equal(facts['Kích hoạt'], 'Đã kích hoạt');
   });
 });
@@ -370,7 +369,6 @@ describe('Chức vụ và bậc từ /employees/meta/positions', () => {
 import {
   benefitChanges,
   benefitsViewFromCatalog,
-  headcountFromEmployees,
   mergeStale,
   type BenefitsView
 } from '../../web/src/builders/api/benefits';
@@ -451,20 +449,6 @@ describe('Chế độ theo loại từ /employees/meta/positions', () => {
     const merged = mergeStale(oldBase, draft, fresh);
     assert.equal(nvOf(merged).values.flexPct, 25);
     assert.equal(nvOf(merged).values.travelPct, 16);
-  });
-
-  it('counts people still working by type', () => {
-    const asType = (e: ReturnType<typeof employee>, type: string) => ({
-      ...e,
-      contract: { ...e.contract, position: { ...e.contract.position, type } }
-    });
-    const list = [
-      employee({ username: 'a' }),
-      employee({ username: 'b' }),
-      employee({ username: 'c', status: 'nghiviec' }),
-      asType(employee({ username: 'd', from: '2026-12-01' }), 'tts')
-    ];
-    assert.deepEqual(headcountFromEmployees(list as any, '2026-11-05'), { nv: 2 });
   });
 });
 
