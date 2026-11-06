@@ -580,6 +580,41 @@ describe('MeController', () => {
       assert.deepEqual(t.alerts, []);
     });
 
+    // A reminder must not block the punch screen: when building the alerts fails, /today keeps its normal payload.
+    it('a failing periods reader still returns the punch payload with alerts [] and alert null', async () => {
+      mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
+      try {
+        const { ctl } = controller({
+          att: fake({ listTimesheets: () => [dayRow('2026-12-02')], workdayOf: () => true }),
+          periods: fake({ getPeriod: () => { throw new Error('periods down'); } })
+        });
+        const t = (await ctl.today(req())) as any;
+        assert.deepEqual([t.alert, t.alerts], [null, []]);
+        assert.equal(t.date, '2026-12-09');
+        assert.equal(t.workday, true);
+        assert.deepEqual(t.zone, ZONE);
+        assert.equal(t.week.length, 7);
+      } finally {
+        mock.timers.reset();
+      }
+    });
+
+    it('a failing employee lookup still returns the punch payload with alerts [] and alert null', async () => {
+      mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
+      try {
+        const { ctl } = controller({
+          att: fake({ listTimesheets: () => [dayRow('2026-12-02')], workdayOf: () => true }),
+          emp: fake({ findByUsernameOrUuid: () => { throw new Error('employees down'); } })
+        });
+        const t = (await ctl.today(req())) as any;
+        assert.deepEqual([t.alert, t.alerts], [null, []]);
+        assert.equal(t.workday, true);
+        assert.equal(t.week.length, 7);
+      } finally {
+        mock.timers.reset();
+      }
+    });
+
     it('today itself and later days are never reminded', async () => {
       const t = await todayWith([dayRow('2026-12-09'), dayRow('2026-12-10')]);
       assert.deepEqual(t.alerts, []);

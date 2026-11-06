@@ -182,7 +182,8 @@ export class MeController {
     const weeks = await this.weeksOf(me, week);
     const days = week.map(d => daySummaryOf(by.get(d) as any, d, date, weeks.get(d.slice(0, 7))?.weekdays));
     const [zone, workday] = await Promise.all([this.settings.zone(), this.attendance.workdayOf(me.uuid, date)]);
-    const alerts = await this.alertsOf(me, date);
+    // Nhắc việc không được chặn màn chấm công: lỗi khi dựng danh sách thì trả [] như `reminders`.
+    const alerts = await this.alertsOf(me, date).catch(() => []);
     return {
       date,
       // Ngày không có ca (nghỉ, lễ, ngoài tuần làm) thì ca là null, không phải một đối tượng toàn null.
