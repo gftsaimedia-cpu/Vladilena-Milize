@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Put, Param, Body, UseFilters, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, ConflictError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { AuditEntryError } from '../audit';
+import { StaffDirectory, isNeutralStaffFilter, staffFilterFromQuery } from '../departments';
 import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
 import { payrollTotalsOf } from './domain/payroll-totals';
 import { KpiScoreBody, PayrollService } from './payroll.service';
@@ -11,7 +12,10 @@ const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 @Controller('api/v2/payroll')
 @UseFilters(ApiExceptionFilter)
 export class PayrollController {
-  constructor(@Inject(PayrollService) private readonly service: PayrollService) {}
+  constructor(
+    @Inject(PayrollService) private readonly service: PayrollService,
+    @Inject(StaffDirectory) private readonly directory: StaffDirectory
+  ) {}
 
   @RequireCap('payroll.calculate')
   @Post(':month/calculate')
@@ -57,12 +61,26 @@ export class PayrollController {
 
   @RequireCap('payroll.calculate')
   @Get(':month')
-  async listPayslips(@Param('month') month: string): Promise<unknown> {
+  async listPayslips(
+    @Param('month') month: string,
+    @Query('staffStatus') staffStatus?: string,
+    @Query('departmentId') departmentId?: string,
+    @Query('q') q?: string
+  ): Promise<unknown> {
     if (!month || !MONTH_PATTERN.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
+    const filter = staffFilterFromQuery({ staffStatus, departmentId, q });
 
-    const items = await this.service.listPayslips(month);
+    const slips = await this.service.listPayslips(month);
+    const people = new Map((await this.directory.find(filter)).map(p => [p.username, p]));
+    // Bộ lọc không loại ai thì giữ cả phiếu của người không còn trong bảng nhân sự (employee: null); có lọc thì chỉ người khớp.
+    const keepUnknown = isNeutralStaffFilter(filter);
+    const items = slips.flatMap(slip => {
+      const employee = people.get(slip.username) ?? null;
+      return employee || keepUnknown ? [{ ...slip, employee }] : [];
+    });
+    // Chân bảng ghi "Tổng N phiếu đang hiện": cộng đúng các dòng đã lọc.
     return { month, items, totals: payrollTotalsOf(items) };
   }
 

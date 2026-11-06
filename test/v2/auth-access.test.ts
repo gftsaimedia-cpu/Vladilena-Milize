@@ -20,6 +20,7 @@ import { SettingsController } from '../../src/modules/settings/settings.controll
 import { AuditController } from '../../src/modules/audit/audit.controller';
 import { OverviewController } from '../../src/modules/overview/overview.controller';
 import { RealtimeController } from '../../src/modules/realtime/realtime.controller';
+import { DepartmentsController } from '../../src/modules/departments/departments.controller';
 
 // Mọi controller của các module mà AppModule nạp.
 function allControllers(): any[] {
@@ -106,6 +107,8 @@ const TABLE: Array<[any, string, AccessRule]> = [
   ...['saveZone', 'saveWorkWeek', 'saveGroup'].map(
     m => [SettingsController, m, cap('config.write')] as [any, string, AccessRule]
   ),
+  [DepartmentsController, 'list', cap('config.read')],
+  ...['create', 'update', 'remove'].map(m => [DepartmentsController, m, cap('config.write')] as [any, string, AccessRule]),
   [PayrollController, 'decidePayslip', cap('payroll.approve')],
   ...['calculatePeriod', 'listPayslips', 'getPayslip', 'setKpiScore'].map(
     m => [PayrollController, m, cap('payroll.calculate')] as [any, string, AccessRule]

@@ -36,3 +36,8 @@ export function parseStaffFilter(raw: { staffStatus?: string; departmentId?: str
 
   return { staffStatus: status as StaffStatusFilter, departmentId, q: (raw.q ?? '').trim() };
 }
+
+/** Bộ lọc không loại ai (all hoặc mine, không phòng, không tên). */
+export function isNeutralStaffFilter(filter: StaffFilter): boolean {
+  return (filter.staffStatus === 'all' || filter.staffStatus === 'mine') && filter.departmentId === undefined && filter.q === '';
+}
