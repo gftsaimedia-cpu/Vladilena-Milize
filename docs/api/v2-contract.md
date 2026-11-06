@@ -326,6 +326,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 #### `GET /api/v2/attendance/week?from=YYYY-MM-DD&days=&q=&group=&month=YYYY-MM`
 - **Mục đích**: Lưới chấm công Admin do BE tính hết (ô ngày, tổng Công / Trễ / OT, cờ cần xử lý, thẻ số, danh sách việc cần xử lý); FE chỉ định dạng và hiển thị. Đọc dòng ngày dùng chung (`timesheet_entries`) như `/me`, không bảng mới.
 - **Quyền**: `attendance.correct`.
+- **Bộ lọc chung** `staffStatus` (`all|mine|working|on_leave|resigned|probation`) và `departmentId` (số hoặc `none`): chạy cùng chỗ với `q` và `group`, chỉ thu hẹp `rows` và `pending`; `total`, `groups` và các thẻ số theo người vẫn tính trên mọi người. Mỗi hàng và mỗi mục `pending` có thêm `departmentId`, `departmentName`, `staffStatus`. Giá trị lạ thì `400 INVALID_FILTER`.
 - **Query**: `from` ngày có thật; cửa sổ bắt đầu từ **thứ Hai của tuần chứa `from`**. Không có `from`: `days` ≤ 7 thì tuần hôm nay (giờ Việt Nam), `days` > 7 thì tuần cách hôm nay 14 ngày (lưới 4 tuần: hôm nay ở tuần thứ ba). `days` số ngày liên tiếp, mặc định 7, tối đa 35 (`400 INVALID_DAYS` ngoài khoảng). `q` lọc theo tên hoặc `username`, không phân biệt hoa thường và dấu. `group` lọc theo mã chức vụ (`position.type`) hoặc loại ca (`shift.type`). `month` (mặc định tháng hôm nay) là tháng của cột Công / Trễ / OT và các thẻ số. Chỉ liệt kê người còn làm trong cửa sổ (đã vào làm, chưa nghỉ việc trước ngày đầu). Chưa phân trang (trả hết, `total` / `matched` để FE hiện số).
 - **Response 200** (đã rút gọn; file đầy đủ: `web/tests/fixtures/api/attendance-week.json`):
   ```json

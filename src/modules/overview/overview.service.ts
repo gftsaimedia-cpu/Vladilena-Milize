@@ -3,6 +3,7 @@ import type { Kysely } from 'kysely';
 import { businessTimeText } from '../../common/business-date';
 import { KYSELY_DB, type DB } from '../../database';
 import { AttendanceService } from '../attendance/attendance.service';
+import { matchesStaffStatus, type StaffFilter } from '../departments/domain';
 import type { Employee } from '../employees/domain';
 import { EmployeesService } from '../employees/employees.service';
 import { PayrollService } from '../payroll/payroll.service';
@@ -182,7 +183,7 @@ export class OverviewService {
    * 7 ngày thì tuần hôm nay; nhiều hơn 7 ngày thì tuần cách hôm nay 14 ngày (hôm nay ở tuần thứ ba của lưới 4 tuần).
    * `month` (mặc định tháng hôm nay) chọn tháng của các cột Công / Trễ / OT và thẻ số.
    */
-  async week(opts: { from?: string; days?: number; q?: string; group?: string; month?: string } = {}) {
+  async week(opts: { from?: string; days?: number; q?: string; group?: string; month?: string; staff?: StaffFilter } = {}) {
     const now = this.nowDate();
     const today = vnToday(now);
     const count = opts.days ?? 7;
@@ -196,6 +197,13 @@ export class OverviewService {
     const wantGroup = opts.group?.trim().toLowerCase();
 
     const everyone = (await this.employees.list()).filter(e => activeIn(e, start, last)).sort(byName);
+    // Phòng ban và staffStatus của từng người; bộ lọc chung chạy sau `all` cùng chỗ với q và group nên thẻ số vẫn tính trên mọi người.
+    const views = new Map((await this.employees.views(everyone)).map(v => [v.account.username, v]));
+    const placeOf = (username: string) => {
+      const v = views.get(username)!;
+      return { departmentId: v.departmentId, departmentName: v.departmentName, staffStatus: v.staffStatus };
+    };
+    const staff = opts.staff;
     const [sheets, weeks, items, ot, lockedPeriod] = await Promise.all([
       this.attendance.listTimesheets({ startDate: mFrom < start ? mFrom : start, endDate: mTo > last ? mTo : last }),
       this.weekdaysByMonth([...days, mFrom]),
@@ -234,9 +242,14 @@ export class OverviewService {
       .filter(r => {
         if (needle && !foldText(r.person.username).includes(needle) && !foldText(r.person.name).includes(needle)) return false;
         if (wantGroup && r.person.group !== wantGroup && String(r.person.shift.type).toLowerCase() !== wantGroup) return false;
+        if (staff) {
+          const place = placeOf(r.person.username);
+          if (!matchesStaffStatus(staff.staffStatus, place.staffStatus)) return false;
+          if (staff.departmentId === 'none' ? place.departmentId !== null : staff.departmentId !== undefined && place.departmentId !== staff.departmentId) return false;
+        }
         return true;
       })
-      .map(({ person, cells, totals, needsAction }) => ({ ...person, days: cells, totals, needsAction }));
+      .map(({ person, cells, totals, needsAction }) => ({ ...person, ...placeOf(person.username), days: cells, totals, needsAction }));
     const shown = new Set(rows.map(r => r.username));
     // Cột là ngày làm khi có ít nhất một người đang hiện trên lưới làm thứ đó; lọc không còn ai thì xét mọi người.
     const listed = rows.length ? rows.map(r => r.username) : all.map(r => r.person.username);
@@ -247,7 +260,7 @@ export class OverviewService {
       .filter(it => shown.has(it.username))
       .map(it => ({ it, date: it.days.find(d => d >= start && d <= last) }))
       .filter((p): p is { it: WorkItem; date: string } => !!p.date)
-      .map(({ it, date }) => ({ ...it, date }))
+      .map(({ it, date }) => ({ ...it, ...placeOf(it.username), date }))
       .sort((a, b) => a.date.localeCompare(b.date) || a.username.localeCompare(b.username));
 
     const todayAt = days.indexOf(today);
