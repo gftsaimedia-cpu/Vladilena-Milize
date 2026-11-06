@@ -44,8 +44,7 @@ describe('Máy luật của mock giữ đúng luật lựa chọn của server',
         months: ctx.months as any,
         annualLeaveLeft: ctx.annualLeaveLeft
       });
-      const { 'half-shift-leave': _hsl, ...choicesWithoutHalfShift } = server.choices;
-      assert.deepEqual(buildChoices(ctx), choicesWithoutHalfShift);
+      assert.deepEqual(buildChoices(ctx), server.choices);
       assert.deepEqual(
         ctx.days.map(d => [d.date, leaveCountedOf(d), shiftChangeableOf(d), otHoursOf(ctx, d)]),
         server.days.map(d => [d.date, d.leaveCounted, d.shiftChangeable, d.otHours])
