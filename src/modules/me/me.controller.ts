@@ -289,6 +289,11 @@ export class MeController {
   @Patch('requests/:id/cancel')
   async cancelRequest(@Req() req: Request, @Param('id', RequestIdPipe) id: string, @Body() body: { reason?: string }): Promise<unknown> {
     const me = who(req);
+    // Đơn của người khác trả 404 như GET /me/requests/:id, không lộ rằng đơn đó tồn tại (hợp đồng API §3.4).
+    const existing = await this.requests.getById(id);
+    if (!existing || (existing.employeeId !== me.username && existing.employeeId !== me.uuid)) {
+      throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
+    }
     try {
       const request = await this.requests.cancelRequest(id, me.username, body?.reason);
       return { updated: true, request };

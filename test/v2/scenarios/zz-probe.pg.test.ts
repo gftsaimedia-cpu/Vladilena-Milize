@@ -1,0 +1,27 @@
+import { after, before, beforeEach, it } from 'node:test';
+import { ADMIN, ScenarioEnv, ZONE } from '../helpers/scenario-env';
+const env = new ScenarioEnv();
+before(async () => { await env.start('sc_probe'); });
+after(async () => { await env.stop(); });
+const IN = { kind: 'IN', lat: ZONE.lat, lng: ZONE.lng, accuracyM: 5 };
+const OUT = { ...IN, kind: 'OUT' };
+it('probe', async () => {
+  await env.reset();
+  await env.staff({ username: 'nv1' });
+  env.at('2026-11-02T07:00:00+07:00');
+  const nv = await env.login('nv1');
+  const dump = async (l: string) => console.log(l, JSON.stringify(await env.q(`SELECT work_date::text, status, pay_units, cases_json, actual_check_in, actual_check_out, day_status FROM timesheet_entries ORDER BY work_date`)), JSON.stringify(await env.q(`SELECT type, punched_at, work_date::text FROM punch_events ORDER BY punched_at`)));
+  env.at('2026-11-02T17:00:00+07:00');
+  console.log((await nv.post('/api/v2/me/punches', OUT)).status);
+  await dump('out-only');
+  env.at('2026-11-03T08:00:00+07:00');
+  console.log((await nv.post('/api/v2/me/punches', IN)).status);
+  env.at('2026-11-03T08:05:00+07:00');
+  console.log((await nv.post('/api/v2/me/punches', IN)).status);
+  await dump('double in');
+  env.at('2026-11-03T12:05:00+07:00');
+  console.log((await nv.post('/api/v2/me/punches', OUT)).status);
+  env.at('2026-11-03T17:05:00+07:00');
+  console.log((await nv.post('/api/v2/me/punches', OUT)).status);
+  await dump('double out');
+});
