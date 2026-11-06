@@ -1739,7 +1739,7 @@ Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công
       }
     }
     ```
-    `reason` nối các phần theo thứ tự: người chưa có phiếu, phiếu chưa duyệt, đơn chờ duyệt (chỉ phần có số lớn hơn 0). `pendingRequests` là số đơn `PENDING` có ngày (nghỉ, làm bù, tăng ca, giải trình, đổi ca, kỳ ứng, Thứ Bảy iSAT) rơi vào tháng; đơn của tháng khác không tính. `unapprovedSlips` là số phiếu của lần chạy hiện tại có trạng thái khác `approved`. `missingSlips` là nhân sự chưa bị khoá (`locked_at` rỗng) mà không có phiếu trong lần chạy hiện tại, sắp theo `username`.
+    `reason` nối các phần theo thứ tự: người chưa có phiếu, phiếu chưa duyệt, đơn chờ duyệt (chỉ phần có số lớn hơn 0). `pendingRequests` là số đơn `PENDING` có ngày (nghỉ, làm bù, tăng ca, giải trình, đổi ca, kỳ ứng, Thứ Bảy iSAT) rơi vào tháng; đơn của tháng khác không tính. `unapprovedSlips` là số phiếu của lần chạy hiện tại có trạng thái khác `approved`. `missingSlips` là nhân sự chưa bị khoá (`locked_at` rỗng), thuộc diện tính lương và có làm ít nhất một ngày trong tháng (`start_date` không sau cuối tháng, `resigned_on` không trước đầu tháng; ngày trống hay sai dạng coi như không ghi) mà không có phiếu trong lần chạy hiện tại, sắp theo `username`. Tính cả kỳ dùng cùng tập người đó: ví dụ Chi vào làm 11/11 không có phiếu tháng 10 và không chặn Phê duyệt kỳ tháng 10.
 - Mọi route dưới đây trả cùng dạng này sau khi đổi trạng thái.
 
 #### `POST /api/v2/system/periods/:month/lock`
@@ -1773,6 +1773,8 @@ Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công
 | 400 | `INVALID_MONTH` | `:month` không đúng `YYYY-MM` (tháng 01 đến 12) |
 | 400 | `REASON_REQUIRED` | `unlock` hoặc `unapprove` thiếu `reason`, không phải chuỗi, hoặc toàn khoảng trắng. Câu: `Cần ghi lý do` |
 | 400 | `REASON_TOO_LONG` | `unlock` hoặc `unapprove` có `reason` dài hơn 1000 ký tự sau khi cắt khoảng trắng hai đầu (độ dài như nhật ký đếm). Kiểm ngay sau `REASON_REQUIRED`, trước khi đọc kỳ; không ghi gì. Câu: `Lý do tối đa 1000 ký tự` |
+| 400 | `REASON_INVALID` | `unlock` hoặc `unapprove` có `reason` chứa ký tự NUL (nhật ký không lưu được). Kiểm cùng lúc với `REASON_TOO_LONG`, trước khi đọc kỳ; không ghi gì. Câu: `Lý do chứa ký tự không hợp lệ` |
+| 400 | `NO_SETTINGS` | `:month` trước phiên bản cài đặt đầu tiên (dữ liệu nạp sẵn từ `2000-01`), nên không có ngày trả lương; kèm `month`. Mọi route kỳ (cả `GET`); không ghi gì. Câu: `Tháng MM/YYYY chưa có cài đặt lương` |
 | 409 | `PERIOD_STATE` | Thao tác không hợp lệ ở bước hiện tại, ví dụ chốt công hai lần; kèm `month`, `status`. Câu: `Kỳ lương tháng MM/YYYY đang ở bước "<nhãn>", không làm được thao tác này` |
 | 409 | `MONTH_NOT_ENDED` | `lock` khi tháng chưa kết thúc. Câu: `Tháng MM/YYYY chưa kết thúc, chưa chốt công được` |
 | 409 | `PERIOD_BLOCKED` | `approve` còn vướng; kèm `blockers` (dạng như ở `GET .../:month`). Câu: `Còn <n> người chưa có phiếu · <n> phiếu chưa duyệt · <n> đơn chờ duyệt` (chỉ phần có số lớn hơn 0) |
@@ -1842,8 +1844,8 @@ Mọi lỗi dưới đây có dạng `{ "error": "<câu tiếng Việt>", "code"
 - **Response 200**: `{ "deleted": true }`
 - **Lỗi**:
   - `400` `Ngày lễ không hợp lệ: <giá trị>` khi `:date` sai định dạng hoặc ngày không tồn tại.
-  - `409 PERIOD_LOCKED` khi tháng của `:date` không còn `open` (xem đầu mục), kiểm trước khi tìm ngày lễ.
-  - `404` `Không có ngày lễ <date>` với `code: "HOLIDAY_NOT_FOUND"` khi ngày đó không có trong lịch.
+  - `404` `Không có ngày lễ <date>` với `code: "HOLIDAY_NOT_FOUND"` khi ngày đó không có trong lịch, kiểm trước cổng kỳ (cả ở tháng đã chốt).
+  - `409 PERIOD_LOCKED` khi ngày có trong lịch nhưng tháng của `:date` không còn `open` (xem đầu mục).
   - `400` `Ngày lễ không hợp lệ: <date>` khi `:date` sai định dạng hoặc là ngày không tồn tại.
 
 ---
