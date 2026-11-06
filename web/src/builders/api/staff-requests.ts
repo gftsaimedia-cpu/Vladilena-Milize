@@ -4,13 +4,15 @@ import type {
   AdvanceInfo,
   ContextDay,
   ExplanationCase,
+  HalfShift,
   HourEnd,
   HourSlot,
   MakeupSlot,
   PreviewResult,
   RequestContext,
   RequestDraft,
-  RequestKind
+  RequestKind,
+  TimeRange
 } from '../../mock/staff-requests-types';
 import { vnd } from '../../utils/format';
 
@@ -53,6 +55,8 @@ export function startDates(ctx: RequestContext, kind: RequestKind): string[] {
       return ctx.choices[kind].starts;
     case 'overtime':
       return ctx.choices.overtime.dates;
+    case 'half-shift-leave':
+      return ctx.choices['half-shift-leave']?.dates ?? [];
     case 'explanation':
       return ctx.explanationDays.map(d => d.date);
     default:
@@ -178,6 +182,61 @@ export function makeupNeedLine(ctx: RequestContext, startDate: string, endDate: 
 export function otMonthLine(ctx: RequestContext, month: string): string {
   const m = ctx.months.find(x => x.month === month);
   return m ? `Đã đăng ký tháng ${Number(month.slice(5, 7))}: ${hoursText(m.otMinutes)} / ${hoursText(m.otCapMinutes)} giờ` : '';
+}
+
+/**
+ * Nợ nghỉ giữa ca của tháng trong form Làm thêm giờ (yêu cầu FE của BE mục 2), số do BE tính (`months[].halfShiftDebt`):
+ * 'Nợ nghỉ giữa ca tháng 11: đã đăng ký bù 2 / 4 giờ, còn 2 giờ' và dòng ghi chú cách trả. Tháng không nợ thì rỗng.
+ */
+export function otDebtLines(ctx: RequestContext, month: string): string[] {
+  const debt = ctx.months.find(x => x.month === month)?.halfShiftDebt;
+  if (!debt || debt.owedMinutes <= 0) return [];
+  return [
+    `Nợ nghỉ giữa ca tháng ${Number(month.slice(5, 7))}: đã đăng ký bù ${hoursText(debt.registeredMinutes)} / ${hoursText(debt.owedMinutes)} giờ, còn ${hoursText(Math.max(0, debt.remainingMinutes))} giờ`,
+    'Giờ làm thêm trong tháng trả nợ trước: ×1, không phụ cấp'
+  ];
+}
+
+/**
+ * Trần phút một khung OT của tháng: tháng có Nghỉ có làm bù mà còn nợ nghỉ giữa ca thì OT chỉ để trả nợ, nên khung không vượt
+ * phần nợ còn lại (BE kiểm lại khi nộp). Tháng khác không có trần ở đây (Infinity): `otHours` của BE đã đủ.
+ */
+export function otCapMinutes(ctx: RequestContext, month: string): number {
+  const m = ctx.months.find(x => x.month === month);
+  const left = m?.halfShiftDebt?.remainingMinutes ?? 0;
+  return m?.hasMakeupLeave && left > 0 ? left : Infinity;
+}
+
+/** Bảng giờ OT của ngày sau trần `otCapMinutes`: bỏ giờ kết thúc vượt trần, bỏ giờ bắt đầu không còn giờ kết thúc. */
+export function otHoursOf(ctx: RequestContext, day: ContextDay): HourSlot[] {
+  const cap = otCapMinutes(ctx, day.date.slice(0, 7));
+  if (cap === Infinity) return day.otHours;
+  return day.otHours.map(h => ({ start: h.start, ends: h.ends.filter(e => e.minutes <= cap) })).filter(h => h.ends.length > 0);
+}
+
+/** Ngày OT chọn được: ngày BE đưa, còn ít nhất một khung sau trần `otCapMinutes`. */
+export function otDates(ctx: RequestContext): string[] {
+  return ctx.choices.overtime.dates.filter(date => {
+    const day = ctx.days.find(d => d.date === date);
+    return !!day && otHoursOf(ctx, day).length > 0;
+  });
+}
+
+// ---------- Nghỉ giữa ca ----------
+
+const HALVES: HalfShift[] = ['FIRST', 'SECOND'];
+const span = (r: TimeRange) => `${r.start}–${r.end}`;
+
+/** Hai nửa ca của ngày do BE chia (`days[].halfShift`): 'Làm 08:00–12:00, nghỉ 13:00–17:00'. Ngày không chọn được thì rỗng. */
+export function halfShiftChoices(ctx: RequestContext, date: string): { half: HalfShift; label: string }[] {
+  const options = ctx.days.find(d => d.date === date)?.halfShift;
+  if (!options) return [];
+  return HALVES.map(half => ({ half, label: `Làm ${span(options[half].work)}, nghỉ ${span(options[half].leave)}` }));
+}
+
+/** Tóm tắt Nghỉ giữa ca từ lần xem trước của BE: 'Còn 4 giờ cần bù' và tháng phải bù. */
+export function halfShiftOwedLines(summary: { date: string; owedMinutes: number }): string[] {
+  return [`Còn ${hoursText(summary.owedMinutes)} giờ cần bù`, `Bù bằng Làm thêm giờ trong tháng ${Number(summary.date.slice(5, 7))}`];
 }
 
 /**

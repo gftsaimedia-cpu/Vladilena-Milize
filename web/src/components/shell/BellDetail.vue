@@ -196,9 +196,10 @@ async function act(verb: DecisionVerb) {
         Bắt buộc khi từ chối. Nhân viên xem được ghi chú trong chi tiết yêu cầu.
       </div>
       <div v-else id="bell-note-err" class="bdd-er" role="alert">Ghi lý do từ chối để nhân viên biết vì sao.</div>
+      <p v-if="item?.approveBlock" class="bdd-er">{{ item.approveBlock }}</p>
       <div class="bdd-acts bdd-decide">
         <button type="button" class="bdd-b2" :disabled="busy" @click="act('reject')">Từ chối</button>
-        <button type="button" class="bdd-b1" :disabled="busy" @click="act('approve')">Duyệt</button>
+        <button v-if="!item?.approveBlock" type="button" class="bdd-b1" :disabled="busy" @click="act('approve')">Duyệt</button>
       </div>
     </div>
   </section>

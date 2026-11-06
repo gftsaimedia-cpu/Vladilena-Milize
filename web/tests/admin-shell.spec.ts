@@ -19,7 +19,9 @@ test('admin shell makes no /api requests while navigating', async ({ page }) => 
     await nav.getByRole('link', { name, exact: true }).click();
     await expect(page.getByRole('navigation', { name: 'Điều hướng' })).toBeVisible();
   }
-  await expect(nav.getByRole('link', { name: /^Yêu cầu/ })).toHaveCount(0);
+  // Mục Yêu cầu (06/11) dưới Tổng quan.
+  await nav.getByRole('link', { name: /^Yêu cầu/ }).click();
+  await expect(page.getByRole('heading', { name: 'Yêu cầu', exact: true })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Đánh giá KPI' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Cài đặt', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/cai-dat/);
@@ -244,10 +246,10 @@ test('old KPI links land on Bảng lương with their query', async ({ page }) =
   await expect(page).toHaveURL('/admin/bang-luong?thang=2026-10');
 });
 
-test('the old Yêu cầu addresses redirect to the overview and keep only the month', async ({ page }) => {
-  await page.goto('/admin/yeu-cau?thang=2026-10&nv=linh&q=needle&hop=chuong');
-  await expect(page).toHaveURL('/admin/tong-quan?thang=2026-10');
-  await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
+test('/admin/yeu-cau is the Yêu cầu tab; the old monthly address still redirects to the overview', async ({ page }) => {
+  await page.goto('/admin/yeu-cau?thang=2026-10');
+  await expect(page).toHaveURL('/admin/yeu-cau?thang=2026-10');
+  await expect(page.getByRole('heading', { name: 'Yêu cầu', exact: true })).toBeVisible();
   await page.goto('/admin/yeu-cau/moi-thang');
   await expect(page).toHaveURL('/admin/tong-quan');
   await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();

@@ -2,11 +2,27 @@
 // Tab "Cần xử lý": mỗi việc có ngày chấm công một dòng (đã xếp theo ngày đầu), trong vùng cuộn riêng cao cố định.
 // - `wide` (từ 900px): bấm dòng chọn việc, emit('pick', id); khung chi tiết nằm bên phải do màn cha dựng. Dòng đang chọn có aria-current.
 // - Màn hẹp: chỉ còn danh sách, bấm dòng mở hộp chi tiết ngày đầu của việc, emit('open-day').
+// - Chế độ chọn "Nhắc giải trình" (board L3, 06/11): mỗi dòng thành một ô chọn, bấm dòng là chọn / bỏ chọn (emit('toggle')),
+//   không mở chi tiết. Chỉ việc quên chấm công (action 'remind') chọn được; việc khác mờ và khoá.
+import SelectCheck from '@/components/select-mode/SelectCheck.vue';
+import type { CheckState } from '@/components/select-mode/useSelectMode';
+import Icon from '@/components/ui/Icon.vue';
 import { dm } from '@/utils/format';
 import type { PendingDay } from '@/builders/api/attendance';
 
-defineProps<{ pending: PendingDay[]; wide: boolean; selectedId: string | null }>();
-const emit = defineEmits<{ 'open-day': [personId: string, date: string]; pick: [id: string] }>();
+withDefaults(
+  defineProps<{
+    pending: PendingDay[];
+    wide: boolean;
+    selectedId: string | null;
+    selecting?: boolean;
+    picked?: Set<string>;
+    allState?: CheckState;
+  }>(),
+  { selecting: false, picked: () => new Set<string>(), allState: 'false' }
+);
+const emit = defineEmits<{ 'open-day': [personId: string, date: string]; pick: [id: string]; toggle: [id: string]; 'toggle-all': [] }>();
+const canRemind = (p: PendingDay) => p.item.action === 'remind';
 </script>
 
 <template>
@@ -19,8 +35,38 @@ const emit = defineEmits<{ 'open-day': [personId: string, date: string]; pick: [
       :class="{ narrow: !wide }"
     >
       <template v-if="pending.length">
-        <div class="pl-hint">Xếp theo ngày công, cũ nhất trước</div>
-        <ul class="pend" aria-label="Việc cần xử lý chấm công">
+        <div v-if="selecting" class="pl-all">
+          <SelectCheck :state="allState" label="Chọn tất cả việc nhắc được đang hiện" @toggle="emit('toggle-all')" />
+          <span aria-hidden="true">Chọn tất cả việc nhắc được</span>
+        </div>
+        <div v-else class="pl-hint">Xếp theo ngày công, cũ nhất trước</div>
+        <ul v-if="selecting" class="pend" aria-label="Việc cần xử lý chấm công">
+          <li v-for="p in pending" :key="p.item.id">
+            <button
+              type="button"
+              class="pr pk"
+              :class="{ ck: picked.has(p.item.id), bkoff: !canRemind(p) }"
+              role="checkbox"
+              :aria-checked="picked.has(p.item.id) ? 'true' : 'false'"
+              :disabled="!canRemind(p)"
+              :title="canRemind(p) ? undefined : 'Chỉ nhắc được việc quên chấm công'"
+              :data-id="p.item.id"
+              :aria-label="`Chọn ${p.person.name}, ${p.item.groupLabel} · ${p.item.what}, ${dm(p.date)}`"
+              @click="emit('toggle', p.item.id)"
+            >
+              <span class="box" aria-hidden="true"><Icon v-if="picked.has(p.item.id)" name="check" :size="12" :stroke="3" /></span>
+              <span class="av" aria-hidden="true">{{ p.person.initials }}</span>
+              <span class="pn">
+                <span class="hd">
+                  <span class="nn">{{ p.person.name }}</span>
+                  <span class="dt">{{ dm(p.date) }}</span>
+                </span>
+                <span class="dp">{{ p.item.groupLabel }} · {{ p.item.what }}</span>
+              </span>
+            </button>
+          </li>
+        </ul>
+        <ul v-else class="pend" aria-label="Việc cần xử lý chấm công">
           <li v-for="p in pending" :key="p.item.id">
             <button
               type="button"
@@ -155,6 +201,53 @@ const emit = defineEmits<{ 'open-day': [personId: string, date: string]; pick: [
   font-size: 12px;
   line-height: 16px;
   color: var(--muted);
+}
+/* Chế độ chọn: ô 18px bên trái dòng, dòng chọn được nền kem khi đã chọn; việc khác mờ chữ và khoá. */
+.pl-all {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 6px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.pr.pk.ck {
+  background: var(--gold-pale);
+}
+.pr.pk:disabled {
+  cursor: default;
+}
+.pr.pk:disabled:hover {
+  background: transparent;
+}
+.pr.bkoff .nn,
+.pr.bkoff .dp,
+.pr.bkoff .dt {
+  color: #9e9e9e;
+}
+.pr.bkoff .av {
+  opacity: 0.45;
+}
+.box {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--control);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--on-primary);
+}
+.pr.pk.ck .box {
+  border-color: var(--surface-dark);
+  background: var(--surface-dark);
+}
+.pr.bkoff .box {
+  background: var(--ground);
+  border-color: var(--border);
 }
 .none {
   margin: 48px 12px;

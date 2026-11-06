@@ -1,13 +1,21 @@
 <script setup lang="ts">
-// Hàng công cụ của thẻ bảng: nút lọc trạng thái (kèm số đếm cả kỳ), ô tìm theo tên, lọc phòng ban và nút xuất Excel.
+// Hàng công cụ của thẻ bảng (board G, 06/11). Hàng trên: cặp bộ lọc nhân sự (trạng thái, phòng ban), ô tìm theo tên,
+// nút "Tính lại lương" (mở chế độ chọn; ẩn khi kỳ đã phê duyệt hay đang chọn) và nút xuất các dòng đang lọc.
+// Hàng dưới: các nút lọc trạng thái phiếu kèm số đếm cả kỳ.
 import { computed } from 'vue';
+import BulkButton from '@/components/select-mode/BulkButton.vue';
+import StaffScopeFilter from '@/components/staff-scope/StaffScopeFilter.vue';
+import type { StaffPst } from '@/components/staff-scope/staffScope';
 import Icon from '@/components/ui/Icon.vue';
 import type { PayrollStatus, SlipCounts } from '@/mock/payroll';
 
-const props = defineProps<{ counts: SlipCounts; depts: string[]; selectedCount: number }>();
-defineEmits<{ export: [] }>();
+// `none`: các phiếu đang lọc đều đã duyệt (vd. nút lọc Đã duyệt), "Tính lại lương" khoá kèm lời giải thích.
+const props = defineProps<{ counts: SlipCounts; depts: string[]; recalc: boolean; none?: boolean }>();
+const NONE_WHY = 'Không có phiếu nào tính lại được trong danh sách đang lọc';
+defineEmits<{ export: []; recalc: [] }>();
 const filter = defineModel<'all' | PayrollStatus>('filter', { required: true });
 const query = defineModel<string>('query', { required: true });
+const pst = defineModel<StaffPst>('pst', { required: true });
 const dept = defineModel<string>('dept', { required: true });
 
 const FILTERS = [
@@ -18,13 +26,30 @@ const FILTERS = [
   { key: 'rejected', label: 'Từ chối', dot: 'var(--status-rejected)' }
 ] as const;
 const buttons = computed(() => FILTERS.map(f => ({ ...f, count: props.counts[f.key] })));
-const exportLabel = computed(() =>
-  props.selectedCount ? `Xuất ${props.selectedCount} phiếu đã chọn ra Excel` : 'Xuất bảng lương ra Excel'
-);
 </script>
 
 <template>
   <div class="tb">
+    <div class="row1">
+      <StaffScopeFilter v-model:pst="pst" v-model:dept="dept" :depts="depts" />
+      <label class="find">
+        <Icon name="search" :size="16" />
+        <input v-model="query" type="text" placeholder="Tìm theo tên…" aria-label="Tìm theo tên" />
+      </label>
+      <span class="sp" />
+      <BulkButton v-if="recalc" icon="refresh" :disabled="none" :title="none ? NONE_WHY : undefined" @click="$emit('recalc')">
+        Tính lại lương
+      </BulkButton>
+      <button
+        type="button"
+        class="xp"
+        aria-label="Xuất bảng lương ra Excel"
+        title="Xuất bảng lương ra Excel"
+        @click="$emit('export')"
+      >
+        <Icon name="download" :size="18" />
+      </button>
+    </div>
     <div class="chips" role="group" aria-label="Lọc theo trạng thái">
       <button
         v-for="f in buttons"
@@ -39,36 +64,29 @@ const exportLabel = computed(() =>
         <span class="ct">{{ f.count }}</span>
       </button>
     </div>
-    <label class="find">
-      <Icon name="search" :size="16" />
-      <input v-model="query" type="text" placeholder="Tìm theo tên…" aria-label="Tìm theo tên" />
-    </label>
-    <span class="pick">
-      <select v-model="dept" aria-label="Phòng ban">
-        <option value="">Phòng ban: Tất cả</option>
-        <option v-for="d in depts" :key="d" :value="d">Phòng ban: {{ d }}</option>
-      </select>
-      <Icon name="chev" :size="16" />
-    </span>
-    <button type="button" class="xp" :aria-label="exportLabel" :title="exportLabel" @click="$emit('export')">
-      <Icon name="download" :size="18" />
-    </button>
   </div>
 </template>
 
 <style scoped>
 .tb {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 20px 16px;
+}
+.row1 {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  padding: 20px 20px 16px;
+}
+.sp {
+  flex-grow: 1;
 }
 .chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  flex: 1 1 320px;
 }
 .sc {
   height: 32px;
@@ -104,9 +122,8 @@ const exportLabel = computed(() =>
   flex: none;
   border-radius: 50%;
 }
-/* 176px (không phải 220px): giữ cả năm nút lọc trên một hàng ở 1440px. */
 .find {
-  width: 176px;
+  width: 220px;
   max-width: 100%;
   height: 40px;
   display: flex;
@@ -132,31 +149,6 @@ const exportLabel = computed(() =>
   background: transparent;
   font: inherit;
   color: var(--text);
-}
-.pick {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-.pick select {
-  height: 40px;
-  padding: 0 36px 0 14px;
-  border: 1px solid var(--control);
-  border-radius: var(--r-ctl);
-  background: var(--surface);
-  font: inherit;
-  color: var(--text);
-  appearance: none;
-  cursor: pointer;
-}
-.pick select:focus-visible {
-  outline: 2px solid var(--text);
-  outline-offset: 2px;
-}
-.pick svg {
-  position: absolute;
-  right: 12px;
-  pointer-events: none;
 }
 .xp {
   width: 40px;

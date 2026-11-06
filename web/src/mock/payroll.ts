@@ -4,6 +4,10 @@ import { dm, initials } from '../utils/format';
 import { mockAccount, readSessionName } from './accounts';
 import { MOCK_MONTH, MOCK_TODAY } from './clock';
 import { MOCK_KPI_WEIGHTS, normalizeScore, recomputeSlip, type KpiPart, type KpiScores, type SlipCalc, type SlipInput } from './payroll-calc';
+import type { HalfShiftPay } from '../builders/api/half-shift-pay';
+
+// Móc cho test: vá phiếu giả theo mã nhân viên (vd. ngày công lẻ, nợ nghỉ giữa ca) trước khi app chạy.
+const SLIP_PATCH = (globalThis as { __mockSlipPatch?: Record<string, Partial<Payslip>> }).__mockSlipPatch ?? {};
 
 export type PayrollStatus = 'draft' | 'pending' | 'done' | 'rejected';
 export type DayKind = 'work' | 'leave' | 'isat' | 'pending' | 'unpaid' | 'sunday' | 'future';
@@ -52,6 +56,8 @@ export type Payslip = Omit<SlipInput, 'allowances'> & {
   kpiApplicable?: boolean;
   kpi: { scores: KpiScores; proposal: number; history: KpiEdit[] };
   calc: SlipCalc;
+  // Nghỉ giữa ca: giờ nợ / đã bù / bị bỏ và tiền bù của BE; null hay thiếu khi tháng không nợ.
+  halfShift?: HalfShiftPay | null;
 };
 
 export type PayrollLine = {
@@ -336,7 +342,8 @@ function buildSlip(r: Raw): Payslip {
     exempt: r.exempt,
     advance: r.advance,
     leaveLeft: r.leaveLeft,
-    kpi: { scores: { ...s.scores }, proposal: r.proposal, history: s.history.map(h => ({ ...h })) }
+    kpi: { scores: { ...s.scores }, proposal: r.proposal, history: s.history.map(h => ({ ...h })) },
+    ...structuredClone(SLIP_PATCH[r.id] ?? {})
   };
   return recomputeSlip(slip);
 }

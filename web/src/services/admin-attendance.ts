@@ -12,6 +12,7 @@ import {
   type WeekDTO
 } from '@/builders/api/attendance';
 import { employeeDto } from '@/mock/attendance-employee';
+import { personStatusOf } from '@/mock/people-status';
 import { weekDto } from '@/mock/attendance';
 import { respond } from '@/mock/respond';
 import { getInbox } from './admin-main';
@@ -43,7 +44,15 @@ async function fetchEmployee(username: string, month: string): Promise<EmployeeM
 /** Màn Chấm công của một tháng 'YYYY-MM', lọc theo tên (`q`) và nhóm (`group`) ngay ở máy chủ; null khi tháng không có dữ liệu giả. */
 export async function getAttendance(month: string, q = '', group = ''): Promise<AttendanceView | null> {
   const [dto, inbox] = await Promise.all([fetchWeek(month, q, group), getInbox()]);
-  return dto ? attendanceFromWeek(dto, inbox.items) : null;
+  if (!dto) return null;
+  const view = attendanceFromWeek(dto, inbox.items);
+  if (!__MOCK__) return view;
+  // Dữ liệu giả: DTO giữ đúng dạng phản hồi BE hiện nay (chưa có staffStatus), nên trạng thái nhân sự gắn ở đây theo họ tên.
+  return {
+    ...view,
+    rows: view.rows.map(r => ({ ...r, ps: personStatusOf(r.person.name) })),
+    pending: view.pending.map(p => ({ ...p, ps: personStatusOf(p.person.name) }))
+  };
 }
 
 /** Hộp chi tiết một ngày của một người; null khi không có người này. */

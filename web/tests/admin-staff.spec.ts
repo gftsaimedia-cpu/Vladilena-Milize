@@ -44,8 +44,6 @@ test('staff list follows board I without calling /api', async ({ page }) => {
     'Nhập từ Excel',
     'Thêm nhân sự',
     'Bộ lọc',
-    'Gán ca',
-    'Đổi phòng ban',
     'Trang trước',
     'Trang sau',
     'Sửa hồ sơ'
@@ -86,13 +84,23 @@ test('staff list follows board I without calling /api', async ({ page }) => {
   await expect(label('Hoàng Thị Mai')).toHaveText('Tạm nghỉ');
   await expect(label('Đặng Văn Phúc')).toHaveText('Đã nghỉ việc');
 
-  const pending = row(page, 'Đỗ Mai Linh').locator('[title="Chưa kích hoạt tài khoản"]');
-  await expect(pending).toBeVisible();
-  await expect(pending).toContainText('linh.do@gft.vn');
-  await expect(pending).toContainText(', chưa kích hoạt tài khoản');
-  await expect(row(page, 'Lê Hoàng Nam').locator('[title="Đã kích hoạt tài khoản"]')).toContainText('nam.le@gft.vn');
+  // Ô Email chỉ còn chữ: không dấu kích hoạt, không chữ ẩn "chưa kích hoạt" (06/11, tình trạng tài khoản xem trong hồ sơ).
+  await expect(row(page, 'Đỗ Mai Linh').locator('td').first()).toHaveText('linh.do@gft.vn');
+  await expect(table(page).locator('[title*="kích hoạt"]')).toHaveCount(0);
 
   expect(calls).toEqual([]);
+});
+
+test('no inactive switch and no checkbox column until a bulk action starts', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  await expect(page.getByRole('switch')).toHaveCount(0);
+  await expect(page.getByText('Chưa kích hoạt tài khoản')).toHaveCount(0);
+  await expect(table(page).getByRole('checkbox')).toHaveCount(0);
+  await expect(table(page).locator('col')).toHaveCount(6);
+  await expect(page.getByText(/^Đã chọn/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Gán ca' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Đổi phòng ban' })).toBeVisible();
 });
 
 test('each cell holds one value on one line under six named columns', async ({ page }) => {
@@ -160,7 +168,8 @@ test('staff screen has one dark card and no shadows', async ({ page }) => {
 });
 
 const searchBox = (page: Page) => page.getByRole('searchbox', { name: 'Tìm theo tên, mã hoặc email' });
-const inactiveSwitch = (page: Page) => page.getByRole('switch', { name: /Chưa kích hoạt tài khoản/ });
+const pstSel = (page: Page) => page.getByRole('combobox', { name: 'Trạng thái nhân sự', exact: true });
+const deptSel = (page: Page) => page.getByRole('combobox', { name: 'Phòng ban', exact: true });
 
 test('search matches name, code and email without diacritics or extra spaces', async ({ page }) => {
   await page.goto('/admin/nhan-su');
@@ -183,7 +192,7 @@ test('search matches name, code and email without diacritics or extra spaces', a
     if (footer) await expect(page.getByText(footer)).toBeVisible();
     if (x === 'tai chinh') {
       await expect(table(page).locator('td.empty')).toHaveText('Không có nhân sự nào khớp bộ lọc trên trang này.');
-      await expect(table(page).locator('td.empty')).toHaveAttribute('colspan', '7');
+      await expect(table(page).locator('td.empty')).toHaveAttribute('colspan', '6');
     }
   }
 });
@@ -215,37 +224,161 @@ test('topbar search opens the list with q and the query survives a reload', asyn
   await expect(names(page)).toHaveCount(10);
 });
 
-test('inactive switch keeps only accounts not yet activated', async ({ page }) => {
+test('staff status and department filters narrow the list', async ({ page }) => {
   await page.goto('/admin/nhan-su');
   await expect(names(page)).toHaveCount(10);
-  const sw = inactiveSwitch(page);
-  const box = searchBox(page);
-  await expect(sw).toHaveAttribute('aria-checked', 'false');
-  await expect(sw).toContainText('2');
+  await expect(pstSel(page)).toHaveValue('all');
+  await expect(pstSel(page).locator('option')).toHaveText([
+    'Tất cả nhân sự',
+    'Đang làm việc',
+    'Tài khoản tôi quản lý',
+    'Đang thử việc',
+    'Đang tạm nghỉ',
+    'Đã nghỉ việc'
+  ]);
+  await expect(deptSel(page).locator('option')).toHaveText([
+    'Tất cả phòng ban',
+    'Kinh doanh',
+    'Kỹ thuật',
+    'Marketing',
+    'Nhân sự',
+    'Sản xuất',
+    'Tài chính'
+  ]);
 
-  await sw.click();
-  await expect(sw).toHaveAttribute('aria-checked', 'true');
-  await expect(names(page)).toHaveText(['Đỗ Mai Linh', 'Phan Minh Khoa']);
-  await expect(page.getByText('2 kết quả trên trang này')).toBeVisible();
-  await expect(sw).toHaveCSS('border-color', 'rgb(28, 28, 28)');
-
-  await box.fill('khoa');
-  await expect(names(page)).toHaveText(['Phan Minh Khoa']);
-  await expect(sw).toContainText('2');
-
-  await sw.click();
-  await expect(sw).toHaveAttribute('aria-checked', 'false');
-  await expect(names(page)).toHaveText(['Phan Minh Khoa']);
+  await pstSel(page).selectOption({ label: 'Đã nghỉ việc' });
+  await expect(names(page)).toHaveText(['Đặng Văn Phúc']);
   await expect(page.getByText('1 kết quả trên trang này')).toBeVisible();
 
-  await box.fill('');
-  await expect(names(page)).toHaveCount(10);
-  await expect(page.getByText('Hiển thị 1–10 trong 131 hồ sơ')).toBeVisible();
+  await pstSel(page).selectOption({ label: 'Đang làm việc' });
+  await deptSel(page).selectOption({ label: 'Sản xuất' });
+  await expect(names(page)).toHaveText(['Bùi Quốc Huy', 'Phan Minh Khoa']);
+
+  await deptSel(page).selectOption({ label: 'Tất cả phòng ban' });
+  await pstSel(page).selectOption({ label: 'Tài khoản tôi quản lý' });
+  await expect(names(page)).toHaveText(['Bùi Quốc Huy', 'Phan Minh Khoa', 'Đặng Văn Phúc']);
+
+  await pstSel(page).selectOption({ label: 'Đang thử việc' });
+  await expect(names(page)).toHaveText(['Đỗ Mai Linh', 'Phan Minh Khoa']);
+  await pstSel(page).selectOption({ label: 'Đang tạm nghỉ' });
+  await expect(names(page)).toHaveText(['Hoàng Thị Mai']);
+
+  await searchBox(page).fill('linh');
+  await expect(names(page)).toHaveText([]);
+  await pstSel(page).selectOption({ label: 'Tất cả nhân sự' });
+  await expect(names(page)).toHaveText(['Đỗ Mai Linh']);
 });
 
+test('the filter pair sits before the search box on one line', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  const a = await pstSel(page).boundingBox();
+  const b = await deptSel(page).boundingBox();
+  const c = await searchBox(page).boundingBox();
+  expect(a!.x).toBeLessThan(b!.x);
+  expect(b!.x).toBeLessThan(c!.x);
+  expect(Math.abs(a!.y - b!.y)).toBeLessThan(2);
+  await expect(pstSel(page)).toHaveCSS('border-radius', '8px');
+});
+
+const bar = (page: Page, title: string) => page.getByRole('toolbar', { name: `${title} cho nhiều người` });
 const pick = (page: Page, name: string) => page.getByRole('checkbox', { name: `Chọn ${name}` });
-const all = (page: Page) => page.getByRole('checkbox', { name: 'Chọn tất cả dòng đang hiện' });
-const selb = (page: Page) => page.locator('.selb[aria-live="polite"]');
+const all = (page: Page) => page.getByRole('checkbox', { name: 'Chọn tất cả người chọn được đang hiện' });
+const result = (page: Page) => page.locator('.rsl[role="status"]');
+
+test('moving people to another department needs people and a department', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  await page.getByRole('button', { name: 'Đổi phòng ban' }).click();
+
+  const b = bar(page, 'Đổi phòng ban');
+  await expect(b).toBeVisible();
+  await expect(b).toContainText('Đã chọn 0 / 9 người');
+  const go = b.getByRole('button', { name: 'Chọn ít nhất 1 người' });
+  await expect(go).toBeDisabled();
+  await expect(pick(page, 'Đặng Văn Phúc')).toBeDisabled();
+  await expect(pick(page, 'Đặng Văn Phúc')).toHaveAttribute('title', 'Đã nghỉ việc, không chọn được');
+  await expect(row(page, 'Đặng Văn Phúc')).toHaveClass(/bkoff/);
+  await expect(page.getByRole('button', { name: 'Gán ca' })).toHaveCount(0);
+
+  await pick(page, 'Nguyễn Thu Hà').click();
+  await expect(pick(page, 'Nguyễn Thu Hà')).toHaveAttribute('aria-checked', 'true');
+  await expect(b).toContainText('Đã chọn 1 / 9 người');
+  await expect(b.getByRole('button', { name: 'Chọn phòng ban mới' })).toBeDisabled();
+
+  await b.getByRole('combobox', { name: 'Phòng ban mới' }).selectOption({ label: 'Marketing' });
+  await b.getByRole('button', { name: 'Đổi phòng ban cho 1 người' }).click();
+
+  await expect(result(page)).toHaveText('Đã chuyển 1 người sang phòng Marketing.');
+  await expect(b).toHaveCount(0);
+  await expect(table(page).getByRole('checkbox')).toHaveCount(0);
+  await expect(row(page, 'Nguyễn Thu Hà').locator('td').nth(1)).toHaveText('Marketing');
+});
+
+test('assigning a shift to everyone who can take it', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  await page.getByRole('button', { name: 'Gán ca' }).click();
+
+  const b = bar(page, 'Gán ca');
+  await expect(b.getByRole('combobox', { name: 'Ca làm' })).toHaveValue('hc');
+  await all(page).click();
+  await expect(all(page)).toHaveAttribute('aria-checked', 'true');
+  await expect(b).toContainText('Đã chọn 9 / 9 người');
+  await expect(pick(page, 'Đặng Văn Phúc')).toHaveAttribute('aria-checked', 'false');
+
+  await b.getByRole('button', { name: 'Gán ca cho 9 người' }).click();
+  await expect(result(page)).toHaveText('Đã gán ca Hành chính · 08:00–17:00 cho 9 người.');
+  await expect(b).toHaveCount(0);
+});
+
+test('filters keep working while picking and only shown rows are counted', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  await page.getByRole('button', { name: 'Gán ca' }).click();
+  const b = bar(page, 'Gán ca');
+  await pick(page, 'Nguyễn Thu Hà').click();
+  await pick(page, 'Bùi Quốc Huy').click();
+  await expect(b).toContainText('Đã chọn 2 / 9 người');
+
+  await deptSel(page).selectOption({ label: 'Sản xuất' });
+  await expect(names(page)).toHaveText(['Bùi Quốc Huy', 'Phan Minh Khoa', 'Đặng Văn Phúc']);
+  await expect(b).toContainText('Đã chọn 1 / 2 người');
+  await expect(all(page)).toHaveAttribute('aria-checked', 'mixed');
+  await b.getByRole('button', { name: 'Gán ca cho 1 người' }).click();
+  await expect(result(page)).toHaveText('Đã gán ca Hành chính · 08:00–17:00 cho 1 người.');
+});
+
+test('cancel leaves select mode and the next run starts from zero', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  await page.getByRole('button', { name: 'Gán ca' }).click();
+  await pick(page, 'Lê Hoàng Nam').click();
+  await expect(row(page, 'Lê Hoàng Nam')).toHaveClass(/\bon\b/);
+  await bar(page, 'Gán ca').getByRole('button', { name: 'Huỷ, thoát chế độ chọn' }).click();
+  await expect(bar(page, 'Gán ca')).toHaveCount(0);
+  await expect(table(page).getByRole('checkbox')).toHaveCount(0);
+  await expect(row(page, 'Lê Hoàng Nam')).not.toHaveClass(/\bon\b/);
+
+  await page.getByRole('button', { name: 'Gán ca' }).click();
+  await expect(bar(page, 'Gán ca')).toContainText('Đã chọn 0 / 9 người');
+  await expect(result(page)).toHaveCount(0);
+});
+
+// Chặn trước: lọc ra toàn người đã nghỉ việc thì không có ai để chọn, hai nút khoá kèm lời giải thích.
+test('bulk actions are disabled when nobody shown can be picked', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  await pstSel(page).selectOption({ label: 'Đã nghỉ việc' });
+  await expect(names(page)).toHaveText(['Đặng Văn Phúc']);
+  for (const name of ['Gán ca', 'Đổi phòng ban']) {
+    const btn = page.getByRole('button', { name });
+    await expect(btn).toBeDisabled();
+    await expect(btn).toHaveAttribute('title', 'Không có người nào chọn được trong danh sách đang lọc');
+  }
+  await pstSel(page).selectOption({ label: 'Đang làm việc' });
+  await expect(page.getByRole('button', { name: 'Gán ca' })).toBeEnabled();
+});
 
 async function exportCsv(page: Page, name: string) {
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name }).click()]);
@@ -253,66 +386,7 @@ async function exportCsv(page: Page, name: string) {
   return fs.readFileSync(await dl.path(), 'utf8');
 }
 
-test('selecting rows counts them, tints them and labels the export', async ({ page }) => {
-  await page.goto('/admin/nhan-su');
-  await expect(names(page)).toHaveCount(10);
-  await expect(all(page)).toHaveAttribute('aria-checked', 'false');
-  await expect(selb(page)).toHaveCount(1);
-  await expect(selb(page)).toBeEmpty();
-  await expect(page.getByRole('columnheader', { name: 'Chọn tất cả dòng đang hiện' })).toHaveAttribute('scope', 'col');
-
-  await pick(page, 'Lê Hoàng Nam').click();
-  await expect(pick(page, 'Lê Hoàng Nam')).toHaveAttribute('aria-checked', 'true');
-  await expect(row(page, 'Lê Hoàng Nam').locator('th')).toHaveCSS('background-color', 'rgb(255, 249, 236)');
-  await expect(row(page, 'Lê Hoàng Nam')).toHaveClass(/\bon\b/);
-  await expect(selb(page)).toHaveText('Đã chọn 1');
-  await expect(all(page)).toHaveAttribute('aria-checked', 'mixed');
-  await expect(page.getByRole('button', { name: 'Xuất 1 người đã chọn ra Excel' })).toBeVisible();
-  for (const name of ['Gán ca', 'Đổi phòng ban']) {
-    await expect(page.getByRole('button', { name })).toHaveCount(0);
-  }
-
-  await pick(page, 'Lê Hoàng Nam').click();
-  await expect(pick(page, 'Lê Hoàng Nam')).toHaveAttribute('aria-checked', 'false');
-  await expect(page.getByText(/^Đã chọn/)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Xuất danh sách ra Excel' })).toBeVisible();
-});
-
-test('select all follows the rows on screen and hidden picks are kept but not counted', async ({ page }) => {
-  await page.goto('/admin/nhan-su');
-  await expect(names(page)).toHaveCount(10);
-  const sw = inactiveSwitch(page);
-  const box = searchBox(page);
-
-  await sw.click();
-  await all(page).click();
-  await expect(all(page)).toHaveAttribute('aria-checked', 'true');
-  await expect(selb(page)).toHaveText('Đã chọn 2');
-
-  await sw.click();
-  await expect(names(page)).toHaveCount(10);
-  await expect(all(page)).toHaveAttribute('aria-checked', 'mixed');
-  await expect(selb(page)).toHaveText('Đã chọn 2');
-
-  await box.fill('nam');
-  await expect(names(page)).toHaveText(['Lê Hoàng Nam']);
-  await expect(all(page)).toHaveAttribute('aria-checked', 'false');
-  await expect(page.getByText(/^Đã chọn/)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Xuất danh sách ra Excel' })).toBeVisible();
-
-  await box.fill('');
-  await expect(selb(page)).toHaveText('Đã chọn 2');
-  await expect(pick(page, 'Đỗ Mai Linh')).toHaveAttribute('aria-checked', 'true');
-
-  await all(page).click();
-  await expect(all(page)).toHaveAttribute('aria-checked', 'true');
-  await expect(selb(page)).toHaveText('Đã chọn 10');
-  await all(page).click();
-  await expect(all(page)).toHaveAttribute('aria-checked', 'false');
-  await expect(page.getByText(/^Đã chọn/)).toHaveCount(0);
-});
-
-test('export downloads the shown or the selected rows as CSV', async ({ page }) => {
+test('export downloads the rows the filters show as CSV', async ({ page }) => {
   await page.goto('/admin/nhan-su');
   await expect(names(page)).toHaveCount(10);
 
@@ -328,20 +402,11 @@ test('export downloads the shown or the selected rows as CSV', async ({ page }) 
     'GFT-0201;Đỗ Mai Linh;linh.do@gft.vn;Marketing;Thiết kế đồ hoạ;Thử việc;01/09/2026;Chưa kích hoạt'
   );
 
-  await pick(page, 'Lê Hoàng Nam').click();
-  await pick(page, 'Hoàng Thị Mai').click();
-  const two = (await exportCsv(page, 'Xuất 2 người đã chọn ra Excel')).slice(1).split('\r\n');
-  expect(two).toHaveLength(4);
-  expect(two[1].startsWith('GFT-0142;Lê Hoàng Nam;')).toBe(true);
-  expect(two[2].startsWith('GFT-0118;Hoàng Thị Mai;')).toBe(true);
-
-  await pick(page, 'Lê Hoàng Nam').click();
-  await pick(page, 'Hoàng Thị Mai').click();
-  await inactiveSwitch(page).click();
-  const inactive = (await exportCsv(page, 'Xuất danh sách ra Excel')).slice(1).split('\r\n');
-  expect(inactive).toHaveLength(4);
-  expect(inactive[1].startsWith('GFT-0201;Đỗ Mai Linh;')).toBe(true);
-  expect(inactive[2]).toContain(';Phan Minh Khoa;');
+  await pstSel(page).selectOption({ label: 'Đang thử việc' });
+  const trial = (await exportCsv(page, 'Xuất danh sách ra Excel')).slice(1).split('\r\n');
+  expect(trial).toHaveLength(4);
+  expect(trial[1].startsWith('GFT-0201;Đỗ Mai Linh;')).toBe(true);
+  expect(trial[2]).toContain(';Phan Minh Khoa;');
 });
 
 test('csv quotes cells holding a semicolon, a quote or a line break', () => {
@@ -372,26 +437,26 @@ test('csv quotes cells holding a semicolon, a quote or a line break', () => {
   );
 });
 
-test('keyboard targets show a 2px ink focus ring and Space toggles a row', async ({ page }) => {
+test('keyboard targets show a 2px ink focus ring and Space toggles a row in select mode', async ({ page }) => {
   await page.goto('/admin/nhan-su');
   await expect(names(page)).toHaveCount(10);
 
-  const ring = async (target: ReturnType<typeof pick>) => {
+  const ring = async (target: Locator) => {
     await target.focus();
     await expect(target).toHaveCSS('outline-style', 'solid');
     await expect(target).toHaveCSS('outline-width', '2px');
-    await expect(target).toHaveCSS('outline-color', 'rgb(33, 33, 33)');
   };
 
+  await ring(pstSel(page));
+  await ring(page.getByRole('button', { name: 'Gán ca' }));
+  await ring(page.getByRole('button', { name: 'Xuất danh sách ra Excel' }));
+  await page.getByRole('button', { name: 'Gán ca' }).press('Enter');
   const nam = pick(page, 'Lê Hoàng Nam');
   await ring(nam);
   await page.keyboard.press('Space');
   await expect(nam).toHaveAttribute('aria-checked', 'true');
-  await expect(selb(page)).toHaveText('Đã chọn 1');
-
+  await expect(bar(page, 'Gán ca')).toContainText('Đã chọn 1 / 9 người');
   await ring(all(page));
-  await ring(page.getByRole('button', { name: 'Xuất 1 người đã chọn ra Excel' }));
-  await ring(inactiveSwitch(page));
 
   await searchBox(page).focus();
   const find = page.locator('.find');
@@ -521,7 +586,7 @@ test('previous and next walk the rows shown when the drawer opened', async ({ pa
   await expect(prevBtn(page)).toBeFocused();
 
   await page.keyboard.press('Escape');
-  await inactiveSwitch(page).click();
+  await pstSel(page).selectOption({ label: 'Đang thử việc' });
   await nameLink(page, 'Đỗ Mai Linh').click();
   await expect(drawer(page, 'Đỗ Mai Linh')).toBeVisible();
   await expect(prevBtn(page)).toBeDisabled();

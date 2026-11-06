@@ -1,11 +1,18 @@
 <script setup lang="ts">
 // Chấm công theo tuần trên dữ liệu giả: 6 chỉ số, lưới 28 ngày (tab Tuần) và danh sách việc cần xử lý (tab Cần xử lý).
-// Tab, lọc tên, lọc nhóm, việc đang chọn và hộp chi tiết ngày đều nằm trên URL (?xem, ?q, ?pb (nhóm do BE trả), ?viec, ?hop) và đổi bằng router.replace.
+// Tab, lọc tên, cặp bộ lọc nhân sự, việc đang chọn và hộp chi tiết ngày đều nằm trên URL (?xem, ?q, ?ns (trạng thái nhân sự),
+// ?pb (phòng ban do BE trả), ?viec, ?hop) và đổi bằng router.replace.
 // Tab "Cần xử lý" từ 900px: danh sách bên trái, chi tiết việc đang chọn (BellDetail) bên phải; hẹp hơn thì chỉ có danh sách và
 // bấm dòng mở hộp chi tiết ngày như trước.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import BulkButton from '@/components/select-mode/BulkButton.vue';
+import ResultLine from '@/components/select-mode/ResultLine.vue';
+import SelectBar from '@/components/select-mode/SelectBar.vue';
+import { useSelectMode } from '@/components/select-mode/useSelectMode';
 import BellDetail from '@/components/shell/BellDetail.vue';
+import StaffScopeFilter from '@/components/staff-scope/StaffScopeFilter.vue';
+import { isPst, matchScope, useMineDepts, type StaffPst } from '@/components/staff-scope/staffScope';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -27,6 +34,9 @@ const router = useRouter();
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const q = computed(() => str(route.query.q));
 const dept = computed(() => str(route.query.pb));
+// Trạng thái nhân sự lọc phía máy khách trên các dòng BE trả về (06/11); giá trị lạ trên URL thì bỏ.
+const pst = computed<StaffPst>(() => (isPst(route.query.ns) ? route.query.ns : 'all'));
+const mine = useMineDepts();
 const period = usePeriodStore();
 const shell = useShellStore();
 
@@ -90,10 +100,24 @@ watch(
     if (groups && dept.value && !groups.some(g => g.key === dept.value)) setQuery({ pb: '' });
   }
 );
+watch(
+  () => route.query.ns,
+  ns => {
+    if (ns !== undefined && !isPst(ns)) setQuery({ ns: '' });
+  },
+  { immediate: true }
+);
+const setPst = (v: StaffPst) => setQuery({ ns: v === 'all' ? '' : v });
+const setDept = (v: string) => setQuery({ pb: v });
+const depts = computed(() => (data.value?.groups ?? []).map(g => g.key));
 
-const rows = computed(() => data.value?.rows ?? []);
-const pending = computed(() => data.value?.pending ?? []);
-const filtered = computed(() => !!dept.value || !!q.value.trim());
+// Phòng ban đã lọc ở BE (?pb); ở đây chỉ còn trạng thái nhân sự (và phạm vi "tôi quản lý" theo phòng ban của dòng).
+const inScope = (x: { dept: string; ps?: Parameters<typeof matchScope>[0]['ps'] }) =>
+  matchScope(x, { pst: pst.value, dept: '' }, mine);
+const rows = computed(() => (data.value?.rows ?? []).filter(inScope));
+const pending = computed(() => (data.value?.pending ?? []).filter(inScope));
+const matched = computed(() => (pst.value === 'all' ? (data.value?.matched ?? 0) : rows.value.length));
+const filtered = computed(() => !!dept.value || !!q.value.trim() || pst.value !== 'all');
 
 // ---- Tab "Cần xử lý": việc đang chọn ----
 // Từ 900px có khung chi tiết bên phải; hẹp hơn chỉ còn danh sách.
@@ -114,7 +138,7 @@ const visibleIds = computed(() => pending.value.map(p => p.item.id));
 // Việc vẫn còn trong nguồn (vừa nhắc giải trình) thì lấy bản mới để thẻ hiện "Đã nhắc" và nút "Nhắc lại".
 const shown = shallowRef<InboxItem | null>(null);
 // Đổi bộ lọc thì danh sách do BE trả lại khác hẳn: bỏ bản chụp cũ.
-watch([q, dept], () => (shown.value = null), { flush: 'sync' });
+watch([q, dept, pst], () => (shown.value = null), { flush: 'sync' });
 watch(
   [pending, viecKey],
   () => {
@@ -154,6 +178,45 @@ async function onDecided({ id, ok, text, kept }: { id: string; ok: boolean; text
   const row = next ? document.querySelector<HTMLElement>(`.pend .pr[data-id="${next}"]`) : null;
   (row ?? pendingTabEl())?.focus();
 }
+
+// ---- Nhắc giải trình nhiều người (board L3) ----
+// Nút đếm số việc quên chấm công đang hiện (theo bộ lọc), khoá khi bằng 0. Trong chế độ chọn chỉ chọn được các việc đó;
+// chạy thì nhắc lần lượt từng việc qua shell.decide (cùng đường với chuông), việc nhắc ở lại danh sách.
+const sel = useSelectMode<'remind'>();
+const result = ref('');
+const remindIds = computed(() => pending.value.filter(p => p.item.action === 'remind').map(p => p.item.id));
+const chosen = computed(() => sel.pickedIn(remindIds.value));
+const targets = computed(() => pending.value.filter(p => sel.isPicked(p.item.id) && p.item.action === 'remind'));
+function startRemind() {
+  sel.enter('remind');
+  result.value = '';
+}
+const reminding = ref(false);
+async function runRemind() {
+  if (!chosen.value.length || reminding.value) return;
+  reminding.value = true;
+  const items = targets.value.map(p => ({ id: p.item.id, personId: p.person.id }));
+  const people = new Set<string>();
+  try {
+    for (const it of items) {
+      await shell.decide(it.id, 'remind');
+      people.add(it.personId);
+    }
+    result.value = `Đã gửi nhắc giải trình cho ${people.size} người.`;
+    sel.quit();
+  } catch (e) {
+    toast.error(people.size ? `Đã nhắc ${people.size} người, rồi lỗi: ${(e as Error).message}` : (e as Error).message);
+  } finally {
+    reminding.value = false;
+  }
+}
+// Sang tab Tuần thì thoát chế độ chọn và bỏ dòng kết quả.
+watch(view, v => {
+  if (v !== 'pending') {
+    sel.quit();
+    result.value = '';
+  }
+});
 
 /** '113 / 128' → ['113', ' / 128'], '126 giờ' → ['126', ' giờ'], '11' → ['11', '']. */
 function tileMain(value: string) {
@@ -216,7 +279,7 @@ function onTabKey(event: KeyboardEvent) {
               :tabindex="view === 'pending' ? 0 : -1"
               @click="pickTab('pending')"
             >
-              Cần xử lý<span class="badge">{{ data.pending.length }}</span>
+              Cần xử lý<span class="badge">{{ pending.length }}</span>
             </button>
           </div>
           <label class="fsearch">
@@ -229,18 +292,31 @@ function onTabKey(event: KeyboardEvent) {
               @input="setQuery({ q: ($event.target as HTMLInputElement).value })"
             />
           </label>
-          <label class="fsel">
-            <select
-              aria-label="Nhóm"
-              :value="dept"
-              @change="setQuery({ pb: ($event.target as HTMLSelectElement).value })"
-            >
-              <option value="" :selected="!dept">Nhóm: Tất cả</option>
-              <option v-for="g in data.groups" :key="g.key" :value="g.key">{{ g.key }} ({{ g.count }})</option>
-            </select>
-            <Icon name="chev" :size="16" />
-          </label>
+          <StaffScopeFilter :pst="pst" :dept="dept" :depts="depts" @update:pst="setPst" @update:dept="setDept" />
+          <BulkButton
+            v-if="view === 'pending' && !sel.mode.value"
+            icon="send"
+            :count="remindIds.length"
+            :disabled="!remindIds.length"
+            :title="remindIds.length ? undefined : 'Không có việc quên chấm công nào đang hiện'"
+            @click="startRemind"
+          >
+            Nhắc giải trình
+          </BulkButton>
         </div>
+        <SelectBar
+          v-if="sel.mode.value"
+          title="Nhắc giải trình"
+          :count="chosen.length"
+          :total="remindIds.length"
+          unit="người"
+          :go-label="reminding ? 'Đang nhắc…' : chosen.length ? `Nhắc ${chosen.length} người` : 'Chọn ít nhất 1 người'"
+          :go-disabled="!chosen.length || reminding"
+          :running="reminding"
+          @quit="sel.quit()"
+          @run="runRemind"
+        />
+        <ResultLine v-else-if="view === 'pending'" :text="result" />
 
         <WeekGrid v-if="view === 'week'" :days="data.days" :rows="rows" :month-no="monthNo" @open-day="openDay" />
         <template v-else>
@@ -250,11 +326,29 @@ function onTabKey(event: KeyboardEvent) {
               :pending="pending"
               :wide="wide"
               :selected-id="shown?.id ?? null"
+              :selecting="!!sel.mode.value"
+              :picked="sel.picked.value"
+              :all-state="sel.stateOf(remindIds)"
               @open-day="openDay"
               @pick="pickItem"
+              @toggle="sel.toggle"
+              @toggle-all="sel.toggleAll(remindIds)"
             />
+            <div v-if="wide && sel.mode.value" class="pd" role="region" aria-label="Người sẽ được nhắc" tabindex="0">
+              <div class="pdi">
+                <div class="pd-grp">Sẽ nhắc giải trình</div>
+                <p v-if="!targets.length" class="pd-none">Chưa chọn ai.</p>
+                <ul v-else class="tg">
+                  <li v-for="p in targets" :key="p.item.id">
+                    <span class="tg-av" aria-hidden="true">{{ p.person.initials }}</span>
+                    <span class="tg-n">{{ p.person.name }}</span>
+                    <span class="tg-w">{{ p.item.what }} · {{ p.item.when }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
             <div
-              v-if="wide"
+              v-else-if="wide"
               class="pd"
               role="region"
               aria-label="Chi tiết việc đang chọn"
@@ -277,7 +371,7 @@ function onTabKey(event: KeyboardEvent) {
 
         <div v-if="view === 'week'" class="foot">
           <span class="live"><span class="dot" aria-hidden="true" />Đang làm</span>
-          <span class="cnt">Hiển thị {{ data.matched }} trong {{ data.total }} nhân viên</span>
+          <span class="cnt">Hiển thị {{ matched }} trong {{ data.total }} nhân viên</span>
         </div>
       </section>
     </template>
@@ -510,6 +604,44 @@ function onTabKey(event: KeyboardEvent) {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+.pd-none {
+  margin: 0;
+  color: var(--muted);
+}
+.tg {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tg li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+}
+.tg-av {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50px;
+  background: var(--status-draft);
+  font-size: 12px;
+  font-weight: 600;
+}
+.tg-n {
+  font-weight: 600;
+}
+.tg-w {
+  margin-left: auto;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
 }
 .pd-grp {
   font-size: 12px;

@@ -45,10 +45,11 @@ test.describe('menu', () => {
   test('every kind the server allows opens its own form; no row is left without one', async ({ page }) => {
     const calls = await openPhone(page, '/nv/yeu-cau?tao=chon');
     const menu = sheetOf(page, 'Tạo yêu cầu');
-    await expect(rowsOf(menu)).toHaveCount(6);
+    await expect(rowsOf(menu)).toHaveCount(7);
     await expect(menu).not.toContainText('Chưa có trong bản mockup');
     const hints: [string, string, string][] = [
       ['Nghỉ có làm bù', 'Nghỉ 1 ngày thì bù đủ 8 giờ trong tháng', 'nghi-bu'],
+      ['Nghỉ giữa ca', 'Làm nửa ca, nửa còn lại bù bằng làm thêm giờ trong tháng', 'nghi-giua-ca'],
       ['Làm thêm giờ', 'Ngoài ca, cách ca ít nhất 1 giờ', 'ot'],
       ['Đổi ca', 'Normal, Flex hoặc Night cho một khoảng ngày', 'doi-ca'],
       ['Giải trình', 'Cho một ngày chấm công chưa hợp lệ', 'giai-trinh']

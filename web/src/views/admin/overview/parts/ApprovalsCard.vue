@@ -128,7 +128,13 @@ async function onDecided({ id, ok, text }: { id: string; ok: boolean; text: stri
               >
                 <Icon name="x" :size="16" />
               </button>
-              <button type="button" class="ib yes" :aria-label="`Duyệt yêu cầu của ${r.name}`" @click="approve(r.id)">
+              <button
+                v-if="!r.approveBlock"
+                type="button"
+                class="ib yes"
+                :aria-label="`Duyệt yêu cầu của ${r.name}`"
+                @click="approve(r.id)"
+              >
                 <Icon name="check" :size="16" />
               </button>
             </span>
