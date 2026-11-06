@@ -81,4 +81,18 @@ describe('Số tiền tạm ứng (80% lương ngày công 01–15)', () => {
     // 0,8 x 6.000.000 x (10 - 30/480) / 26 = 1.834.615,38 (the shown amounts gave 1.834.614).
     assert.equal(advanceQuoteOf(shown, '2026-11', BASE, STD).amount, 1_834_615);
   });
+
+  it('dòng payUnits 0.5 vào Σ payUnits (5 ngày 1 + 1 ngày 0.5 = 5.5 ngày)', () => {
+    // 5 ngày công thường 1 công và 1 ngày nửa công 0.5
+    const fiveAndHalf = [
+      line('2026-11-02'),
+      line('2026-11-03'),
+      line('2026-11-04'),
+      line('2026-11-05'),
+      line('2026-11-06'),
+      line('2026-11-07', { payUnits: 0.5, daySalary: 115_385 })
+    ];
+    // 0,8 x 6.000.000 x 5,5 / 26 = 1.015.384,61... -> 1.015.385
+    assert.equal(advanceQuoteOf(fiveAndHalf, '2026-11', BASE, STD).amount, 1_015_385);
+  });
 });

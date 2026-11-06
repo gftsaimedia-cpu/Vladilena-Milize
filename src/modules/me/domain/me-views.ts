@@ -143,7 +143,7 @@ export function monthOf(
     month,
     periodState: (periodStatus && periodStatus !== 'open') || inMonth.some(t => t.isLocked) ? ('locked' as const) : ('open' as const),
     totals: {
-      workDays: inMonth.filter(t => t.countsAsWorkday).length,
+      workDays: inMonth.reduce((sum, t) => sum + (t.countsAsWorkday ? ((t.status === 'PRESENT' && t.halfShift) ? 0.5 : 1) : 0), 0),
       standardDays: days.filter(d => weekdays.includes(dow(d.date))).length,
       lateCount: days.filter(d => d.kind === 'late').length,
       // R11: nghỉ hưởng lương gồm phép có lương, lễ có lương và iSAT có lương (payUnits = 1).

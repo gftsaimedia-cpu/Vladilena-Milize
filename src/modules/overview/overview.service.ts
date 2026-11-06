@@ -221,7 +221,7 @@ export class OverviewService {
         person,
         cells,
         totals: {
-          workDays: mine.filter(s => s.countsAsWorkday).length,
+          workDays: mine.reduce((sum, s) => sum + (s.countsAsWorkday ? ((s.status === 'PRESENT' && (s as any).halfShift) ? 0.5 : 1) : 0), 0),
           lateMinutes: mine.reduce((n, s) => n + (s.metrics?.lateMinutes || 0), 0),
           otHours: round1(ot.get(emp.username) ?? 0)
         },

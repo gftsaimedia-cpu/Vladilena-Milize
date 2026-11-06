@@ -559,8 +559,9 @@ export class PayrollService {
       } else if (onShift && shiftType === 'NIGHT') {
         shiftLabel = `Night +${pctText(allowancePolicy.nightRate)}%`;
         if (row.countsAsWorkday) {
-          nightAllowancePay = allowancePolicy.nightPremium(dayRate);
-          offPaidPay = allowancePolicy.nightBreakPay(hourRate, shiftHours, deductionAmount);
+          const w = (kind === 'PRESENT' && (row as any).halfShift) ? 0.5 : 1;
+          nightAllowancePay = Math.round(w * allowancePolicy.nightPremium(dayRate));
+          offPaidPay = (row as any).halfShift ? 0 : allowancePolicy.nightBreakPay(hourRate, shiftHours, deductionAmount);
         }
       }
 
@@ -602,6 +603,8 @@ export class PayrollService {
         dailyTotal,
         kind,
         payUnits: row.payUnits,
+        halfShift: (row as any).halfShift ?? null,
+        repaidMinutes: 0,
         countsAsWorkday: row.countsAsWorkday,
         countsAsDayOff: row.countsAsDayOff,
         makeupMinutes: row.makeupMinutes,

@@ -1,4 +1,5 @@
 import type { AttendanceDayStatus } from '../../attendance/domain/attendance-day';
+import type { HalfShift } from '../../../common/half-shift';
 import { PayrollAllowancePolicy, shiftHoursOf, type AllowanceRates } from './allowance-rates';
 import { calculateInsurance, DEFAULT_INSURANCE_RATES, insurancePctOf, InsuranceDeduction, type InsurancePct } from './insurance';
 import { calculateKpiPay, KPI_WEIGHTS, KpiComponent, KpiPay } from './kpi-pay';
@@ -41,7 +42,9 @@ export interface DailyAttendanceLineProps {
   dailyTotal: number;
   // The day row the line was read from (spec 8.1); the payslip counts by these, never by shiftCode.
   kind: AttendanceDayStatus;
-  payUnits: number; // 0 or 1 day of pay
+  payUnits: number; // 0, 0.5 or 1 day of pay
+  halfShift?: HalfShift | null;
+  repaidMinutes?: number;
   countsAsWorkday: boolean;
   countsAsDayOff: boolean; // a day off for the attendance allowance
   makeupMinutes: number; // minutes worked inside the approved makeup windows of the day (L14)
@@ -358,21 +361,27 @@ export class EmployeePayslip {
     let nightExemptHours = 0; // Σ min(30% of the hours worked, the night allowance in hours) of the night work days
 
     for (const line of this.dailyLines) {
+      const w = line.kind === 'PRESENT' && line.halfShift ? 0.5 : 1;
       if (line.countsAsWorkday) {
-        workDaysCount++;
+        workDaysCount += w;
         // D13: the makeup minutes of the line are paid x1 on their own; the premiums read the shift hours only.
         const shiftHours = shiftHoursOf(line.workHours, line.makeupMinutes);
         if (line.shiftCode === 'FLEX') {
-          flexCount++;
+          flexCount += w;
           flexHours += rates.flexHours(shiftHours);
         }
         if (line.shiftCode === 'NIGHT') {
-          nightCount++;
-          nightBreakHours += rates.nightBreakHours(shiftHours, line.deductionMinutes / 60);
-          nightExemptHours += Math.min(shiftHours * 0.3, 8 * rates.nightRate);
+          nightCount += w;
+          if (!line.halfShift) {
+            nightBreakHours += rates.nightBreakHours(shiftHours, line.deductionMinutes / 60);
+          }
+          nightExemptHours += Math.min(shiftHours * 0.3, 8 * rates.nightRate * w);
         }
       }
-      if (line.countsAsDayOff) dayOffCount++;
+      if (line.countsAsDayOff) {
+        const offWeight = line.kind === 'PRESENT' && line.halfShift ? 0.5 : 1;
+        dayOffCount += offWeight;
+      }
       const paid = line.payUnits === 1;
       if (line.kind === 'LEAVE_PAID' && paid) paidLeaveCount++;
       else if (line.kind === 'ISAT' && paid) isatCount++;
