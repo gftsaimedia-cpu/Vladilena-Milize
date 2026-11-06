@@ -306,7 +306,7 @@ CREATE TABLE system_requests (
     id UUID PRIMARY KEY,
     employee_id TEXT NOT NULL REFERENCES staff(uuid),
     title TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('LEAVE', 'OVERTIME', 'ADVANCE', 'SHIFT_CHANGE', 'LEAVE_WITH_MAKEUP', 'EXPLANATION', 'ISAT')),
+    type TEXT NOT NULL CHECK (type IN ('LEAVE', 'OVERTIME', 'ADVANCE', 'SHIFT_CHANGE', 'LEAVE_WITH_MAKEUP', 'EXPLANATION', 'ISAT', 'HALF_SHIFT_LEAVE')),
     reason TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED')),
     reviewed_by TEXT REFERENCES staff(uuid),
@@ -331,6 +331,10 @@ CREATE TABLE system_requests (
     new_end_time TEXT,
     change_start_date DATE,                 -- đổi ca: khoảng ngày áp dụng
     change_end_date DATE,
+    half_shift_date DATE,
+    half_shift_half TEXT CHECK (half_shift_half IS NULL OR half_shift_half IN ('FIRST', 'SECOND')),
+    half_start_time TEXT,
+    half_end_time TEXT,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
@@ -395,7 +399,8 @@ CREATE TABLE timesheet_entries (
     cases_json TEXT NOT NULL DEFAULT '[]',
     explanation_status TEXT NOT NULL DEFAULT 'NONE' CHECK (explanation_status IN ('NONE', 'PENDING', 'APPROVED', 'REJECTED')),
     explanation_request_id UUID REFERENCES system_requests(id),
-    pay_units REAL NOT NULL DEFAULT 0 CHECK (pay_units IN (0, 1)),
+    half_shift TEXT CHECK (half_shift IS NULL OR half_shift IN ('FIRST', 'SECOND')),
+    pay_units REAL NOT NULL DEFAULT 0 CHECK (pay_units IN (0, 0.5, 1)),
     deduction_minutes INTEGER NOT NULL DEFAULT 0 CHECK (deduction_minutes >= 0),
     counts_as_workday BOOLEAN NOT NULL DEFAULT false,
     counts_as_day_off BOOLEAN NOT NULL DEFAULT false,
@@ -461,7 +466,7 @@ CREATE TABLE company_holidays (
 CREATE TABLE day_status (
   employee_id     TEXT NOT NULL REFERENCES staff(uuid),
   work_date       DATE NOT NULL,
-  status          TEXT NOT NULL CHECK (status IN ('LEAVE', 'LEAVE_WITH_MAKEUP', 'SHIFT_CHANGE', 'ISAT')),
+  status          TEXT NOT NULL CHECK (status IN ('LEAVE', 'LEAVE_WITH_MAKEUP', 'SHIFT_CHANGE', 'ISAT', 'HALF_SHIFT')),
   request_id      UUID NOT NULL REFERENCES system_requests(id),
   base_request_id UUID REFERENCES system_requests(id), -- đơn đổi ca bị đơn này thay đúng ngày này (T3)
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),

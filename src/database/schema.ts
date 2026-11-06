@@ -431,6 +431,10 @@ export interface SystemRequestsTable {
   actual_check_out: Generated<string | null>;
   change_start_date: Generated<string | null>;
   change_end_date: Generated<string | null>;
+  half_shift_date: Generated<string | null>;
+  half_shift_half: Generated<string | null>;
+  half_start_time: Generated<string | null>;
+  half_end_time: Generated<string | null>;
 }
 
 export interface TimesheetEntriesTable {
@@ -459,6 +463,7 @@ export interface TimesheetEntriesTable {
   cases_json: Generated<string>;
   explanation_status: Generated<string>;
   explanation_request_id: Generated<string | null>;
+  half_shift: Generated<string | null>;
   pay_units: Generated<number>;
   deduction_minutes: Generated<number>;
   counts_as_workday: Generated<boolean>;

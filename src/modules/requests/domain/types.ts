@@ -2,11 +2,12 @@ import type { IsatProfileSnapshot, IsatRegistration, IsatRegistrationDTO } from 
 import type { LeaveType } from './leave-types';
 import type { ExplanationCase } from './explanation-cases';
 import type { ShiftFrame } from './shift-frames';
+import type { HalfShift, ClockRange } from '../../../common/half-shift';
 
 export type { LeaveType } from './leave-types';
 
 export type RequestType =
-  'LEAVE' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION' | 'ISAT';
+  'LEAVE' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION' | 'ISAT' | 'HALF_SHIFT_LEAVE';
 
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
@@ -76,6 +77,12 @@ export interface SystemRequestProps {
 
   // ISAT
   isat?: IsatRegistration | null;
+
+  // HALF_SHIFT_LEAVE
+  halfShiftDate?: string | null;
+  halfShift?: HalfShift | null;
+  halfStartTime?: string | null;
+  halfEndTime?: string | null;
 }
 
 export interface CreateLeaveParams {
@@ -146,6 +153,16 @@ export interface CreateIsatParams {
   profile: IsatProfileSnapshot;
 }
 
+export interface CreateHalfShiftLeaveParams {
+  employeeId: string;
+  title: string;
+  reason: string;
+  halfShiftDate: string;
+  halfShift: HalfShift;
+  halfStart: string;
+  halfEnd: string;
+}
+
 export interface SystemRequestRow {
   id: string;
   employee_id: string;
@@ -181,6 +198,11 @@ export interface SystemRequestRow {
   new_shift_type: string | null;
   new_start_time: string | null;
   new_end_time: string | null;
+
+  half_shift_date: string | null;
+  half_shift_half: string | null;
+  half_start_time: string | null;
+  half_end_time: string | null;
 }
 
 export interface SystemRequestDTO {
@@ -202,9 +224,14 @@ export interface SystemRequestDTO {
   leaveStartDate: string | null;
   leaveEndDate: string | null;
   leaveDaysCount: number | null;
-  /** 480 × `leaveDaysCount` với đơn nghỉ có làm bù, null với loại khác. */
+  /** 480 × `leaveDaysCount` với đơn nghỉ có làm bù, 240 với nghỉ giữa ca, null với loại khác. */
   owedMinutes: number | null;
   makeupSlots: MakeupSlot[];
+
+  halfShiftDate: string | null;
+  halfShift: HalfShift | null;
+  halfShiftWork: ClockRange | null;
+  halfShiftLeave: ClockRange | null;
 
   explanationDate: string | null;
   explanationCases: ExplanationCase[];
