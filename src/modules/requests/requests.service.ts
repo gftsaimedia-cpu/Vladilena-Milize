@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
-import { BadRequestError, NotEmployedError, assertEmployed } from '../../common';
+import { BadRequestError, HttpError, NotEmployedError, assertEmployed, bulkFailureOf, runBulk, type BulkFailure } from '../../common';
 import { isValidDateText } from '../../common/date-text';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import {
@@ -68,6 +68,7 @@ import { PeriodGate } from '../periods/period-gate';
 import { PeriodLockedError } from '../periods/periods.errors';
 import { SettingsReader } from '../settings';
 import { AuditLog } from '../audit/audit-log';
+import { AuditEntryError } from '../audit/domain/audit-entry';
 import { withPersonWeek } from './staff-week';
 import { ADVANCE_RATE_PCT, type AdvanceQuote } from '../payroll/domain';
 
@@ -248,6 +249,19 @@ export class AdvanceNotEligibleError extends BadRequestError {
   constructor() {
     super(ADVANCE_NOT_ELIGIBLE, { code: 'ADVANCE_NOT_ELIGIBLE' });
   }
+}
+
+/**
+ * Mã và câu lỗi của một đơn trong lô duyệt, như route một đơn: lỗi HTTP (PERIOD_LOCKED...) giữ mã của nó, xung đột ngày
+ * là DAY_CONFLICT, đơn không có là REQUEST_NOT_FOUND, còn lại BAD_REQUEST. Lỗi ghi nhật ký là lỗi lập trình: ném lại.
+ */
+function requestFailureOf(err: unknown): { code: string; message: string } {
+  if (err instanceof AuditEntryError) throw err;
+  if (err instanceof DayConflictError) return { code: 'DAY_CONFLICT', message: err.message };
+  if (!(err instanceof HttpError) && err instanceof Error && err.message.includes('not found')) {
+    return { code: 'REQUEST_NOT_FOUND', message: err.message };
+  }
+  return bulkFailureOf(err);
 }
 
 /** Hồ sơ được tạm ứng: cờ thiếu (dữ liệu cũ, test) coi như bật, như hồ sơ nhân sự đọc NULL. */
@@ -1338,6 +1352,45 @@ export class RequestsService {
     note?: string
   ): Promise<{ request: SystemRequestDTO; recalculated: RecalcResult[] }> {
     const { dto, months, employeeId } = await this.decide(id, reviewer, action, note);
+    return { request: dto, recalculated: await this.recalculateMonths(employeeId, months, reviewer) };
+  }
+
+  /**
+   * Duyệt nhiều đơn (chỉ APPROVE) theo thứ tự `ids`, mỗi đơn một giao dịch như `reviewRequest`; đơn lỗi vào `failed`
+   * (mã như route một đơn) và không kéo các đơn khác. Sau cả lô, với mỗi cặp (người nộp, tháng) tính lại phiếu lương
+   * đúng một lần, không phải một lần sau mỗi đơn.
+   */
+  async approveMany(
+    ids: readonly string[],
+    reviewer: string
+  ): Promise<{
+    done: SystemRequestDTO[];
+    failed: BulkFailure[];
+    recalculated: Array<{ employeeId: string } & RecalcResult>;
+  }> {
+    const monthsOf = new Map<string, Set<string>>();
+    const { done, failed } = await runBulk(
+      ids,
+      id => id,
+      async id => {
+        const { dto, months, employeeId } = await this.decide(id, reviewer, 'APPROVE');
+        const seen = monthsOf.get(employeeId) ?? new Set<string>();
+        for (const month of months) seen.add(month);
+        monthsOf.set(employeeId, seen);
+        return dto;
+      },
+      requestFailureOf
+    );
+    const recalculated: Array<{ employeeId: string } & RecalcResult> = [];
+    for (const [employeeId, months] of monthsOf) {
+      const results = await this.recalculateMonths(employeeId, [...months].sort(), reviewer);
+      for (const result of results) recalculated.push({ employeeId, ...result });
+    }
+    return { done, failed, recalculated };
+  }
+
+  /** Với từng tháng (tăng dần) đang ở `calculated`, tính lại phiếu lương của người nộp; tháng khác không tính lại. */
+  private async recalculateMonths(employeeId: string, months: readonly string[], actor: string): Promise<RecalcResult[]> {
     const recalculated: RecalcResult[] = [];
     if (this.periodGate && this.payroll) {
       for (const month of months) {
@@ -1349,10 +1402,10 @@ export class RequestsService {
           continue;
         }
         if (status !== 'calculated') continue;
-        recalculated.push(await this.recalculate(this.payroll, month, employeeId, reviewer));
+        recalculated.push(await this.recalculate(this.payroll, month, employeeId, actor));
       }
     }
-    return { request: dto, recalculated };
+    return recalculated;
   }
 
   /**
