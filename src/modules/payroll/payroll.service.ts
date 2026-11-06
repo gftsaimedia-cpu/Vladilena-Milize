@@ -17,6 +17,7 @@ import {
   type SavedRun
 } from './payroll.repository';
 import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
+import { RealtimeBus } from '../realtime/realtime-bus';
 import {
   EmployeePayslip,
   plannedMakeupMinutes,
@@ -209,7 +210,9 @@ export class PayrollService {
     // in tests) none of those checks run.
     @Optional() @Inject(PeriodsService) private readonly periods?: PeriodsService,
     // Nest luôn tiêm (AuditModule toàn cục). Service dựng tay trong test không có thì không ghi nhật ký.
-    @Optional() @Inject(AuditLog) private readonly audit?: Pick<AuditLog, 'append'>
+    @Optional() @Inject(AuditLog) private readonly audit?: Pick<AuditLog, 'append'>,
+    // Báo cho màn của nhân viên khi phiếu của họ được duyệt hay từ chối (sau commit); thiếu thì không phát.
+    @Optional() @Inject(RealtimeBus) private readonly bus?: RealtimeBus
   ) {}
 
   async calculatePeriodPayslips(
@@ -349,7 +352,15 @@ export class PayrollService {
       }
       return slip;
     };
-    return this.txCoordinator ? await this.txCoordinator.withLock(`payroll_${month}`, decide) : await decide();
+    const slip = this.txCoordinator ? await this.txCoordinator.withLock(`payroll_${month}`, decide) : await decide();
+    if (slip && this.bus) {
+      try {
+        this.bus.publish({ type: 'payslip.decided', username, month, status });
+      } catch (err) {
+        console.error('Không phát được sự kiện realtime:', err);
+      }
+    }
+    return slip;
   }
 
   // Đưa phiếu về nháp (xoá quyết định); dùng khi kỳ lương cần duyệt lại phiếu. Có `trx` thì chạy trên giao dịch đó

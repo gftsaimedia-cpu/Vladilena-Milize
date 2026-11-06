@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { checkInLock, distanceM } from '../src/builders/api/check-in';
+import { checkInLock, distanceM } from '../src/mock/check-in';
 import { homeView, workdayOn } from '../src/mock/staff-phone';
 
 const zone = { lat: 10.7769, lng: 106.7009, radiusM: 150 };

@@ -15,3 +15,20 @@ export function estimateIncomeOf(slip: EmployeePayslipDTO): EmployeePayslipDTO {
     netIncome: slip.grossIncome - advance
   };
 }
+
+/** Năm phần điểm KPI theo thứ tự hiển thị (khoá trong `kpiScores` của phiếu và nhãn trên màn nhân viên). */
+export const KPI_PARTS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: 'wework', label: 'Wework' },
+  { key: 'user', label: 'Người dùng' },
+  { key: 'peer', label: 'Đồng nghiệp' },
+  { key: 'manager', label: 'Quản lý' },
+  { key: 'self', label: 'Tự đánh giá' }
+];
+
+type LeaveFields = Partial<Pick<EmployeePayslipDTO, 'paidLeavePay' | 'leaveSettlementPay' | 'isatPay' | 'holidayPay'>>;
+
+/** Tiền nghỉ phép + quyết toán phép + iSAT + lương lễ: dòng "Nghỉ phép, iSAT" của màn Thu nhập, BE cộng sẵn để FE chỉ hiện. */
+export function leaveIncomePayOf(slip: LeaveFields | null | undefined): number {
+  if (!slip) return 0;
+  return (slip.paidLeavePay || 0) + (slip.leaveSettlementPay || 0) + (slip.isatPay || 0) + (slip.holidayPay || 0);
+}

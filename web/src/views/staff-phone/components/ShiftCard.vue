@@ -10,10 +10,10 @@
 // (checkInLock). Check-out không bị chặn vì ngày nghỉ.
 //   <ShiftCard :home="data" @checked-in="onPunch" @checked-out="onPunch" />   onPunch(v) { v ? (data = v) : reload() }
 import { computed, nextTick, ref, useId, watch } from 'vue';
-import { checkInLock, type LatLng } from '@/builders/api/check-in';
+import type { LatLng } from '@/mock/check-in';
 import { toast } from '@/components/shell/toast';
 import type { HomeView } from '@/mock/staff-phone';
-import { checkIn, checkOut, watchLocation } from '@/services/staff-phone';
+import { checkIn, checkOut, checkPunch, watchLocation } from '@/services/staff-phone';
 import PhIcon from './PhIcon.vue';
 
 const props = defineProps<{ home: HomeView }>();
@@ -37,14 +37,22 @@ watch(
   { immediate: true }
 );
 
-// Khoá nút đang hiện: Check-in khi chưa vào ca, Check-out khi đang trong ca.
-const lock = computed(() =>
-  checkInLock({
-    kind: props.home.checkIn ? 'out' : 'in',
-    workday: props.home.workday,
-    zone: props.home.zone,
-    position: position.value
-  })
+// Khoá nút đang hiện (Check-in khi chưa vào ca, Check-out khi đang trong ca): BE quyết và gửi sẵn câu lý do; ở đây chỉ hỏi lại
+// mỗi khi vị trí đổi. Chờ vị trí thì khoá và báo "Đang lấy vị trí…" (trạng thái của máy).
+const lock = ref<{ locked: boolean; reason: string | null }>({ locked: true, reason: null });
+let askSeq = 0;
+watch(
+  () => [props.home.checkIn, props.home.workday, props.home.zone, position.value] as const,
+  async ([checkedIn, , , at]) => {
+    const mine = ++askSeq;
+    try {
+      const r = await checkPunch(checkedIn ? 'OUT' : 'IN', at, props.home);
+      if (mine === askSeq) lock.value = r;
+    } catch {
+      if (mine === askSeq) lock.value = { locked: true, reason: 'Không kiểm tra được, thử lại sau' };
+    }
+  },
+  { immediate: true }
 );
 const lockReason = computed(() => (lock.value.locked ? lock.value.reason : null));
 // "Thử lại" chỉ khi lý do khoá là không lấy được vị trí (ngày không phải ngày làm của Check-in được xét trước vị trí).

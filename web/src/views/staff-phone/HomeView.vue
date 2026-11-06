@@ -7,6 +7,7 @@
 // chưa có dữ liệu thì hiện "Đang tải…".
 import { ref } from 'vue';
 import { useLoad } from '@/composables/useLoad';
+import { useStaffLive } from '@/composables/useStaffLive';
 import { useRetry } from '@/composables/useRetry';
 import type { HomeView } from '@/mock/staff-phone';
 import { dm } from '@/utils/format';
@@ -20,6 +21,7 @@ import ShiftCard from './components/ShiftCard.vue';
 import WeekCard from './components/WeekCard.vue';
 
 const load = useLoad(() => getHome());
+useStaffLive(load.refresh);
 const { data, error, loading } = load;
 const head = ref<HTMLElement | null>(null);
 const { errBox, retry } = useRetry(load, head);

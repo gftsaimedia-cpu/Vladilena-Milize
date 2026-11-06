@@ -8,6 +8,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
+import { useStaffLive } from '@/composables/useStaffLive';
 import { backTo, useRetry } from '@/composables/useRetry';
 import { getAttendance } from '@/services/staff-phone';
 import LoadError from '@/views/staff-phone/components/LoadError.vue';
@@ -23,6 +24,7 @@ const month = defineModel<string | null>('month', { default: null });
 
 const router = useRouter();
 const load = useLoad(() => getAttendance(7, month.value), () => month.value);
+useStaffLive(load.refresh, ['attendance.punched', 'attendance.changed', 'request.decided']);
 const { data, error, loading, reload } = load;
 const head = ref<HTMLElement | null>(null);
 const { errBox, retry, after } = useRetry(load, head);

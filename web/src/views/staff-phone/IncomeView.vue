@@ -6,6 +6,7 @@
 // Thử lại mới. Chưa có dữ liệu thì hiện "Đang tải…"; đổi tháng thì giữ nội dung tháng cũ tới khi tháng mới về.
 import { computed, ref } from 'vue';
 import { useLoad } from '@/composables/useLoad';
+import { useStaffLive } from '@/composables/useStaffLive';
 import { backTo, useRetry } from '@/composables/useRetry';
 import { getIncome } from '@/services/staff-phone';
 import IncomeLines from './components/IncomeLines.vue';
@@ -17,6 +18,7 @@ import NetCard from './components/NetCard.vue';
 
 const month = ref<string | null>(null); // null = tháng hiện tại
 const load = useLoad(() => getIncome(month.value), () => month.value);
+useStaffLive(load.refresh);
 const { data, error, loading } = load;
 const head = ref<HTMLElement | null>(null);
 const { errBox, retry, after } = useRetry(load, head);

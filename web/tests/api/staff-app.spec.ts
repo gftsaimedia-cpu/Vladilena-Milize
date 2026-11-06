@@ -104,11 +104,13 @@ test('a refused check-out shows the server message, then a check-out that cannot
 
   await page.unroute('**/api/v2/me/punches');
   // Lượt chấm được ghi nhận nhưng tải lại màn (GET /me/today) lỗi một lần: không báo lỗi, báo đã check-out, màn tự tải lại.
+  // Mọi lần tải /me/today đều lỗi tới khi kiểm xong thông báo (lượt chấm còn kéo theo lần tải êm của SSE nên không chỉ một lần).
   let failToday = true;
-  await page.route('**/api/v2/me/today**', route => (failToday ? ((failToday = false), route.abort()) : route.continue()));
+  await page.route('**/api/v2/me/today**', route => (failToday ? route.abort() : route.continue()));
   await card.getByRole('button', { name: /Check-out/ }).click();
   await expect(page.locator('.toast.ok').filter({ hasText: 'Đã check-out' })).toBeVisible(); // thông báo, không phải dòng trạng thái của thẻ ca
-  await expect(card).toContainText('Đã check-out');
+  failToday = false; // màn tự tải lại ở nhịp kế (SSE hoặc hỏi lại)
+  await expect(card).toContainText('Đã check-out', { timeout: 40_000 });
   await expect(page.getByText('Không kết nối được máy chủ.')).toHaveCount(0);
   await expect(page.getByText('Không tải được dữ liệu')).toHaveCount(0);
 });

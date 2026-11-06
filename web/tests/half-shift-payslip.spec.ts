@@ -62,7 +62,7 @@ test.describe('máy chủ thật', () => {
       deductionTotal: 0,
       kpiTotalScorePct: 0
     };
-    const labels = (p: Record<string, unknown>) => incomeViewOf({ month: '2026-11', state: 'estimate', payslip: p }).lines;
+    const labels = (p: Record<string, unknown>) => incomeViewOf({ month: '2026-11', state: 'estimate', payslip: p, leavePay: 0, kpiParts: [] }).lines;
     const withHalf = labels({ ...payslip, halfShiftRepaidPay: 150000 });
     const i = withHalf.findIndex(l => l.label === 'Làm thêm giờ');
     expect(withHalf[i + 1]).toEqual({ icon: 'clock', label: 'Bù nghỉ giữa ca', value: '150.000', zero: false });

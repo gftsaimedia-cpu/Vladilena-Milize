@@ -28,7 +28,8 @@ import {
   type RequestDetail,
   type RequestsView
 } from '@/mock/staff-phone';
-import type { LatLng } from '@/builders/api/check-in';
+import type { Zone } from '@/builders/api/settings';
+import { checkInLock, type LatLng } from '@/mock/check-in';
 import { ApiError, api, qs } from './http';
 import * as session from './session';
 
@@ -129,6 +130,23 @@ export function watchLocation(onChange: (at: LatLng | null) => void): () => void
     { timeout: 8000, maximumAge: 60000 }
   );
   return () => navigator.geolocation.clearWatch(id);
+}
+
+// Nút chấm công có bị khoá không: máy chủ thật quyết (POST /me/punches/check, cùng luật với lúc chấm) và gửi sẵn câu lý do;
+// `at` null là máy không lấy được vị trí, undefined là đang lấy (cả hai gửi không kèm toạ độ). Dữ liệu giả dùng bản mock cùng luật.
+export async function checkPunch(
+  kind: 'IN' | 'OUT',
+  at: LatLng | null | undefined,
+  mockHome: { workday: boolean; zone: Zone | null }
+): Promise<{ locked: boolean; reason: string | null }> {
+  if (__MOCK__) {
+    const lock = checkInLock({ kind: kind === 'IN' ? 'in' : 'out', workday: mockHome.workday, zone: mockHome.zone, position: at });
+    return { locked: lock.locked, reason: lock.locked ? lock.reason : null };
+  }
+  const r = await api.post('/me/punches/check', { kind, ...(at ?? {}) });
+  // Ngày không phải ngày làm được BE xét trước vị trí; còn lại, chưa có vị trí thì là máy đang lấy chứ chưa phải "không lấy được".
+  if (r.code === 'NO_LOCATION' && at === undefined) return { locked: true, reason: 'Đang lấy vị trí…' };
+  return { locked: !!r.locked, reason: r.reason ?? null };
 }
 
 // Chấm công rồi tải lại màn Hôm nay, hai bước tách nhau: máy chủ từ chối lượt chấm thì ném lỗi (ShiftCard báo câu lỗi);

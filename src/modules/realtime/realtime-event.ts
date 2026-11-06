@@ -13,6 +13,10 @@ export type RealtimeEvent =
       /** 'self': nhân viên tự chấm (có kiểm vùng); 'admin': quản trị chấm hộ. */
       source: 'self' | 'admin';
     }
-  | { type: 'attendance.changed'; username: string; workDate: string };
+  | { type: 'attendance.changed'; username: string; workDate: string }
+  /** Đơn của `username` vừa được duyệt, từ chối hoặc huỷ (kể cả Admin huỷ thay). Nhân viên đó nhận qua /realtime/me. */
+  | { type: 'request.decided'; username: string; requestId: string; kind: string; status: 'APPROVED' | 'REJECTED' | 'CANCELLED' }
+  /** Phiếu lương tháng `month` của `username` vừa được duyệt hoặc từ chối. */
+  | { type: 'payslip.decided'; username: string; month: string; status: 'approved' | 'rejected' };
 
 export type RealtimeEventType = RealtimeEvent['type'];

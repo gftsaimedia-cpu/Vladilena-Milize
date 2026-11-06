@@ -6,7 +6,7 @@ import { onRealtime, type RealtimeEvent } from '@/services/realtime';
 import { flashKey, useRealtimeStore } from '@/stores/realtime';
 
 type Options = {
-  types?: Array<'attendance.punched' | 'attendance.changed'>;
+  types?: Array<'attendance.punched' | 'attendance.changed' | 'request.decided' | 'payslip.decided'>;
   debounceMs?: number;
   /** Chỉ tải lại cho sự kiện thoả điều kiện (vd. đúng người đang xem). `ready` và `poll` luôn tải lại. */
   filter?: (event: any) => boolean;

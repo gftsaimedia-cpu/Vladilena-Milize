@@ -1,4 +1,4 @@
-// Realtime: luồng SSE GET /api/v2/realtime/stream (chỉ admin) và bus sự kiện nhỏ cho các màn.
+// Realtime: luồng SSE GET /api/v2/realtime/stream (admin) và /api/v2/realtime/me (nhân viên, chỉ sự kiện của mình) và bus sự kiện nhỏ cho các màn.
 // SSE không phát lại sự kiện đã lỡ → mỗi lần nhận `ready` sau khi nối lại, màn phải tải lại dữ liệu đang xem (bus phát
 // { type: 'ready', reconnected: true }). Lỗi liên tục thì hỏi lại định kỳ: bus phát { type: 'poll' } mỗi 30 giây.
 import { mockRealtime } from '@/mock/realtime';
@@ -15,10 +15,26 @@ export type PunchEvent = {
   source: 'self' | 'admin';
 };
 export type ChangeEvent = { type: 'attendance.changed'; username: string; workDate: string };
-export type RealtimeEvent = PunchEvent | ChangeEvent | { type: 'ready'; reconnected: boolean } | { type: 'poll' };
+export type RequestDecidedEvent = {
+  type: 'request.decided';
+  username: string;
+  requestId: string;
+  kind: string;
+  status: 'APPROVED' | 'REJECTED' | 'CANCELLED';
+};
+export type PayslipDecidedEvent = { type: 'payslip.decided'; username: string; month: string; status: 'approved' | 'rejected' };
+export type RealtimeEvent =
+  | PunchEvent
+  | ChangeEvent
+  | RequestDecidedEvent
+  | PayslipDecidedEvent
+  | { type: 'ready'; reconnected: boolean }
+  | { type: 'poll' };
+export type RealtimeScope = 'admin' | 'me';
 type Handler = (event: any) => void;
 
 export const STREAM_URL = '/api/v2/realtime/stream';
+export const ME_STREAM_URL = '/api/v2/realtime/me';
 export const POLL_MS = 30_000;
 const MAX_FAILS = 3;
 
@@ -42,10 +58,11 @@ type Source = {
   addEventListener(type: string, fn: (e: { data: string }) => void): void;
   close(): void;
 };
-const openSource = (): Source => (__MOCK__ ? mockRealtime.open() : (new EventSource(STREAM_URL) as unknown as Source));
+const openSource = (scope: RealtimeScope): Source =>
+  __MOCK__ ? mockRealtime.open() : (new EventSource(scope === 'me' ? ME_STREAM_URL : STREAM_URL) as unknown as Source);
 
 /** Bộ nối: start() mở luồng, stop() đóng; onStatus báo trạng thái kết nối. */
-export function createRealtime(onStatus: (s: RealtimeStatus) => void) {
+export function createRealtime(onStatus: (s: RealtimeStatus) => void, scope: RealtimeScope = 'admin') {
   let source: Source | null = null;
   let running = false;
   let everReady = false;
@@ -67,7 +84,7 @@ export function createRealtime(onStatus: (s: RealtimeStatus) => void) {
 
   function open() {
     source?.close();
-    const src = (source = openSource());
+    const src = (source = openSource(scope));
     src.addEventListener('ready', () => {
       if (src !== source) return;
       fails = 0;
@@ -77,7 +94,7 @@ export function createRealtime(onStatus: (s: RealtimeStatus) => void) {
       emitRealtime({ type: 'ready', reconnected: everReady });
       everReady = true;
     });
-    for (const type of ['attendance.punched', 'attendance.changed']) {
+    for (const type of ['attendance.punched', 'attendance.changed', 'request.decided', 'payslip.decided']) {
       src.addEventListener(type, e => {
         if (src !== source) return;
         try {

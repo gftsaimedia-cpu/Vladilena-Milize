@@ -436,7 +436,8 @@ export function requestContext(): RequestContext {
       makeupMinutesPerLeaveDay: 480,
       dayCapMinutes: 720,
       monthOtCapMinutes: 2400,
-      halfShiftOwedMinutes: HALF_SHIFT_OWED_MINUTES
+      halfShiftOwedMinutes: HALF_SHIFT_OWED_MINUTES,
+      shiftGapMinutes: 60
     }
   };
 }

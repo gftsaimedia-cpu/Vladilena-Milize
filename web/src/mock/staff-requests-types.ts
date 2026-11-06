@@ -98,6 +98,7 @@ export type RequestRules = {
   dayCapMinutes: number;
   monthOtCapMinutes: number;
   halfShiftOwedMinutes?: number;
+  shiftGapMinutes?: number;
 };
 export type RequestContext = {
   today: string;

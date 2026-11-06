@@ -10,6 +10,7 @@
 import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
+import { useStaffLive } from '@/composables/useStaffLive';
 import { useRetry } from '@/composables/useRetry';
 import type { HomeView } from '@/mock/staff-phone';
 import { getHome, getRequests } from '@/services/staff-phone';
@@ -27,11 +28,13 @@ const emit = defineEmits<{ checkedOut: [] }>();
 const router = useRouter();
 
 const homeLoad = useLoad(() => getHome());
+useStaffLive(homeLoad.refresh);
 const { data: home, error: homeError, loading: homeLoading } = homeLoad;
 const homeHead = ref<HTMLElement | null>(null);
 const { errBox: homeErrBox, retry: retryHome } = useRetry(homeLoad, homeHead);
 
 const requestsLoad = useLoad(() => getRequests());
+useStaffLive(requestsLoad.refresh, ['request.decided']);
 const { data: requests, error: requestsError, loading: requestsLoading } = requestsLoad;
 const requestsHead = ref<HTMLElement | null>(null);
 const { errBox: requestsErrBox, retry: retryRequests } = useRetry(requestsLoad, requestsHead);

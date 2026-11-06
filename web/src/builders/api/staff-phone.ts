@@ -64,7 +64,7 @@ export type MeProfile = {
   shift: { type: string; startTime: string; endTime: string };
   leave: { totalDays: number; usedDays: number; remainingDays: number };
 };
-export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange; payDate?: string | null };
+export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; /** BE cộng sẵn: nghỉ phép + quyết toán phép + iSAT + lương lễ. */ leavePay: number; /** Năm phần điểm KPI theo thứ tự hiển thị. */ kpiParts: { key: string; label: string }[]; reason?: string; range?: MeRange; payDate?: string | null };
 export type MeStep = { label: string; at: string | null; state: RequestStatus };
 export type MeRequest = RequestDTO & { reviewedAt?: string | null; reviewNote?: string | null };
 
@@ -378,13 +378,6 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
 }
 
 // ---------- Thu nhập ----------
-const KPI_PARTS: [string, string][] = [
-  ['wework', 'Wework'],
-  ['user', 'Người dùng'],
-  ['peer', 'Đồng nghiệp'],
-  ['manager', 'Quản lý'],
-  ['self', 'Tự đánh giá']
-];
 
 export function incomeViewOf(inc: MeIncome): IncomeView {
   const p = inc.payslip;
@@ -397,14 +390,13 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
       review: inc.reason || 'Chưa tính được thu nhập tháng này',
       gross: NONE,
       deduction: NONE,
-      kpi: { title: `KPI tháng ${Number(inc.month.slice(5, 7))}`, parts: '5 phần', percent: NONE, ratio: 0, pay: NONE, proposed: NONE, scores: [] },
+      kpi: { title: `KPI tháng ${Number(inc.month.slice(5, 7))}`, parts: `${inc.kpiParts.length} phần`, percent: NONE, ratio: 0, pay: NONE, proposed: NONE, scores: [] },
       lines: [],
       total: NONE
     };
   }
   const pct = Number(p.kpiTotalScorePct) || 0;
   const official = inc.state === 'official';
-  const leavePay = (p.paidLeavePay || 0) + (p.leaveSettlementPay || 0) + (p.isatPay || 0) + (p.holidayPay || 0);
   const line = (icon: IncomeView['lines'][number]['icon'], label: string, n: number, negative = false) => ({
     icon,
     label,
@@ -424,17 +416,17 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
     deduction: vnd(p.deductionTotal || 0),
     kpi: {
       title: `KPI tháng ${Number(inc.month.slice(5, 7))}`,
-      parts: '5 phần',
+      parts: `${inc.kpiParts.length} phần`,
       percent: `${pct.toFixed(2).replace('.', ',')}%`,
       ratio: Math.round(pct * 100) / 10000,
       pay: vnd(p.kpiActualPay),
       proposed: vnd(p.kpiProposedAmount ?? p.kpiMaxSalary),
-      scores: KPI_PARTS.map(([k, label]) => ({ value: p.kpiScores?.[k] == null ? NONE : String(p.kpiScores[k]), label }))
+      scores: inc.kpiParts.map(({ key, label }) => ({ value: p.kpiScores?.[key] == null ? NONE : String(p.kpiScores[key]), label }))
     },
     // Các dòng cộng lại (dòng có dấu − thì trừ) bằng đúng Thực nhận của BE.
     lines: [
       line('cal', 'Lương ngày công', p.baseSalaryActual),
-      line('leave', 'Nghỉ phép, iSAT', leavePay),
+      line('leave', 'Nghỉ phép, iSAT', inc.leavePay),
       ...ifAny('clock', 'Làm thêm giờ', p.otPayTotal || 0),
       // Giờ làm thêm trả nợ nghỉ giữa ca: khoản riêng của BE, không nằm trong tiền OT.
       ...ifAny('clock', 'Bù nghỉ giữa ca', p.halfShiftRepaidPay || 0),

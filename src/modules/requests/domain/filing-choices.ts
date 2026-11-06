@@ -42,13 +42,16 @@ export interface FilingRules {
   dayCapMinutes: 720;
   monthOtCapMinutes: 2400;
   halfShiftOwedMinutes: 240;
+  /** Giờ làm thêm phải cách ca ít nhất chừng này phút. */
+  shiftGapMinutes: 60;
 }
 
 export const FILING_RULES: FilingRules = {
   makeupMinutesPerLeaveDay: 480,
   dayCapMinutes: 720,
   monthOtCapMinutes: 2400,
-  halfShiftOwedMinutes: 240
+  halfShiftOwedMinutes: 240,
+  shiftGapMinutes: 60
 };
 
 /** Phần của một ngày mà luật lựa chọn cần. */

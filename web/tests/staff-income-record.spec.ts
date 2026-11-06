@@ -28,8 +28,11 @@ const payslip = (over: Record<string, unknown> = {}) => ({
 });
 // "−735.000" / "6.461.538" / "0" → số.
 const amount = (text: string) => Number(text.replace('−', '-').replace(/\./g, '')) || 0;
+// Như BE (GET /me/income): leavePay và kpiParts do máy chủ gửi.
+const leavePayOf = (p: any) => (p.paidLeavePay || 0) + (p.leaveSettlementPay || 0) + (p.isatPay || 0) + (p.holidayPay || 0);
+const KPI_PARTS = [{ key: 'wework', label: 'Wework' }, { key: 'user', label: 'Người dùng' }, { key: 'peer', label: 'Đồng nghiệp' }, { key: 'manager', label: 'Quản lý' }, { key: 'self', label: 'Tự đánh giá' }];
 const lines = (state: 'official' | 'estimate', p: Record<string, unknown>) =>
-  incomeViewOf({ month: '2026-10', state, payslip: p, range: { from: '2026-08', to: '2026-11' } }).lines;
+  incomeViewOf({ month: '2026-10', state, payslip: p, leavePay: leavePayOf(p), kpiParts: KPI_PARTS, range: { from: '2026-08', to: '2026-11' } }).lines;
 
 test('BUG-payroll-13: an official month lists OT, the late cut and the advance, and the lines add up to Thực nhận', () => {
   const ls = lines('official', payslip());

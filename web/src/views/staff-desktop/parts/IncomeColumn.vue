@@ -5,6 +5,7 @@
 // hiện "Đang tải…".
 import { computed, ref } from 'vue';
 import { useLoad } from '@/composables/useLoad';
+import { useStaffLive } from '@/composables/useStaffLive';
 import { useRetry } from '@/composables/useRetry';
 import { getIncome } from '@/services/staff-phone';
 import IncomeLines from '@/views/staff-phone/components/IncomeLines.vue';
@@ -16,6 +17,7 @@ import NetCard from '@/views/staff-phone/components/NetCard.vue';
 const props = defineProps<{ month?: string | null }>();
 
 const load = useLoad(() => getIncome(props.month), () => props.month);
+useStaffLive(load.refresh);
 const { data, error, loading } = load;
 const head = ref<HTMLElement | null>(null);
 const { errBox, retry } = useRetry(load, head);

@@ -5,12 +5,17 @@ import {
   attendanceViewOf,
   dayDetailOf,
   homeViewOf,
-  incomeViewOf,
+  incomeViewOf as incomeViewFromBe,
   profileViewOf,
   requestDetailOf,
   requestRowOf,
   workedText
 } from '../../web/src/builders/api/staff-phone';
+
+import { KPI_PARTS, leaveIncomePayOf } from '../../src/modules/me/domain';
+
+// GET /me/income gửi sẵn `leavePay` và `kpiParts` (BE tính); test dựng đủ như máy chủ.
+const incomeViewOf = (inc: any) => incomeViewFromBe({ leavePay: leaveIncomePayOf(inc.payslip), kpiParts: KPI_PARTS, ...inc });
 
 const req = (over: Record<string, unknown>) => ({ id: 'r1', status: 'PENDING', createdAt: '2026-11-03T13:14:00Z', reviewedAt: null, reason: 'Việc nhà', ...over });
 

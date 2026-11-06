@@ -9,6 +9,7 @@ import { nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from '@/components/shell/toast';
 import { useLoad } from '@/composables/useLoad';
+import { useStaffLive } from '@/composables/useStaffLive';
 import { useRetry } from '@/composables/useRetry';
 import type { RequestDetail } from '@/mock/staff-phone';
 import { ApiError } from '@/services/http';
@@ -26,6 +27,7 @@ const route = useRoute();
 const router = useRouter();
 // Tải lỗi thì hiện LoadError với nút Thử lại (không để lời hứa bị từ chối trôi ra ngoài); tải lại sau khi gửi / huỷ giữ danh sách cũ tới khi có bản mới.
 const loader = useLoad(() => getRequests());
+useStaffLive(loader.refresh, ['request.decided']);
 const { data, error, loading } = loader;
 const load = loader.reload;
 const head = ref<HTMLElement | null>(null);

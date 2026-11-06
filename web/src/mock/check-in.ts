@@ -1,6 +1,6 @@
-// Khoá nút chấm công theo luật của BE (POST /me/punches): ngày làm (chỉ khi vào ca), vị trí, rồi vùng chấm công. File thuần.
-import { vnd } from '../../utils/format';
-import type { Zone } from './settings';
+// Chỉ cho dữ liệu giả: bản máy chủ thật là POST /me/punches/check (BE quyết khoá nút và soạn câu lý do). Cùng luật với BE.
+import { vnd } from '../utils/format';
+import type { Zone } from '../builders/api/settings';
 
 export type LatLng = { lat: number; lng: number };
 export type PunchLock = { locked: false } | { locked: true; reason: string };

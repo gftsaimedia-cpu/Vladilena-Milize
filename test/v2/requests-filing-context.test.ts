@@ -47,7 +47,8 @@ describe('Ngữ cảnh form đơn của nhân viên (spec 2.1)', () => {
       makeupMinutesPerLeaveDay: 480,
       dayCapMinutes: 720,
       monthOtCapMinutes: 2400,
-      halfShiftOwedMinutes: 240
+      halfShiftOwedMinutes: 240,
+      shiftGapMinutes: 60
     });
     assert.equal(context.choices.leave.starts[0], '2026-11-04');
     assert.deepEqual(context.choices.leave.ends['2026-11-04'][0], { date: '2026-11-04', daysCount: 1, annualLeaveLeftAfter: 11 });

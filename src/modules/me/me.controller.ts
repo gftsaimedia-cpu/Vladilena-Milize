@@ -10,6 +10,7 @@ import {
   UnauthorizedError,
 } from '../../common';
 import { isValidDateText } from '../../common/date-text';
+import { checkPunchLocation } from '../settings/domain/attendance-zone';
 import { RequestIdPipe } from '../requests/request-id.pipe';
 import { PunchRefusedError } from '../attendance/attendance.errors';
 import { AttendanceService } from '../attendance/attendance.service';
@@ -21,7 +22,7 @@ import { payDateOf, SettingsReader, TypeWeekMissingError, type WorkWeek } from '
 import { PeriodsService } from '../periods';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
-import { ALERT_MONTHS_BACK, daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, shiftMonth, stepsOf, vnToday, weekOf } from './domain';
+import { ALERT_MONTHS_BACK, KPI_PARTS, daySummaryOf, estimateIncomeOf, leaveIncomePayOf, monthOf, monthRangeOf, shiftMonth, stepsOf, vnToday, weekOf } from './domain';
 
 // Nhóm "của tôi": mọi route chỉ cần phiên; danh tính luôn là req.user. Không route nào đọc employeeId / username của
 // client — trường lạ trong body hay query bị bỏ qua. Bảng công dùng uuid, đơn từ và phiếu lương dùng tên đăng nhập.
@@ -202,6 +203,25 @@ export class MeController {
     };
   }
 
+  // Nút chấm công có khoá không (cùng luật với POST /me/punches, không ghi gì): ngày làm (chỉ khi vào ca), rồi vùng chấm công.
+  @Authenticated()
+  @HttpCode(200)
+  @Post('punches/check')
+  async punchCheck(@Req() req: Request, @Body() body: { kind?: string; lat?: number; lng?: number }): Promise<unknown> {
+    const me = who(req);
+    if (body?.kind !== 'IN' && body?.kind !== 'OUT') throw new BadRequestError('Thiếu loại chấm công (IN hoặc OUT)', { code: 'BAD_PUNCH_INPUT' });
+    if (body.kind === 'IN' && !(await this.attendance.workdayOf(me.uuid, vnToday()))) {
+      return { locked: true, reason: 'Hôm nay không phải ngày làm của bạn', code: 'NOT_A_WORKDAY', distanceM: null };
+    }
+    const zone = await this.settings.zone();
+    const check = checkPunchLocation(zone, { lat: body.lat, lng: body.lng });
+    if (check.kind === 'no-location') return { locked: true, reason: 'Không lấy được vị trí', code: 'NO_LOCATION', distanceM: null };
+    if (check.kind === 'outside') {
+      return { locked: true, reason: `Bạn đang cách văn phòng ${check.distanceM} m`, code: 'OUTSIDE_ZONE', distanceM: check.distanceM };
+    }
+    return { locked: false, reason: null, code: null, distanceM: check.distanceM };
+  }
+
   @Authenticated()
   @Post('punches')
   async punch(@Req() req: Request, @Body() body: { kind?: string; lat?: number; lng?: number; accuracyM?: number }): Promise<unknown> {
@@ -353,12 +373,15 @@ export class MeController {
     const m = needMonthIn(month, range);
     const payDate = payDateOf(m, (await this.settings.settingsFor(m)).payCalendar.payDay);
     const stored = await this.payroll.getPayslip(m, me.username);
-    if (stored && stored.status === 'approved') return { month: m, state: 'official', payslip: stored.details, payDate, range };
+    if (stored && stored.status === 'approved') {
+      return { month: m, state: 'official', payslip: stored.details, leavePay: leaveIncomePayOf(stored.details), kpiParts: KPI_PARTS, payDate, range };
+    }
     try {
       const slip = await this.payroll.generateMonthlyPayslip(me.uuid, m);
-      return { month: m, state: 'estimate', payslip: estimateIncomeOf(slip.toJSON()), payDate, range };
+      const payslip = estimateIncomeOf(slip.toJSON());
+      return { month: m, state: 'estimate', payslip, leavePay: leaveIncomePayOf(payslip), kpiParts: KPI_PARTS, payDate, range };
     } catch (err: any) {
-      return { month: m, state: 'unavailable', payslip: null, reason: err?.message || 'Chưa tính được', payDate, range };
+      return { month: m, state: 'unavailable', payslip: null, leavePay: 0, kpiParts: KPI_PARTS, reason: err?.message || 'Chưa tính được', payDate, range };
     }
   }
 }

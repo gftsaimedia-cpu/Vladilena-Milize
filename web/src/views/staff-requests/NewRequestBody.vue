@@ -38,9 +38,9 @@ const FORMS: Record<RequestKind, Component> = {
 
 const MENU: { kind: RequestKind; label: string; icon: PhoneIconName; hint: string }[] = [
   { kind: 'leave', label: 'Đơn nghỉ', icon: 'leave', hint: 'Nghỉ cả ngày' },
-  { kind: 'leave-with-makeup', label: 'Nghỉ có làm bù', icon: 'redo', hint: 'Nghỉ 1 ngày thì bù đủ 8 giờ trong tháng' },
+  { kind: 'leave-with-makeup', label: 'Nghỉ có làm bù', icon: 'redo', hint: '' },
   { kind: 'half-shift-leave', label: 'Nghỉ giữa ca', icon: 'leave', hint: 'Làm nửa ca, nửa còn lại bù bằng làm thêm giờ trong tháng' },
-  { kind: 'overtime', label: 'Làm thêm giờ', icon: 'clockPlus', hint: 'Ngoài ca, cách ca ít nhất 1 giờ' },
+  { kind: 'overtime', label: 'Làm thêm giờ', icon: 'clockPlus', hint: '' },
   { kind: 'shift-change', label: 'Đổi ca', icon: 'swap', hint: 'Normal, Flex hoặc Night cho một khoảng ngày' },
   { kind: 'explanation', label: 'Giải trình', icon: 'chat', hint: 'Cho một ngày chấm công chưa hợp lệ' },
   { kind: 'advance', label: 'Tạm ứng', icon: 'coin', hint: 'Ứng trước một phần lương tháng' }
@@ -62,7 +62,15 @@ const menu = computed(() => {
     if (!k) return [];
     const leaveLeft = m.kind === 'leave' && c.annualLeaveLeft !== null ? `Phép năm còn ${c.annualLeaveLeft} ngày` : '';
     const adv = m.kind === 'advance' && c.advance ? `Tạm ứng lương tháng ${Number(c.advance.month.slice(5, 7))}, nộp đến hết ${dm(c.advance.windowEnd)}` : '';
-    const hint = !k.enabled ? (k.reason ?? m.hint) : leaveLeft || adv || m.hint;
+    // Con số luật (giờ bù một ngày nghỉ, khoảng cách tới ca) lấy từ `rules` của BE, không gõ cứng ở đây.
+    const hours = (min?: number) => String(Math.round(((min ?? 0) / 60) * 10) / 10).replace('.', ',');
+    const rule =
+      m.kind === 'leave-with-makeup' && c.rules.makeupMinutesPerLeaveDay
+        ? `Nghỉ 1 ngày thì bù đủ ${hours(c.rules.makeupMinutesPerLeaveDay)} giờ trong tháng`
+        : m.kind === 'overtime' && c.rules.shiftGapMinutes
+          ? `Ngoài ca, cách ca ít nhất ${hours(c.rules.shiftGapMinutes)} giờ`
+          : '';
+    const hint = !k.enabled ? (k.reason ?? m.hint) : leaveLeft || adv || rule || m.hint;
     return [{ ...m, enabled: k.enabled, hint, id: `${uid}-${m.kind}` }];
   });
 });

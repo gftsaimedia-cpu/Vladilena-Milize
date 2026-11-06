@@ -61,6 +61,7 @@ import { ExplanationsService } from './explanations.service';
 import { loadEmployeeDays } from './load-days';
 import { AttendanceRepository } from '../attendance/attendance.repository';
 import { AttendanceDaysService } from '../attendance/attendance-days.service';
+import { RealtimeBus } from '../realtime/realtime-bus';
 import { HolidaysRepository, type Holiday } from '../holidays/holidays.repository';
 import { businessMonthText } from '../../common/business-date';
 import { PayrollService } from '../payroll/payroll.service';
@@ -402,8 +403,21 @@ export class RequestsService {
     @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf'>,
     // Bắt buộc khi chạy thật (Nest tiêm); test chạy không có giao dịch thì bỏ qua nhật ký.
     @Inject(AuditLog) private readonly audit?: Pick<AuditLog, 'append'>,
-    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: AttendanceDaysService
+    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: AttendanceDaysService,
+    // Báo cho màn của người nộp sau khi đơn được duyệt, từ chối hoặc huỷ (đã commit); thiếu thì không phát.
+    @Optional() @Inject(RealtimeBus) private readonly bus?: RealtimeBus
   ) {}
+
+  /** Phát `request.decided` sau commit. Lỗi ở đây chỉ ghi log, không làm hỏng việc duyệt/huỷ. */
+  private async announceDecided(dto: SystemRequestDTO): Promise<void> {
+    if (!this.bus || (dto.status !== 'APPROVED' && dto.status !== 'REJECTED' && dto.status !== 'CANCELLED')) return;
+    try {
+      const username = await this.repo.resolveStaffUsername(dto.employeeId);
+      if (username) this.bus.publish({ type: 'request.decided', username, requestId: dto.id, kind: dto.type, status: dto.status });
+    } catch (err) {
+      console.error('Không phát được sự kiện realtime:', err);
+    }
+  }
 
   /**
    * Tháng `month` (YYYY-MM) không nhận đơn loại thường (cổng kỳ `file`: kỳ không còn 'open'). Chỉ để dựng form (spec
@@ -1629,6 +1643,17 @@ export class RequestsService {
     action: 'APPROVE' | 'REJECT',
     note?: string
   ): Promise<{ dto: SystemRequestDTO; months: string[]; employeeId: string }> {
+    const out = await this.decideLocked(id, reviewer, action, note);
+    await this.announceDecided(out.dto);
+    return out;
+  }
+
+  private async decideLocked(
+    id: string,
+    reviewer: string,
+    action: 'APPROVE' | 'REJECT',
+    note?: string
+  ): Promise<{ dto: SystemRequestDTO; months: string[]; employeeId: string }> {
     return await this.underLock(`request_${id}`, async (stores, trx) => {
       const req = await stores.requests.findById(id);
       if (!req) {
@@ -1706,6 +1731,12 @@ export class RequestsService {
    * (route /me, hoặc Admin huỷ đơn của chính mình) thì không ghi (spec audit-log mục 6).
    */
   async cancelRequest(id: string, employeeId: string, reason?: string, actor?: string): Promise<SystemRequestDTO> {
+    const dto = await this.cancelLocked(id, employeeId, reason, actor);
+    await this.announceDecided(dto);
+    return dto;
+  }
+
+  private async cancelLocked(id: string, employeeId: string, reason?: string, actor?: string): Promise<SystemRequestDTO> {
     return await this.underLock(`request_${id}`, async (stores, trx) => {
       const req = await stores.requests.findById(id);
       if (!req) {

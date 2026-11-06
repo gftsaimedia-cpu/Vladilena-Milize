@@ -20,7 +20,20 @@ export function useLoad(fn?, source?) {
       if (mine === seq) loading.value = false;
     }
   }
+  // Tải lại êm cho realtime: không bật loading, lỗi thì giữ dữ liệu đang hiện (lần sau hoặc nhịp hỏi lại sẽ thử tiếp).
+  async function refresh() {
+    const mine = ++seq;
+    try {
+      const value = await fn();
+      if (mine === seq) {
+        data.value = value;
+        error.value = null;
+      }
+    } catch {
+      /* giữ nguyên màn đang hiện */
+    }
+  }
   if (source) watch(source, run, { immediate: true });
   else run();
-  return { data, loading, error, reload: run };
+  return { data, loading, error, reload: run, refresh };
 }

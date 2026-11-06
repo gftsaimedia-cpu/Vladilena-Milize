@@ -99,12 +99,24 @@ test('employee profile reloads only for the person being viewed', async ({ page 
   await expect.poll(() => calls(page)).toBeGreaterThan(0);
 });
 
-test('staff session never opens the stream', async ({ page }) => {
+test('staff session opens exactly one stream; only own events refresh and toast', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('aicb.mock.session', 'nhanvien'));
   await page.goto('/nv/hom-nay');
   await expect(page).toHaveURL(/\/nv\//);
   await settle(page);
-  expect(await inApp<number>(page, `${R} return R.opened;`)).toBe(0);
+  expect(await inApp<number>(page, `${R} return R.opened;`)).toBe(1);
+  await page.evaluate(() => ((window).__mockCalls = 0));
+  // Sự kiện của người khác: không toast, không tải lại.
+  await emit(page, { type: 'request.decided', username: 'nguoi-khac', requestId: 'x', kind: 'LEAVE', status: 'APPROVED' });
+  await settle(page);
+  expect(await calls(page)).toBe(0);
+  await expect(page.getByText('Đơn của bạn đã được duyệt')).toHaveCount(0);
+  // Sự kiện của mình: toast và tải lại.
+  await emit(page, { type: 'request.decided', username: 'nhanvien', requestId: 'y', kind: 'LEAVE', status: 'REJECTED' });
+  await expect(page.getByText('Đơn của bạn bị từ chối')).toBeVisible();
+  await expect.poll(() => calls(page)).toBeGreaterThan(0);
+  await emit(page, { type: 'payslip.decided', username: 'nhanvien', month: '2026-10', status: 'approved' });
+  await expect(page.getByText('Phiếu lương của bạn đã được duyệt')).toBeVisible();
 });
 
 test('admin opens exactly one stream and closes it on sign-out', async ({ page }) => {

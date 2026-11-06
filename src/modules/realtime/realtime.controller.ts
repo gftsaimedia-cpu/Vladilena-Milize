@@ -1,10 +1,11 @@
 import { Controller, Get, Inject, Optional, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { RequireCap, type UserSession } from '../../common';
+import { Authenticated, RequireCap, type UserSession } from '../../common';
 import { AuthService } from '../auth/auth.service';
 import { readSessionCookie } from '../auth/auth.guard';
 import { capsOf } from '../auth/domain';
 import { RealtimeBus } from './realtime-bus';
+import type { RealtimeEvent } from './realtime-event';
 
 export const HEARTBEAT_MS = 25_000;
 export const MAX_STREAMS_PER_USER = 5;
@@ -23,8 +24,26 @@ export class RealtimeController {
   @RequireCap('attendance.correct')
   @Get('stream')
   stream(@Req() req: Request, @Res() res: Response): void {
+    this.serve(req, res, 'admin', () => true, session => capsOf(session.role).includes('attendance.correct'));
+  }
+
+  // Luồng của nhân viên: chỉ nhận sự kiện của chính mình (event.username trùng tên đăng nhập của phiên).
+  @Authenticated()
+  @Get('me')
+  mine(@Req() req: Request, @Res() res: Response): void {
+    const me = (req as Request & { user?: UserSession }).user?.username ?? '';
+    this.serve(req, res, 'me', event => 'username' in event && event.username === me, () => true);
+  }
+
+  private serve(
+    req: Request,
+    res: Response,
+    scope: string,
+    wanted: (event: RealtimeEvent) => boolean,
+    stillAllowed: (session: { role: string }) => boolean
+  ): void {
     const user = (req as Request & { user?: UserSession }).user;
-    const key = user?.username ?? '';
+    const key = `${scope}:${user?.username ?? ''}`;
     if ((this.open.get(key) ?? 0) >= MAX_STREAMS_PER_USER) {
       res.status(429).json({ error: 'Quá nhiều kết nối realtime đang mở', code: 'TOO_MANY_STREAMS' });
       return;
@@ -48,6 +67,7 @@ export class RealtimeController {
     let queue: Promise<void> = Promise.resolve(); // giữ đúng thứ tự sự kiện dù kiểm phiên bất đồng bộ
     const frame = (event: { type: string }) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
     const unsubscribe = this.bus.subscribe(event => {
+      if (!wanted(event)) return;
       const auth = this.auth;
       if (!auth) {
         send(frame(event));
@@ -55,7 +75,7 @@ export class RealtimeController {
       }
       queue = queue.then(async () => {
         const current = await auth.verifySession(token).catch(() => null);
-        if (!current || !capsOf(current.role).includes('attendance.correct')) {
+        if (!current || !stillAllowed(current)) {
           if (!res.writableEnded) res.end();
           return;
         }

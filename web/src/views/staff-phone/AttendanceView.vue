@@ -9,6 +9,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from '@/components/shell/toast';
 import { useLoad } from '@/composables/useLoad';
+import { useStaffLive } from '@/composables/useStaffLive';
 import { backTo, useRetry } from '@/composables/useRetry';
 import type { DayDetail } from '@/mock/staff-phone';
 import { ApiError } from '@/services/http';
@@ -26,6 +27,7 @@ const router = useRouter();
 
 const month = ref<string | null>(null); // null = tháng hiện tại
 const load = useLoad(() => getAttendance(5, month.value), () => month.value);
+useStaffLive(load.refresh, ['attendance.punched', 'attendance.changed', 'request.decided']);
 const { data, error, loading } = load;
 const head = ref<HTMLElement | null>(null);
 const { errBox, retry, after } = useRetry(load, head);

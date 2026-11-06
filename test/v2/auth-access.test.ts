@@ -94,10 +94,11 @@ const TABLE: Array<[any, string, AccessRule]> = [
     'reviewMany',
     'cancelRequest'
   ].map(m => [RequestsController, m, cap('requests.review')] as [any, string, AccessRule]),
-  ...['profile', 'today', 'punch', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income', 'requestContext', 'previewRequest'].map(
+  ...['profile', 'today', 'punch', 'punchCheck', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income', 'requestContext', 'previewRequest'].map(
     m => [MeController, m, authed] as [any, string, AccessRule]
   ),
   [RealtimeController, 'stream', cap('attendance.correct')],
+  [RealtimeController, 'mine', authed],
   [OverviewController, 'week', cap('attendance.correct')],
   [OverviewController, 'employee', cap('attendance.correct')],
   [OverviewController, 'overview', cap('config.read')],
