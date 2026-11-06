@@ -390,6 +390,17 @@ export interface StaffTable {
   shift_allowance_pct: Generated<number>;
   leave_total_days: Generated<number>;
   leave_used_days: Generated<number>;
+  department_id: Generated<number | null>;
+  on_leave_from: Generated<string | null>;
+  on_leave_to: Generated<string | null>;
+}
+
+export interface DepartmentsTable {
+  id: Generated<number>;
+  name: string;
+  sort: Generated<number>;
+  updated_by: string;
+  updated_at: string;
 }
 
 export interface StaffRolesTable {
@@ -524,6 +535,7 @@ export interface Schema {
   settings: SettingsTable;
   settings_changes: SettingsChangesTable;
   slip_overrides: SlipOverridesTable;
+  departments: DepartmentsTable;
   staff: StaffTable;
   staff_roles: StaffRolesTable;
   staff_work_weeks: StaffWorkWeeksTable;
