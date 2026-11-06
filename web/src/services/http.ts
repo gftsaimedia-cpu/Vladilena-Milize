@@ -15,6 +15,7 @@ export class ApiError extends Error {
 }
 
 export const API_BASE = '/api/v2';
+export const API_TIMEOUT_MS = 30_000;
 
 let unauthorizedHandler: any = null;
 let warningsHandler: any = null;
@@ -69,7 +70,19 @@ export async function api(method?, path?, body?, opts: any = {}): Promise<any> {
   }
   const upper = String(method || 'GET').toUpperCase();
   const write = upper !== 'GET' && upper !== 'HEAD';
+  // Quá hạn (mặc định 30 giây, đổi bằng opts.timeoutMs) thì báo lỗi rõ thay vì để màn treo ở "Đang tải…" mãi.
+  const ctl = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctl.abort();
+  }, opts.timeoutMs ?? API_TIMEOUT_MS);
+  const outer: AbortSignal | undefined = opts.signal;
+  const relay = () => ctl.abort();
+  if (outer?.aborted) ctl.abort();
+  else outer?.addEventListener('abort', relay);
   let res: Response;
+  let data: any;
   try {
     res = await fetch(API_BASE + path, {
       method: upper,
@@ -81,14 +94,18 @@ export async function api(method?, path?, body?, opts: any = {}): Promise<any> {
         ...(opts.headers || {})
       },
       body: write ? JSON.stringify(body === undefined ? {} : body) : undefined,
-      signal: opts.signal
+      signal: ctl.signal
     });
+    data = await readJson(res);
   } catch (e) {
+    if (timedOut) throw new ApiError(0, 'Máy chủ phản hồi quá lâu, bạn thử lại sau.', { code: 'timeout' });
     if (e && (e as any).name === 'AbortError') throw e;
     throw new ApiError(0, 'Không kết nối được máy chủ.', { code: 'network' });
+  } finally {
+    clearTimeout(timer);
+    outer?.removeEventListener('abort', relay);
   }
 
-  const data = await readJson(res);
   if (data === undefined) {
     throw new ApiError(res.status, `Máy chủ đang lỗi (mã ${res.status}).`, { code: 'bad_response' });
   }

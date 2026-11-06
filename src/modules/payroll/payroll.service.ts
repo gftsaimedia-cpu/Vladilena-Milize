@@ -232,7 +232,7 @@ export class PayrollService {
       const settings = await this.runSettings(month);
       let targets = employeeIds;
       if (!targets || targets.length === 0) {
-        const staffList = await this.repo.listEligibleEmployees();
+        const staffList = await this.repo.listEligibleEmployees(month);
         targets = staffList.map(s => s.uuid);
       }
 

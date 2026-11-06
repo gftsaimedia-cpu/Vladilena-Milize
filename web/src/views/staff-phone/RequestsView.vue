@@ -7,20 +7,29 @@
 // Chỉ một hộp mở một lúc: có ?tao= thì luồng thắng, ?yc= bị bỏ khỏi URL và không mở J5.
 import { nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { RequestDetail, RequestsView } from '@/mock/staff-phone';
+import { toast } from '@/components/shell/toast';
+import { useLoad } from '@/composables/useLoad';
+import { useRetry } from '@/composables/useRetry';
+import type { RequestDetail } from '@/mock/staff-phone';
+import { ApiError } from '@/services/http';
 import { getRequest, getRequests } from '@/services/staff-phone';
 import NewRequestBody from '@/views/staff-requests/NewRequestBody.vue';
 import { TAO_MENU, useTaoParam, withoutFlow } from '@/views/staff-requests/useNewRequest';
 import BottomSheet from './components/BottomSheet.vue';
+import LoadError from './components/LoadError.vue';
+import LoadingLine from './components/LoadingLine.vue';
 import PhIcon from './components/PhIcon.vue';
 import RequestList from './components/RequestList.vue';
 import RequestSheet from './components/RequestSheet.vue';
 
 const route = useRoute();
 const router = useRouter();
-const data = ref<RequestsView | null>(null);
-const load = () => getRequests().then(v => (data.value = v));
-load();
+// Tải lỗi thì hiện LoadError với nút Thử lại (không để lời hứa bị từ chối trôi ra ngoài); tải lại sau khi gửi / huỷ giữ danh sách cũ tới khi có bản mới.
+const loader = useLoad(() => getRequests());
+const { data, error, loading } = loader;
+const load = loader.reload;
+const head = ref<HTMLElement | null>(null);
+const { errBox, retry } = useRetry(loader, head);
 
 const root = ref<HTMLElement | null>(null);
 const tao = useTaoParam();
@@ -46,7 +55,18 @@ watch(
       return;
     }
     const id = String(yc);
-    const found = await getRequest(id);
+    let found: RequestDetail | null;
+    try {
+      found = await getRequest(id);
+    } catch (e) {
+      // Mạng rớt / máy chủ lỗi lúc mở đơn: báo bằng thông báo, bỏ ?yc để mở lại được, không để lời hứa lỗi trôi ra ngoài.
+      if (!tao.value && String(route.query.yc ?? '') === id) {
+        toast.error(e instanceof ApiError && e.message ? e.message : 'Không mở được yêu cầu này, thử lại sau.');
+        detail.value = null;
+        dropYc();
+      }
+      return;
+    }
     if (tao.value || String(route.query.yc ?? '') !== id) return;
     if (found) detail.value = found;
     else {
@@ -69,8 +89,12 @@ async function closeSheet() {
 // Huỷ đơn xong (hay server từ chối huỷ): đọc lại đơn đang mở và danh sách.
 async function onRequestChanged(id: string) {
   load();
-  const found = await getRequest(id);
-  if (found && detail.value?.id === id) detail.value = found;
+  try {
+    const found = await getRequest(id);
+    if (found && detail.value?.id === id) detail.value = found;
+  } catch {
+    /* đọc lại đơn lỗi: giữ hộp như cũ, danh sách phía sau đã có khối báo lỗi riêng */
+  }
 }
 
 // Luồng Tạo yêu cầu: mở bằng push (nút Quay lại của máy đóng hộp), đóng bằng replace.
@@ -86,14 +110,16 @@ function onSent() {
 <template>
   <div ref="root" class="ph rq">
     <header class="sh">
-      <h1>Yêu cầu</h1>
+      <h1 ref="head" tabindex="-1">Yêu cầu</h1>
       <button type="button" class="rq-add" @click="openFlow">
         <PhIcon name="plus" :size="18" :stroke="2" />Tạo yêu cầu
       </button>
     </header>
-    <template v-if="data">
+    <LoadError v-if="error" ref="errBox" :error="error" @retry="retry" />
+    <template v-else-if="data">
       <RequestList :view="data" tablist-label="Lọc theo trạng thái" replace />
     </template>
+    <LoadingLine v-else-if="loading" />
     <RequestSheet v-if="detail" :request="detail" @close="closeSheet" @changed="onRequestChanged" />
     <BottomSheet v-if="tao" :title="flowTitle" bare @close="closeFlow">
       <NewRequestBody @title="flowTitle = $event" @close="closeFlow" @sent="onSent" />

@@ -2,6 +2,7 @@
 // Màn Nhân sự (nhan-su) trên dữ liệu giả: bốn thẻ chỉ số và thẻ danh sách 10 hồ sơ đầu của 131.
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getStaffList } from '@/services/admin-hr';
 import StaffDrawer from './StaffDrawer.vue';
@@ -13,7 +14,7 @@ import { filterStaff, isFiltered } from './staffFilter';
 
 const route = useRoute();
 const router = useRouter();
-const { data } = useLoad(() => getStaffList());
+const { data, error, reload } = useLoad(() => getStaffList());
 
 const asText = (v: unknown) => (typeof v === 'string' ? v : '');
 const q = ref(asText(route.query.q));
@@ -75,7 +76,8 @@ const footer = computed(() =>
       <h1>Nhân sự</h1>
     </div>
 
-    <template v-if="data">
+    <PageLoadError v-if="error" what="danh sách nhân sự" :error="error" @retry="reload" />
+    <template v-else-if="data">
       <StaffStats :stats="data.stats" />
 
       <section class="lc" aria-labelledby="staff-list-h">

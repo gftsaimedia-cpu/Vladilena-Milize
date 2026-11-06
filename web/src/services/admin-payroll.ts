@@ -44,7 +44,7 @@ export async function saveKpiScore(month: string, id: string, part: KpiPart, val
 
 /** Tính lương cả kỳ (lần chạy nháp mới cho mọi người): POST /api/v2/payroll/:month/calculate. Trả { runId, calculated, errors }. */
 export function calculatePayroll(month: string) {
-  if (!__MOCK__) return api.post(`/payroll/${enc(month)}/calculate`, {});
+  if (!__MOCK__) return api('POST', `/payroll/${enc(month)}/calculate`, {}, { timeoutMs: 180_000 }); // tính cả kỳ có thể lâu hơn mức mặc định
   const view = payrollView(month);
   return respond({ count: view.empty ? 0 : view.lines.length, errors: [] });
 }

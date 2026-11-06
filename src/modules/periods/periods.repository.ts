@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Kysely, sql, type Selectable, type Updateable } from 'kysely';
+import { employedInMonth } from '../../common';
 import { toDateText } from '../../common/date-text';
 import { KYSELY_DB, type DB, type DatabaseTransaction } from '../../database';
 import { requestMonths, type ApproveBlockers } from './domain';
@@ -146,7 +147,7 @@ export class PeriodsRepository {
     }
     const staff = await q
       .selectFrom('staff')
-      .select(['username', 'name'])
+      .select(['username', 'name', 'start_date', 'resigned_on'])
       .where('locked_at', 'is', null)
       .where(eb =>
         eb.or([
@@ -156,7 +157,11 @@ export class PeriodsRepository {
       )
       .orderBy('username')
       .execute();
-    const missingSlips = staff.filter(s => !have.has(s.username)).map(s => ({ username: s.username, name: s.name }));
+    // Cùng tập với tính cả kỳ: người chưa vào làm / đã nghỉ việc trước tháng này không cần phiếu.
+    const missingSlips = staff
+      .filter(s => employedInMonth({ startDate: s.start_date, resignedOn: s.resigned_on }, month))
+      .filter(s => !have.has(s.username))
+      .map(s => ({ username: s.username, name: s.name }));
 
     return { pendingRequests, unapprovedSlips, missingSlips };
   }

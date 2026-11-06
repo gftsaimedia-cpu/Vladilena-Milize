@@ -114,3 +114,24 @@ describe('đơn từ ngoài thời gian làm việc', { skip: !enabled }, () => 
     assert.equal(res.body.request.leaveDaysCount, 2);
   });
 });
+
+describe('bảng lương ngoài thời gian làm việc', { skip: !enabled }, () => {
+  // Người vào làm 10/11 không có phiếu tháng 10 (trước khi vào làm), người nghỉ việc 04/11 không có phiếu tháng 12; cả hai có phiếu tháng 11.
+  it('tính cả kỳ chỉ lập phiếu cho người có làm trong tháng', async () => {
+    for (const [month, want, notWant] of [
+      ['2026-10', ['cu'], ['moi']],
+      ['2026-11', ['cu', 'moi'], []],
+      ['2026-12', ['moi'], ['cu']]
+    ] as Array<[string, string[], string[]]>) {
+      await admin.post(`/api/v2/system/periods/${month}/lock`, {});
+      const calc = await admin.post(`/api/v2/payroll/${month}/calculate`, {});
+      assert.equal(calc.status, 201, msg(calc));
+      const names = (await admin.get(`/api/v2/payroll/${month}`)).body.items.map((i: any) => i.username);
+      for (const u of want) assert.ok(names.includes(u), `${month}: thiếu phiếu của ${u}: ${names}`);
+      for (const u of notWant) assert.ok(!names.includes(u), `${month}: không được có phiếu của ${u}: ${names}`);
+      // Người ngoài thời gian làm việc cũng không bị tính là "chưa có phiếu" ở bước Phê duyệt kỳ.
+      const view = (await admin.get(`/api/v2/system/periods/${month}`)).body;
+      assert.doesNotMatch(String(view.actions?.approve?.reason ?? ''), /chưa có phiếu/, `${month}: ${JSON.stringify(view.actions?.approve)}`);
+    }
+  });
+});

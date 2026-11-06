@@ -9,6 +9,8 @@ import { login } from '@/services/session';
 const route = useRoute();
 const router = useRouter();
 const showError = route.query.kb === 'sai';
+// ?phien=het: app vừa đẩy về đây vì máy chủ trả 401 giữa chừng (phiên hết hạn, bị khoá hoặc bị đăng xuất ở nơi khác).
+const expired = route.query.phien === 'het';
 
 const username = ref(showError ? 'demo_nv4' : '');
 const password = ref(showError ? '0000000000' : '');
@@ -79,6 +81,9 @@ async function submit() {
         </div>
         <div v-if="failed" class="msg" role="alert">
           {{ errorText }}
+        </div>
+        <div v-else-if="expired" class="msg note" role="status">
+          Phiên đăng nhập đã hết hạn hoặc đã bị đăng xuất ở nơi khác. Hãy đăng nhập lại để tiếp tục.
         </div>
         <button type="submit" class="go" :disabled="busy || !ready">Đăng nhập</button>
         <p v-if="isMock" class="hint">Bản mockup: mật khẩu bất kỳ. Tên admin vào khu quản trị, tên khác vào khu nhân viên.</p>
@@ -227,6 +232,10 @@ async function submit() {
   color: var(--err-ink);
   font-size: 14px;
   line-height: 20px;
+}
+.msg.note {
+  background: var(--surface-2, #f4f1ea);
+  color: inherit;
 }
 .go {
   width: 100%;

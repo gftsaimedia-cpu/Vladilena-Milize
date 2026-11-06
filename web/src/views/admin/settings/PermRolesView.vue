@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // Cài đặt › Phân quyền › Vai trò: chọn một vai trò, đặt mức quyền theo khu vực và loại yêu cầu được xử lý.
 // Vai trò Admin toàn quyền, không sửa được. ?hop=tao-vai-tro mở hộp tạo vai trò.
+import ScrollX from '@/components/ui/ScrollX.vue';
 import { computed, nextTick, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getRoles, saveRoles } from '@/services/admin-settings';
 import { useSessionStore } from '@/stores/session';
@@ -16,7 +18,7 @@ import SelectBox from './fields/SelectBox.vue';
 import { useDraft } from './lib/useDraft';
 import { useHop } from './lib/useHop';
 
-const { data, reload } = useLoad(() => getRoles());
+const { data, error, reload } = useLoad(() => getRoles());
 const form = useDraft(() => data.value && data.value.roles);
 const { draft: roles } = form;
 const { hop, open, close } = useHop(['tao-vai-tro']);
@@ -63,7 +65,8 @@ const closeDialog = () => {
       </template>
     </template>
 
-    <section v-if="role && data" class="card">
+    <PageLoadError v-if="error" what="danh sách vai trò" :error="error" @retry="reload" />
+    <section v-else-if="role && data" class="card">
       <PermTabs :key="data.roles.length" active="vai-tro" />
       <div class="roles">
         <button
@@ -97,7 +100,7 @@ const closeDialog = () => {
       </div>
       <div class="pq">
         <div class="l">
-          <table class="tbl pa">
+          <ScrollX label="Ma trận quyền"><table class="tbl pa">
             <colgroup>
               <col />
               <col style="width: 176px" />
@@ -146,7 +149,7 @@ const closeDialog = () => {
                 </tr>
               </template>
             </tbody>
-          </table>
+          </table></ScrollX>
         </div>
         <div class="pr">
           <h4>Được xử lý yêu cầu</h4>

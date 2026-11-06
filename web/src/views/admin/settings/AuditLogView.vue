@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // Cài đặt › Nhật ký thay đổi: ai làm gì, lúc nào, đổi từ gì sang gì (25 dòng một trang, lọc theo người/mục/ngày).
+import ScrollX from '@/components/ui/ScrollX.vue';
 import { computed, reactive, ref } from 'vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getAuditLog, verifyAuditLog } from '@/services/admin-settings';
 import { dayLong } from '@/utils/format';
@@ -14,7 +16,7 @@ const EMPTY = { who: '', action: '', from: '', to: '' };
 const box = reactive({ ...EMPTY }); // ô lọc đang nhập
 const applied = ref({ ...EMPTY }); // bộ lọc đang áp dụng (bấm Lọc mới đổi)
 const page = ref(1);
-const { data } = useLoad(
+const { data, error, reload } = useLoad(
   () => getAuditLog({ page: page.value, ...applied.value }),
   () => [page.value, applied.value]
 );
@@ -71,7 +73,8 @@ const dayText = (iso?) => `${dayLong(iso)}/${iso.slice(0, 4)}`;
       </button>
     </template>
 
-    <section v-if="data" class="card">
+    <PageLoadError v-if="error" what="nhật ký thay đổi" :error="error" @retry="reload" />
+    <section v-else-if="data" class="card">
       <div class="flt">
         <div>
           <label>Người</label>
@@ -93,7 +96,7 @@ const dayText = (iso?) => `${dayLong(iso)}/${iso.slice(0, 4)}`;
         </div>
       </div>
 
-      <table class="tbl lg">
+      <ScrollX label="Nhật ký thay đổi"><table class="tbl lg">
         <colgroup>
           <col style="width: 84px" />
           <col style="width: 150px" />
@@ -166,7 +169,7 @@ const dayText = (iso?) => `${dayLong(iso)}/${iso.slice(0, 4)}`;
             <td colspan="5" class="none">Không có dòng nào khớp bộ lọc</td>
           </tr>
         </tbody>
-      </table>
+      </table></ScrollX>
       <div class="foot">
         <span>{{ data.rangeLabel }}</span>
         <span class="pager">
@@ -281,5 +284,13 @@ const dayText = (iso?) => `${dayLong(iso)}/${iso.slice(0, 4)}`;
 .pb:disabled {
   opacity: 0.45;
   cursor: default;
+}
+/* Hẹp (điện thoại): ô lọc xuống hai cột thay vì năm cột. */
+@media (max-width: 760px) {
+  .flt {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
 </style>

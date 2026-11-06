@@ -6,6 +6,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BellDetail from '@/components/shell/BellDetail.vue';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -31,7 +32,7 @@ const period = usePeriodStore();
 const shell = useShellStore();
 
 // Lọc tên và nhóm do BE làm: đổi ?q hoặc ?pb thì tải lại.
-const { data, loading, reload } = useLoad(
+const { data, loading, error, reload } = useLoad(
   () => getAttendance(period.month, q.value, dept.value),
   () => `${period.month}|${shell.version}|${q.value}|${dept.value}`
 );
@@ -184,7 +185,8 @@ function onTabKey(event: KeyboardEvent) {
       </div>
     </div>
 
-    <template v-if="data">
+    <PageLoadError v-if="error" what="bảng chấm công" :error="error" @retry="reload" />
+    <template v-else-if="data">
       <section class="tiles" aria-label="Chỉ số chấm công">
         <article v-for="t in data.tiles" :key="t.key" class="tile" :class="{ dark: t.key === 'todo' }" :aria-label="t.label">
           <span class="tile-l">

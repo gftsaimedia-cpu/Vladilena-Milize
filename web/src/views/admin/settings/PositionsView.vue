@@ -2,6 +2,7 @@
 // Cài đặt › Chức vụ và bậc: danh mục chức vụ, bậc lương và phụ cấp theo bậc của tháng đang xem.
 // Sửa chức vụ, sửa bậc, thêm bậc kế tiếp chỉ có khi tài khoản có quyền config.write (như API ghi /positions).
 import { computed, ref } from 'vue';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getPositions } from '@/services/admin-catalog';
@@ -35,10 +36,7 @@ const dlgRow = computed(() => (dlg.value ? rowOf(dlg.value.code) : null));
       </template>
     </template>
 
-    <section v-if="error && !data" class="card">
-      <div class="later"><Icon name="alert" />{{ error.message }}</div>
-      <div class="later"><button type="button" class="btn sm" @click="reload">Thử lại</button></div>
-    </section>
+    <PageLoadError v-if="error && !data" what="chức vụ và bậc" :error="error" @retry="reload" />
     <section v-else-if="!data" class="card" aria-busy="true">
       <div class="later">{{ loading ? 'Đang tải' : '' }}</div>
     </section>

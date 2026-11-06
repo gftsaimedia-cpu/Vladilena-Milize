@@ -64,6 +64,10 @@ function search() {
 </template>
 
 <style scoped>
+/* Hẹp (điện thoại): ô tìm 360px xuống dòng dưới tiêu đề thay vì đẩy trang tràn ngang. */
+.title {
+  flex-wrap: wrap;
+}
 .ssearch input {
   flex: 1;
   color: var(--text);

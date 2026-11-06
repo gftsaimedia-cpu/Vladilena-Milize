@@ -103,7 +103,9 @@ watch(kind, async (now, before) => {
       <button type="button" class="rb" aria-label="Đóng" @click="emit('close')"><PhIcon name="x" :size="18" :stroke="2" /></button>
     </div>
 
-    <p v-if="loadError" class="nr-err" role="alert">{{ loadError }}</p>
+    <p v-if="loadError" class="nr-err" role="alert">
+      {{ loadError }} <button type="button" class="nr-retry" @click="flow.retryContext()">Thử lại</button>
+    </p>
     <template v-else-if="ctx">
       <div v-if="!kind" class="nr-menu" role="group" aria-label="Loại yêu cầu">
         <button
@@ -167,6 +169,16 @@ watch(kind, async (now, before) => {
 .nr-menu {
   display: flex;
   flex-direction: column;
+}
+.nr-retry {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  color: inherit;
+  cursor: pointer;
 }
 .nr-row {
   width: 100%;

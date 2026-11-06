@@ -236,7 +236,8 @@ test.describe('phone', () => {
     });
     await openPhone(page, '/nv/yeu-cau?tao=chon');
     const sheet = menuSheet(page);
-    await expect(sheet.getByRole('alert')).toHaveText('Mất kết nối.');
+    await expect(sheet.getByRole('alert')).toContainText('Mất kết nối.');
+    await expect(sheet.getByRole('alert').getByRole('button', { name: 'Thử lại' })).toBeVisible(); // có nút tải lại, không chỉ đóng
     await expect(rowsOf(sheet)).toHaveCount(0);
     await sheet.getByRole('button', { name: 'Đóng' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);

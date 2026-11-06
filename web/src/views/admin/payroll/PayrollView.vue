@@ -3,6 +3,7 @@
 // Lọc trạng thái, phòng ban và chữ tìm thuộc về màn, không ghi lên đường dẫn.
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import PeriodActions from '@/components/shell/PeriodActions.vue';
 import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import Icon from '@/components/ui/Icon.vue';
@@ -21,7 +22,7 @@ import PayslipDrawer from './payslip/PayslipDrawer.vue';
 
 const period = usePeriodStore();
 const route = useRoute();
-const { data: loaded, reload } = useLoad(
+const { data: loaded, error, reload } = useLoad(
   () => getPayroll(period.month),
   () => period.month
 );
@@ -111,7 +112,18 @@ watch(
       slip.value = null;
       return;
     }
-    const found = await getPayslip(month, id);
+    let found: Payslip | null;
+    try {
+      found = await getPayslip(month, id);
+    } catch (e) {
+      // Mạng rớt / máy chủ lỗi lúc mở phiếu: báo, bỏ ?phieu khỏi đường dẫn (không để lời hứa lỗi trôi ra ngoài).
+      if (id === slipId.value && month === period.month) {
+        toast.error(e instanceof Error && e.message ? e.message : 'Không mở được phiếu lương, thử lại sau.');
+        slip.value = null;
+        router.replace(withSlip(''));
+      }
+      return;
+    }
     // Đường dẫn đã sang phiếu khác trong lúc chờ: bỏ kết quả cũ. Phiếu cũ vẫn hiện tới khi phiếu mới về, nên ngăn kéo không chớp.
     if (id !== slipId.value || month !== period.month) return;
     if (found) slip.value = found;
@@ -162,22 +174,35 @@ async function closeSlip() {
 // Lưu một điểm KPI do màn giữ, không do ngăn kéo: ngăn kéo có thể đã đóng hay sang phiếu khác khi lời gọi trả về.
 // Lưu xong thì thay phiếu đang mở bằng phiếu mới nếu đang mở đúng phiếu đó (đã đóng thì không mở lại), rồi tải lại bảng.
 const saveScore = async (id: string, part: KpiPart, value: number | null) => {
-  const next = await saveKpiScore(period.month, id, part, value);
-  if (next && next.id === slipId.value) slip.value = next;
+  try {
+    const next = await saveKpiScore(period.month, id, part, value);
+    if (next && next.id === slipId.value) slip.value = next;
+  } catch (e) {
+    toast.error(e instanceof Error && e.message ? e.message : 'Chưa lưu được điểm KPI, thử lại sau.');
+    return;
+  }
   await reload();
 };
 // Duyệt / từ chối cũng do màn giữ, vì cùng lý do: ngăn kéo có thể đã đóng hay sang phiếu khác khi lời gọi trả về.
 // note: lý do từ chối (không bắt buộc), chỉ có khi từ chối.
+// Trả false khi máy chủ từ chối (đã báo bằng thông báo): ngăn kéo giữ nguyên ô lý do đang gõ.
 const decide = async (id: string, decision: 'approve' | 'reject', note?: string) => {
-  const next = await decidePayslip(period.month, id, decision, note);
-  if (next && next.id === slipId.value) slip.value = next;
+  try {
+    const next = await decidePayslip(period.month, id, decision, note);
+    if (next && next.id === slipId.value) slip.value = next;
+  } catch (e) {
+    toast.error(e instanceof Error && e.message ? e.message : 'Chưa xử lý được phiếu lương, thử lại sau.');
+    return false;
+  }
   await reload();
   period.refresh(); // số phiếu chưa duyệt đổi thì nút Phê duyệt kỳ mở / khoá theo
+  return true;
 };
 </script>
 
 <template>
-  <div v-if="data">
+  <PageLoadError v-if="error" what="bảng lương" :error="error" @retry="reload" />
+  <div v-else-if="data">
     <div class="title">
       <div>
         <h1>Bảng lương</h1>

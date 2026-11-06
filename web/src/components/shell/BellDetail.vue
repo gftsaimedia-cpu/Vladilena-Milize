@@ -86,6 +86,8 @@ async function act(verb: DecisionVerb) {
       text: hit ? decisionText(verb, hit.name) : ALREADY_HANDLED,
       kept
     });
+  } catch {
+    /* máy chủ từ chối hoặc mạng rớt: resolveRequest đã hiện thông báo; việc ở nguyên chỗ để thử lại */
   } finally {
     busy.value = false;
   }

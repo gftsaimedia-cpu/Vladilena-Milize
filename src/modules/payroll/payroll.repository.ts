@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { Injectable, Inject } from '@nestjs/common';
 import type { Insertable, Kysely, Selectable, Transaction } from 'kysely';
+import { employedInMonth } from '../../common';
 import { KYSELY_DB, type DB } from '../../database';
 import type { SettingsSnapshot } from '../settings';
 import {
@@ -287,11 +288,15 @@ export function readPayslipRow(row: Selectable<DB['payslips']>): PayslipRecord {
 export class PayrollRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
 
-  async listEligibleEmployees(): Promise<Array<{ uuid: string; username: string; name: string }>> {
+  /**
+   * Người thuộc bảng lương. Có `month` thì chỉ lấy người có làm trong tháng đó: chưa vào làm sau cuối tháng hoặc đã nghỉ việc
+   * trước đầu tháng thì không có phiếu (cùng luật `activeIn` của Tổng quan). Ngày thiếu hay không đúng dạng YYYY-MM-DD thì không giới hạn.
+   */
+  async listEligibleEmployees(month?: string): Promise<Array<{ uuid: string; username: string; name: string }>> {
     if (!this.qb) return [];
     const rows = await this.qb
       .selectFrom('staff')
-      .select(['uuid', 'username', 'name'])
+      .select(['uuid', 'username', 'name', 'start_date', 'resigned_on'])
       .where('locked_at', 'is', null)
       .where(eb =>
         eb.or([
@@ -301,11 +306,15 @@ export class PayrollRepository {
       )
       .execute();
 
-    return rows.map(r => ({
-      uuid: r.uuid || r.username,
-      username: r.username,
-      name: r.name
-    }));
+    return rows
+      .filter(r => {
+        return !month || employedInMonth({ startDate: r.start_date, resignedOn: r.resigned_on }, month);
+      })
+      .map(r => ({
+        uuid: r.uuid || r.username,
+        username: r.username,
+        name: r.name
+      }));
   }
 
   // Position type, level and the type's benefits in effect for the month (latest version not after the month).

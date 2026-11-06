@@ -66,6 +66,19 @@ export function employmentGap(
   return null;
 }
 
+/**
+ * Còn làm ít nhất một ngày trong tháng `month` (YYYY-MM): chưa vào làm sau cuối tháng hoặc đã nghỉ việc trước đầu tháng thì không.
+ * Mốc thiếu hoặc không đúng dạng YYYY-MM-DD thì phía đó không giới hạn. Dùng cho tập người có phiếu lương của kỳ.
+ */
+export function employedInMonth(emp: { startDate?: string | null; resignedOn?: string | null }, month: string): boolean {
+  const day = (v?: string | null) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? v.trim() : null);
+  const start = day(emp.startDate);
+  const end = day(emp.resignedOn);
+  if (start && start > `${month}-31`) return false;
+  if (end && end < `${month}-01`) return false;
+  return true;
+}
+
 /** Ném `NotEmployedError` nếu có ngày nào trong `dates` nằm ngoài thời gian làm việc. */
 export function assertEmployed(emp: { startDate?: string | null; resignedOn?: string | null }, dates: readonly string[]): void {
   for (const date of dates) {

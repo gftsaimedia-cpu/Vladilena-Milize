@@ -2,8 +2,10 @@
 // Cài đặt › Phân quyền › Tài khoản: danh sách tài khoản (10 dòng một trang), đổi vai trò, đặt lại mật khẩu, khoá/mở khoá.
 // Dòng của chính mình không đổi được vai trò và không khoá được (tự bỏ quyền Admin thì không còn ai mở được Cài đặt để
 // đổi lại). "Tạo tài khoản" khoá cho tới khi FE có màn tạo tài khoản.
+import ScrollX from '@/components/ui/ScrollX.vue';
 import { ref, watch } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getAccounts, setAccountLocked, setAccountRole } from '@/services/admin-settings';
 import { initials } from '@/utils/format';
@@ -15,7 +17,7 @@ import SelectBox from './fields/SelectBox.vue';
 const role = ref('all'); // khoá chip vai trò
 const q = ref('');
 const page = ref(1);
-const { data, reload } = useLoad(
+const { data, error, reload } = useLoad(
   () => getAccounts({ page: page.value, role: role.value, q: q.value }),
   () => [page.value, role.value, q.value]
 );
@@ -65,7 +67,8 @@ async function toggleLock(acc?) {
       </template>
     </template>
 
-    <section v-if="data" class="card">
+    <PageLoadError v-if="error" what="danh sách tài khoản" :error="error" @retry="reload" />
+    <section v-else-if="data" class="card">
       <PermTabs active="tai-khoan" />
       <div class="tools" style="padding-top: 16px">
         <button
@@ -83,7 +86,7 @@ async function toggleLock(acc?) {
           <input v-model="q" type="text" placeholder="Tìm tên" aria-label="Tìm tên" />
         </label>
       </div>
-      <table class="tbl tk">
+      <ScrollX label="Danh sách tài khoản"><table class="tbl tk">
         <colgroup>
           <col style="width: 260px" />
           <col style="width: 150px" />
@@ -145,7 +148,7 @@ async function toggleLock(acc?) {
             </td>
           </tr>
         </tbody>
-      </table>
+      </table></ScrollX>
       <div class="foot">
         <span>{{
           data.total ? `${data.from}–${data.to} trên ${data.total} tài khoản` : 'Không có tài khoản nào'
