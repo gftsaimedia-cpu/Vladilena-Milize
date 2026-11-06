@@ -11,13 +11,12 @@ import { AttendanceDaysService } from '../../src/modules/attendance/attendance-d
 import { SettingsAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
 import { HolidaysRepository } from '../../src/modules/holidays/holidays.repository';
 import { PayrollRepository } from '../../src/modules/payroll/payroll.repository';
-import { makeupShortfallDays } from '../../src/modules/payroll/domain';
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { DayStatusRepository } from '../../src/modules/requests/day-status.repository';
 import { ExplanationRemindersRepository } from '../../src/modules/requests/explanation-reminders.repository';
 import { ExplanationsService } from '../../src/modules/requests/explanations.service';
 import { RequestsRepository } from '../../src/modules/requests/requests.repository';
-import { RequestsService } from '../../src/modules/requests/requests.service';
+import { RequestsService, type CreateExplanationInput } from '../../src/modules/requests/requests.service';
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
 import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { withTempDb } from './helpers/pg-temp-db';
@@ -74,6 +73,37 @@ async function leaveWithMakeup(client: Client): Promise<void> {
   );
 }
 
+/**
+ * Chuyên cần của Bình đo được trên phiếu: đi làm đủ mọi ngày T2–T7 của tháng 11 trừ ngày nghỉ có bù 13/11 và hai ngày nghỉ
+ * không lương 17, 18/11 (hai ngày nghỉ cho chuyên cần). Ngưỡng mất chuyên cần mặc định là 3 ngày: thiếu bù 30 phút thành
+ * 2 + 1 = 3 ngày thì mất; ghi nhận đủ khung thì 2 ngày, giữ.
+ */
+async function fullAttendanceMonth(client: Client): Promise<void> {
+  const unpaid = randomUUID();
+  await client.query(
+    `INSERT INTO system_requests (id, employee_id, title, type, reason, status, created_at, updated_at,
+       leave_type, leave_start_date, leave_end_date, leave_days_count)
+     VALUES ($1, $2, 'Nghỉ không lương', 'LEAVE', 'Việc nhà', 'APPROVED', now(), now(),
+       'PERSONAL_UNPAID', '2026-11-17', '2026-11-18', 2)`,
+    [unpaid, BINH]
+  );
+  for (const date of ['2026-11-17', '2026-11-18']) {
+    await client.query(
+      `INSERT INTO work_schedules (employee_id, work_date, shift_type, planned_start_time, planned_end_time,
+         schedule_type, status, source_request_id)
+       VALUES ($1, $2, 'NORMAL', '08:00', '17:00', 'REGULAR', 'ON_LEAVE', $3)`,
+      [BINH, date, unpaid]
+    );
+  }
+  const skipped = new Set(['13', '17', '18']);
+  for (let d = 2; d <= 30; d++) {
+    const dd = String(d).padStart(2, '0');
+    const date = `2026-11-${dd}`;
+    if (skipped.has(dd) || new Date(`${date}T00:00:00Z`).getUTCDay() === 0) continue;
+    await punch(client, date, '08:00', '17:00');
+  }
+}
+
 /** Chấm vào / ra theo giờ Việt Nam. */
 async function punch(client: Client, date: string, inTime: string, outTime: string): Promise<void> {
   for (const [time, type] of [
@@ -117,7 +147,8 @@ function build(db: Kysely<DB>) {
     days
   );
   requests.now = () => NOW;
-  // The payslip refreshes the month under the employee lock on its own connection: build it after the filing is done.
+  // The payslip refreshes the month under the employee lock on its own connection, so a test never holds that lock while
+  // it generates one: the services are built here, but a payslip is only asked for between the filing steps.
   const payroll = new PayrollService(new PayrollRepository(db), reader, days, tx);
   payroll.now = () => MONTH_END;
   return { requests, payroll, rebuild: (dates: string[]) => days.refreshDays(BINH, dates, { now: NOW }) };
@@ -137,6 +168,7 @@ describe('Vào trễ ở khung bù, giải trình được duyệt: trả phút 
     await withTempDb(t, 'mk_credit_e2e', async (db, client) => {
       await seedBinh(client);
       await leaveWithMakeup(client);
+      await fullAttendanceMonth(client);
       await punch(client, FIRST, '18:00', '22:00');
       await punch(client, SECOND, '18:30', '22:00');
       const f = build(db);
@@ -156,15 +188,23 @@ describe('Vào trễ ở khung bù, giải trình được duyệt: trả phút 
       const creditOf = (slip: typeof slipBefore) => slip.dailyLines.reduce((sum, l) => sum + l.makeupCreditMinutes, 0);
       assert.equal(slipBefore.makeupPay, 216_346);
       assert.equal(creditOf(slipBefore), 450);
-      assert.equal(makeupShortfallDays(1, creditOf(slipBefore)), 1);
+      // 22 work days; 2 unpaid leave days + the 30 minutes short (ceil(30 / 480) = 1) = 3 absence days: chuyên cần lost.
+      assert.equal(slipBefore.actualWorkDays, 22);
+      assert.equal(slipBefore.attendanceAllowanceActual, 0);
 
       // Bình nộp "vào trễ" bằng đường nộp thật của Đơn từ; Admin duyệt.
       const filed = await f.requests.createExplanationRequest({
         employeeId: 'nv-binh',
         reason: 'Kẹt xe',
         workDate: SECOND
-      } as any);
+      } satisfies CreateExplanationInput);
       assert.deepEqual(filed.explanationCases, ['LATE_CHECK_IN']);
+      // Pending explanation: nothing is credited beyond the minutes present.
+      const pending = await dayRow(client, SECOND);
+      assert.deepEqual(
+        [pending.explanation_status, pending.makeup_minutes, pending.makeup_credit_minutes],
+        ['PENDING', 210, 210]
+      );
       const reviewed = await f.requests.reviewRequest(filed.id, 'admin', 'APPROVE');
       assert.equal(reviewed.status, 'APPROVED');
 
@@ -185,7 +225,9 @@ describe('Vào trễ ở khung bù, giải trình được duyệt: trả phút 
         [210, 240, 100_962, 0, 0]
       );
       assert.equal(creditOf(slip), 480);
-      assert.equal(makeupShortfallDays(1, creditOf(slip)), 0);
+      // The slip's own outcome: 2 absence days + shortfall 0 = 2 < 3, chuyên cần kept
+      // (25% x 6.000.000 x 22 work days / 26 = 1.269.230,77).
+      assert.equal(slip.attendanceAllowanceActual, 1_269_231);
     });
   });
 
@@ -200,7 +242,7 @@ describe('Vào trễ ở khung bù, giải trình được duyệt: trả phút 
         employeeId: 'nv-binh',
         reason: 'Kẹt xe',
         workDate: SECOND
-      } as any);
+      } satisfies CreateExplanationInput);
       await f.requests.reviewRequest(filed.id, 'admin', 'REJECT', 'Không đủ lý do');
       const row = await dayRow(client, SECOND);
       assert.deepEqual(

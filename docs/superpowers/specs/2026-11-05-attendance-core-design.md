@@ -180,6 +180,7 @@ Bảng `timesheet_entries`:
 | `counts_as_workday` | BOOLEAN NOT NULL DEFAULT false | |
 | `counts_as_day_off` | BOOLEAN NOT NULL DEFAULT false | |
 | `makeup_minutes` | INTEGER NOT NULL DEFAULT 0, CHECK ≥ 0 | |
+| `makeup_credit_minutes` | INTEGER NOT NULL DEFAULT 0, CHECK ≥ 0 | Phút ghi nhận bù cho nợ nghỉ có bù (L16, L22); bằng `makeup_minutes` trừ khi vào trễ ở khung bù đã được giải trình duyệt |
 
 - **Cột cũ ghi cho khớp:**
   - `work_units` = `pay_units`.
@@ -315,7 +316,7 @@ Phần này dựng trên `payroll.service.ts` của phiên payslip-print (mục 
 
 ### 8.3 Admin
 
-- `GET /api/v2/attendance/timesheets` trả thêm: `leaveType`, `cases`, `explanationStatus`, `payUnits`, `deductionMinutes`, `countsAsWorkday`, `countsAsDayOff`, `makeupMinutes`. Các trường ca có thể `null`.
+- `GET /api/v2/attendance/timesheets` trả thêm: `leaveType`, `cases`, `explanationStatus`, `payUnits`, `deductionMinutes`, `countsAsWorkday`, `countsAsDayOff`, `makeupMinutes`, `makeupCreditMinutes`. Các trường ca có thể `null`.
 - `status` có thêm các giá trị mới. FE Admin hiện chỉ hiểu PRESENT, LEAVE_PAID, LEAVE_UNPAID, ABSENT, HOLIDAY (`web/src/builders/api/attendance.ts`). Nối FE là việc của phiên FE; spec này chỉ cập nhật `docs/api/v2-contract.md` và để ghi chú ở thư mục ghi chú chung.
 - `POST /api/v2/attendance/recalculate` nhận `{ employeeId, workDate }` hoặc `{ employeeId, month }` và gọi `refreshDays`.
 

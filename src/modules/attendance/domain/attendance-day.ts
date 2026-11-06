@@ -275,7 +275,7 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
       };
       const present = overlap(Math.max(from.getTime(), span.start.getTime()));
       // Chỉ khung mà người đó đến giữa chừng mới được nới; khung đã hết trước giờ vào không có gì để ghi nhận.
-      const arrivedInside = from > span.start && from < span.end;
+      const arrivedInside = from.getTime() > span.start.getTime() && from.getTime() < span.end.getTime();
       minutes += present;
       credit += lateAtWindow && arrivedInside ? overlap(span.start.getTime()) : present;
     }
