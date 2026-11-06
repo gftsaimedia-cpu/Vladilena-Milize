@@ -1594,6 +1594,8 @@ export class RequestsService {
       await this.releaseDays(req, stores);
       await stores.requests.save(req);
       await this.rewriteDays(req, trx);
+      const months = requestMonths(this.datesOf(req));
+      await this.resetCalculatedSlips(trx, months, req.employeeId);
       if (actor && (await stores.requests.resolveStaffUuid(actor)) !== req.employeeId) {
         await this.logRequest(trx, stores, req, 'request.cancel', actor, was, reason);
       }
@@ -1677,7 +1679,7 @@ export class RequestsService {
    * của đơn đều đã thành ngày lễ.
    */
   private async dropHolidayDays(req: SystemRequest, stores: RequestStores): Promise<void> {
-    if (req.type !== 'LEAVE' && req.type !== 'LEAVE_WITH_MAKEUP') return;
+    if (req.type !== 'LEAVE' && req.type !== 'LEAVE_WITH_MAKEUP' && req.type !== 'HALF_SHIFT_LEAVE') return;
     const held = await this.dayRepo(stores).listByRequest(req.id);
     if (held.length === 0) return;
     const holidaysRepo = stores.holidays;
@@ -1691,6 +1693,9 @@ export class RequestsService {
 
     const refuse = (message: string) =>
       new DayConflictError(message, { date: dropped[0].date, requestId: null, requestType: null, requestStatus: null }).forReview();
+    if (req.type === 'HALF_SHIFT_LEAVE') {
+      throw refuse(`Ngày ${formatDayMonth(dropped[0].date)} đã thành ngày lễ, đơn nghỉ giữa ca không duyệt được.`);
+    }
     if (req.type === 'LEAVE_WITH_MAKEUP') {
       throw refuse(`Ngày ${formatDayMonth(dropped[0].date)} đã thành ngày lễ, đơn nghỉ có làm bù cần nộp lại.`);
     }

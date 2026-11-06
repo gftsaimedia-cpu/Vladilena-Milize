@@ -178,7 +178,7 @@ describe('AttendanceDaysRepository trên PostgreSQL', () => {
       const repo = new AttendanceDaysRepository(db);
       await repo.upsertDays([presentDay()], NOW);
       await assert.rejects(client.query(`UPDATE timesheet_entries SET status = 'FOO'`), /check constraint/);
-      await assert.rejects(client.query(`UPDATE timesheet_entries SET pay_units = 0.5`), /check constraint/);
+      await assert.rejects(client.query(`UPDATE timesheet_entries SET pay_units = 0.7`), /check constraint/);
     });
   });
 
