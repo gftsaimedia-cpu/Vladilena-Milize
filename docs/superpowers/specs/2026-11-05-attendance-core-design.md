@@ -42,7 +42,7 @@ Ví dụ dùng chung: Bình, nv bậc 1, lương cơ bản 6.000.000, công chu�
 | L11 | Ngày chưa tới không phải ngày vắng. | 05/11 | |
 | L12 | Ngày ngoài tuần làm việc (Chủ nhật; Thứ Bảy với tts hoặc người có tuần riêng), có làm qua OT hoặc làm bù đã duyệt → không phải ngày công: không lương ngày, không vào số ngày đi làm, không giải trình theo ca 08–17. Chỉ có tiền OT hoặc tiền giờ bù. | 05/11 | OT 08–12 CN 15/11 → chỉ 4 × 28.846 × 2 = 230.769 |
 | L13 | Ngày trước `start_date` và sau `resigned_on` (chính ngày nghỉ việc vẫn là ngày làm) là ngoài thời gian làm: không vắng, không trả, không tính chuyên cần. Lễ rơi vào đó không trả. | 05/11 | Chi vào 11/11 → 02–10/11 không ảnh hưởng gì |
-| L14 | Nghỉ có làm bù: ngày nghỉ 0 đ. Mỗi phút có mặt trong khung bù đã duyệt trả ×1 lương giờ, hiện ở ngày bù. | 05/11 | Đủ 8h → 230.769; chỉ 4h → 115.385 |
+| L14 | Nghỉ có làm bù: ngày nghỉ 0 đ. Mỗi phút có mặt trong khung bù đã duyệt trả ×1 lương giờ, hiện ở ngày bù. Giờ bù không có phụ cấp (D13, 06/11): không Flex/đêm, không tiền nghỉ giữa ca đêm, và ngày làm bù không vào số ngày tính phụ cấp đi lại/chuyên cần. | 05/11, D13 06/11 | Đủ 8h → 230.769; chỉ 4h → 115.385; không cộng thêm phụ cấp nào |
 | L15 | Chuyên cần: mất khi số ngày nghỉ ≥ 3. Đếm mọi loại nghỉ trừ iSAT, và đếm cả ngày vắng. | 04/11 | |
 | L16 | Nghỉ có làm bù chỉ đếm vào chuyên cần khi cuối tháng bù còn thiếu. Số ngày đếm = làm tròn lên (giờ còn thiếu ÷ 8), không quá số ngày nghỉ có bù. | 05/11 | Bù đủ → không đếm; thiếu 1h → đếm 1 |
 | L17 | Ngày đi làm sai giờ, chưa giải trình hoặc bị từ chối: 0 đ, không vào số ngày đi làm, **không** tính là ngày nghỉ cho chuyên cần. | 05/11 | Trễ 40 phút ngày 03, 04, 05/11, không giải trình → mất 692.308, giữ chuyên cần |
@@ -246,7 +246,7 @@ Phần này dựng trên `payroll.service.ts` của phiên payslip-print (mục 
   - `daySalary` = `pay_units` × lương ngày.
   - `deductionAmount` = làm tròn(`deduction_minutes` ÷ 60 × lương giờ).
   - Tiền bù = làm tròn(`makeup_minutes` ÷ 60 × lương giờ), nằm trên dòng của ngày bù (L14).
-  - Phụ cấp flex/đêm theo dòng: chỉ khi `counts_as_workday`.
+  - Phụ cấp flex/đêm theo dòng: chỉ khi `counts_as_workday`, và chỉ trên giờ ca = `work_hours` − `makeup_minutes` ÷ 60 (D13).
   - OT giữ cách của payslip-print: giờ có mặt trong khung OT × hệ số, đo trên các dòng `PRESENT`, `EXTRA`, `HOLIDAY`.
 - **Một công thức, làm tròn một lần (D1, D2; người dùng chốt 06/11).** Mỗi khoản tiền của phiếu là một công thức đầy đủ từ lương cơ bản, tính trên số lượng CHƯA làm tròn, và làm tròn đúng một lần ở kết quả của khoản đó (`domain/money.ts`, `moneyOf`).
   - Không bao giờ nhân đơn giá đã làm tròn (230.769 một ngày, 28.846 một giờ) với số lượng, và không cộng các số tiền từng ngày đã làm tròn.
@@ -259,14 +259,15 @@ Phần này dựng trên `payroll.service.ts` của phiên payslip-print (mục 
   | `makeupPay` | lương cơ bản × (Σ `makeup_minutes` của tháng ÷ 60) ÷ (công chuẩn × 8) |
   | `lateEarlyDeductionAmount` | −(lương cơ bản × (Σ `deduction_minutes` ÷ 60) ÷ (công chuẩn × 8)); `lateEarlyHours` chỉ là số hiện, 2 chữ số lẻ |
   | `ot15Pay`, `ot20Pay`, `ot30Pay` | lương cơ bản × giờ OT của loại ngày đó × hệ số ÷ (công chuẩn × 8); `otPayTotal` = tổng ba khoản |
-  | `flexAllowanceActual` | % flex × lương cơ bản × Σ min(8, `work_hours`) của các ngày flex tính công ÷ (công chuẩn × 8) |
+  | `flexAllowanceActual` | % flex × lương cơ bản × Σ min(8, giờ ca) của các ngày flex tính công ÷ (công chuẩn × 8); giờ ca = max(0, `work_hours` − `makeup_minutes` ÷ 60) (D13) |
   | `nightAllowanceActual` | % đêm × lương cơ bản × số ngày đêm tính công ÷ công chuẩn |
-  | `offPaidNightActual` | Σ tiền nghỉ giữa ca đêm từng ngày tính trên số đúng (ca ≥ 8h: 1 + % đêm giờ; ca ngắn: bù phần thiếu, tối đa 1 giờ và tối đa số giờ trừ ĐÚNG của ngày đó), làm tròn một lần |
+  | `offPaidNightActual` | Σ tiền nghỉ giữa ca đêm từng ngày tính trên số đúng (ca ≥ 8h tính theo giờ ca: 1 + % đêm giờ; ca ngắn: bù phần thiếu, tối đa 1 giờ và tối đa số giờ trừ ĐÚNG của ngày đó), làm tròn một lần |
   | `attendanceAllowanceActual`, `travelAllowanceActual` | % × lương cơ bản × số ngày đi làm ÷ công chuẩn |
-  | Phần ca đêm của `taxExemptIncome` | Σ min(30% × `work_hours`, 8 × % đêm) giờ của các ngày đêm tính công × lương giờ, làm tròn một lần |
+  | Phần ca đêm của `taxExemptIncome` | Σ min(30% × giờ ca, 8 × % đêm) giờ của các ngày đêm tính công × lương giờ, làm tròn một lần |
   | Tạm ứng (D2) | 80% × (lương cơ bản × Σ `pay_units` ÷ công chuẩn − lương cơ bản × (Σ `deduction_minutes` ÷ 60) ÷ (công chuẩn × 8)), trên các dòng 01–15 ca NORMAL/FLEX/NIGHT có lương ngày |
 
   - Ví dụ: bù 8 giờ chia hai khung 4 giờ = 6.000.000 × 8 ÷ 208 = 230.769 (hai dòng vẫn hiện 115.385 mỗi dòng; cộng lại là 230.770, sai). Tạm ứng của Bình, 10 ngày công 01–15, không trừ: 0,8 × 6.000.000 × 10 ÷ 26 = 1.846.153,85 → 1.846.154. Trừ 35 phút: −6.000.000 × (35 ÷ 60) ÷ 208 = −16.827.
+- **Giờ làm bù không có phụ cấp (D13, 06/11).** Khung bù nằm ngoài giờ ca nhưng `work_hours` đếm cả chúng, nên mọi phụ cấp theo giờ đọc giờ ca = `work_hours` − `makeup_minutes` ÷ 60, còn phút bù chỉ trả ×1 qua `makeupPay`; ngày mà việc làm là làm bù là dòng `EXTRA` (không `counts_as_workday`), không vào số ngày đi làm. Ví dụ: ngày Flex ca 8h + 2h bù (`work_hours` 10) hưởng Flex trên 8h; vào muộn 2h có 2h bù (`work_hours` 8) hưởng Flex trên 6h = 0,2 × 6.000.000 × 6 ÷ 208 = 34.615.
 - **Đếm:**
   - Ngày đi làm (lương cơ bản thực tế, phụ cấp đi lại, tỉ lệ chuyên cần) = số dòng `counts_as_workday`.
   - Ngày nghỉ cho chuyên cần = số dòng `counts_as_day_off` + số ngày bù thiếu (L16): nợ = 480 × số dòng `LEAVE_MAKEUP`; đã bù = Σ `makeup_minutes` của tháng; thiếu = max(0, nợ − đã bù); số ngày = min(số dòng `LEAVE_MAKEUP`, ⌈thiếu ÷ 480⌉).
@@ -389,7 +390,7 @@ Chỉ chạy test. Không chạy typecheck hay prettier, theo quy định của 
 | R7 | Phút bị trừ một ngày không quá 480, nên tiền ngày không bao giờ âm. | Ra sớm ngay sau khi vào có thể cho ra hơn 8h trừ. | Không có. |
 | R8 | Ngày làm được xét ngay khi có đủ vào và ra, hoặc tại mốc cuối + 30 phút. | Cho `/me` thấy kết quả ngay sau khi check-out. | Không có (L7 giữ lần ra sớm đầu tiên). |
 | R9 | Phút làm bù dùng giờ ghi trong giải trình đã duyệt khi thiếu một bên. | Giống cách payslip-print đo OT. | Không có. |
-| R10 | Bỏ `makeupWorkDates`, tức là bỏ việc xoá phụ cấp flex/đêm trên "ngày làm bù" kiểu cũ (lịch MAKE_UP). | Làm bù giờ là khung trả ×1 riêng; ca của ngày vẫn hưởng phụ cấp bình thường. | Không có lịch MAKE_UP nào còn được ghi. |
+| R10 | **Bị D13 (06/11) ghi đè.** Luật mới: giờ làm bù chỉ trả ×1 lương giờ, không phụ cấp Flex/đêm; ngày làm bù (dòng EXTRA) không vào số ngày tính phụ cấp. Còn lại của R10 giữ: bỏ `makeupWorkDates` và lịch MAKE_UP. | (R10 cũ: ca của ngày vẫn hưởng phụ cấp bình thường, ngày bù tính vào tỉ lệ phụ cấp.) Người dùng chốt D13: "giờ làm bù là không có tính phụ cấp". | Hai test đã đổi theo R10 (1.096.154 → 1.153.846, 657.692 → 692.308, Flex 0 → 46.154) trở về số cũ. |
 | R11 | `paidLeaveDays` của `/me` tính cả iSAT và lễ có lương. | Cả ba đều là "nghỉ hưởng lương". | Con số trên app khác ý người dùng; chỉ là hiển thị. |
 | R12 | Đơn nhóm PAID của loại không có cờ `paidLeave` ghi `LEAVE_UNPAID`. | `/me` hiện đúng "không lương" cho người đó. | Không có. |
 | R13 | Giải trình của ngày = đơn mới nhất không bị huỷ. Đơn được duyệt phủ mọi mã dò được, kể cả khi giờ chấm được sửa sau. | Mỗi ngày chỉ có một đơn giải trình (spec 1); đơn bị từ chối không nộp lại được. | Giờ chấm sửa sau khi duyệt làm lộ một trường hợp mới mà không ai xét. |

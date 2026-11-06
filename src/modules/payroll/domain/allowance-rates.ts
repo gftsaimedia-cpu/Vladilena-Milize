@@ -7,6 +7,15 @@ export interface AllowanceRates {
   attendancePct: number;
 }
 
+/**
+ * The hours of a day line that belong to its shift: the hours worked minus the makeup minutes (D13). Makeup windows lie
+ * outside the shift hours but `workHours` counts them; they pay the hourly rate x1 and earn no Flex premium, no night
+ * break pay and no night tax exemption.
+ */
+export function shiftHoursOf(workedHours: number, makeupMinutes: number): number {
+  return Math.max(0, workedHours - makeupMinutes / 60);
+}
+
 export class PayrollAllowancePolicy {
   readonly isKnownType: boolean;
   readonly isNv: boolean;

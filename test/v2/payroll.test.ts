@@ -275,18 +275,21 @@ describe('Payroll allowance behavior from the reference app', () => {
     assert.equal(tts.attendanceAllowanceActual, 0);
 
     // A leave with makeup that was fully made up is not an absence (L16): 4 day-off rows keep the allowance at the
-    // default threshold of 5. Made-up minutes sit on the row of the day they were worked.
+    // default threshold of 5. The made-up day is a day whose work is makeup, an EXTRA row (rest day, not a work day):
+    // it is paid makeup x1 only and counts no allowance day (D13, which overrides R10). So the ratio stays 19 / 26:
+    // attendance 0.25 x 6.000.000 x 19 / 26 = 1.096.153,85 and travel 0.15 x 6.000.000 x 19 / 26 = 657.692,31.
     const leaves = Array.from({ length: 4 }, () => payslipLine('LEAVE_PAID'));
     const makeupOffsetsAbsence = makePayslip({
       employeeType: 'nv',
       dailyLines: [
         ...worked(19),
-        payslipLine('PRESENT', { makeupMinutes: 480 }),
+        payslipLine('EXTRA', { makeupMinutes: 480 }),
         ...leaves,
         payslipLine('LEAVE_MAKEUP')
       ]
     });
-    assert.equal(makeupOffsetsAbsence.attendanceAllowanceActual, 1_153_846);
+    assert.equal(makeupOffsetsAbsence.attendanceAllowanceActual, 1_096_154);
+    assert.equal(makeupOffsetsAbsence.travelAllowanceActual, 657_692);
     const notMadeUp = makePayslip({
       employeeType: 'nv',
       dailyLines: [...worked(20), ...leaves, payslipLine('LEAVE_MAKEUP')]
@@ -444,19 +447,21 @@ describe('Payroll allowance behavior from the reference app', () => {
     assert.equal('isatDates' in data, false);
   });
 
-  it('keeps the flex premium of a day with made-up hours and counts it as a work day (R10)', async () => {
+  it('pays a day of made-up hours makeup x1 only: not a work day, no premium (D13, was R10)', async () => {
     const repo = new FakePayrollRepository();
-    const dates = Array.from({ length: 25 }, (_, i) => `2026-10-${String(i + 1).padStart(2, '0')}`);
+    const workdays = [1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22].map(
+      day => `2026-10-${String(day).padStart(2, '0')}`
+    );
     repo.data.set('makeup:2026-10', {
       staff: { ...staffOf('makeup', 'nv', 40, SEED_RATES.nv), positionLevelText: 'NV L1' },
       days: [
-        ...dates.slice(0, 18).map(date => dayRow('PRESENT', date)),
-        // 19/10 and 20/10 (a FLEX day): the 18:00-22:00 makeup window worked after the shift, 240 minutes x1 each, so
-        // the leave with makeup of 25/10 is fully made up.
-        dayRow('PRESENT', '2026-10-19', { makeupMinutes: 240 }),
-        shiftRow('2026-10-20', 'FLEX', ['09:00', '18:00'], { makeupMinutes: 240 }),
-        ...dates.slice(20, 24).map(date => dayRow('LEAVE_PAID', date)),
-        dayRow('LEAVE_MAKEUP', '2026-10-25')
+        ...workdays.map(date => dayRow('PRESENT', date)),
+        // Sundays 04/10 and 11/10: the 18:00-22:00 makeup window worked on a rest day, 240 minutes x1 each, so the
+        // leave with makeup of 28/10 is fully made up. A day whose work is makeup is an EXTRA row.
+        dayRow('EXTRA', '2026-10-04', { ...punched('2026-10-04', '18:00', '22:00'), workHours: 4, makeupMinutes: 240 }),
+        dayRow('EXTRA', '2026-10-11', { ...punched('2026-10-11', '18:00', '22:00'), workHours: 4, makeupMinutes: 240 }),
+        ...[23, 24, 26, 27].map(day => dayRow('LEAVE_PAID', `2026-10-${day}`)),
+        dayRow('LEAVE_MAKEUP', '2026-10-28')
       ].map(row => ({ ...row, employeeId: 'makeup' })),
       requests: [],
       kpi: null
@@ -464,14 +469,20 @@ describe('Payroll allowance behavior from the reference app', () => {
 
     const slip = await serviceOf(repo).generateMonthlyPayslip('makeup', '2026-10');
 
-    assert.equal(slip.actualWorkDays, 20);
-    assert.equal(slip.baseSalaryActual, 4_615_385);
-    // 20 / 26 of the 15% travel and 25% attendance: the made-up days count, and 4 days off stay below 5.
-    assert.equal(slip.travelAllowanceActual, 692_308);
-    assert.equal(slip.attendanceAllowanceActual, 1_153_846);
-    const makeupDay = slip.dailyLines.find(row => row.date === '2026-10-20');
-    assert.equal(makeupDay?.flexAllowancePay, 46_154);
-    assert.equal(makeupDay?.makeupPay, 115_385);
+    // 19 work days: 6.000.000 x 19 / 26 = 4.384.615,38
+    assert.equal(slip.actualWorkDays, 19);
+    assert.equal(slip.baseSalaryActual, 4_384_615);
+    // 19 / 26 of the 15% travel and 25% attendance: the made-up days count no day, and 4 days off stay below 5.
+    assert.equal(slip.travelAllowanceActual, 657_692);
+    assert.equal(slip.attendanceAllowanceActual, 1_096_154);
+    // makeup x1: 6.000.000 x (480 / 60) / 208 = 230.769,23; each day shows 6.000.000 x 4 / 208 = 115.384,62
+    assert.equal(slip.makeupPay, 230_769);
+    const makeupDay = slip.dailyLines.find(row => row.date === '2026-10-11');
+    assert.deepEqual(
+      [makeupDay?.daySalary, makeupDay?.flexAllowancePay, makeupDay?.nightAllowancePay, makeupDay?.makeupPay],
+      [0, 0, 0, 115_385]
+    );
+    assert.equal(slip.flexAllowanceActual, 0);
   });
 
   it('counts a leave with makeup that was not made up as an absence', async () => {

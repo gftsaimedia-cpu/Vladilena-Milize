@@ -50,7 +50,7 @@ import {
   advanceQuoteOf,
   type AdvanceQuote
 } from './domain';
-import { PayrollAllowancePolicy } from './domain/allowance-rates';
+import { PayrollAllowancePolicy, shiftHoursOf } from './domain/allowance-rates';
 
 /** The numbers a payslip is computed with. */
 interface PayRules {
@@ -551,15 +551,17 @@ export class PayrollService {
       let flexAllowancePay = 0;
       let nightAllowancePay = 0;
       let offPaidPay = 0;
-      // The flex and night premiums are paid only on a day that counts as a work day (8.1, R10).
+      // The flex and night premiums are paid only on a day that counts as a work day, and only on the shift hours: the
+      // makeup minutes of the day are paid x1 and earn no premium (8.1, D13).
+      const shiftHours = shiftHoursOf(row.workHours, row.makeupMinutes);
       if (onShift && shiftType === 'FLEX') {
         shiftLabel = `Flex +${pctText(allowancePolicy.flexRate)}%`;
-        if (row.countsAsWorkday) flexAllowancePay = allowancePolicy.flexPremium(hourRate, row.workHours);
+        if (row.countsAsWorkday) flexAllowancePay = allowancePolicy.flexPremium(hourRate, shiftHours);
       } else if (onShift && shiftType === 'NIGHT') {
         shiftLabel = `Night +${pctText(allowancePolicy.nightRate)}%`;
         if (row.countsAsWorkday) {
           nightAllowancePay = allowancePolicy.nightPremium(dayRate);
-          offPaidPay = allowancePolicy.nightBreakPay(hourRate, row.workHours, deductionAmount);
+          offPaidPay = allowancePolicy.nightBreakPay(hourRate, shiftHours, deductionAmount);
         }
       }
 

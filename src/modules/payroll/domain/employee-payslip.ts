@@ -1,5 +1,5 @@
 import type { AttendanceDayStatus } from '../../attendance/domain/attendance-day';
-import { PayrollAllowancePolicy, type AllowanceRates } from './allowance-rates';
+import { PayrollAllowancePolicy, shiftHoursOf, type AllowanceRates } from './allowance-rates';
 import { calculateInsurance, DEFAULT_INSURANCE_RATES, insurancePctOf, InsuranceDeduction, type InsurancePct } from './insurance';
 import { calculateKpiPay, KPI_WEIGHTS, KpiComponent, KpiPay } from './kpi-pay';
 import { makeupShortfallDays } from './makeup-shortfall';
@@ -347,21 +347,23 @@ export class EmployeePayslip {
     let makeupMinutes = 0;
     let deductionMinutes = 0;
     let totalLineOtHours = 0;
-    let flexHours = 0; // Σ min(8, workHours) of the flex work days
+    let flexHours = 0; // Σ min(8, shift hours) of the flex work days (shift hours = workHours - makeup, D13)
     let nightBreakHours = 0; // Σ the exact night break pay of the night work days, in hours of pay
     let nightExemptHours = 0; // Σ min(30% of the hours worked, the night allowance in hours) of the night work days
 
     for (const line of this.dailyLines) {
       if (line.countsAsWorkday) {
         workDaysCount++;
+        // D13: the makeup minutes of the line are paid x1 on their own; the premiums read the shift hours only.
+        const shiftHours = shiftHoursOf(line.workHours, line.makeupMinutes);
         if (line.shiftCode === 'FLEX') {
           flexCount++;
-          flexHours += rates.flexHours(line.workHours);
+          flexHours += rates.flexHours(shiftHours);
         }
         if (line.shiftCode === 'NIGHT') {
           nightCount++;
-          nightBreakHours += rates.nightBreakHours(line.workHours, line.deductionMinutes / 60);
-          nightExemptHours += Math.min(line.workHours * 0.3, 8 * rates.nightRate);
+          nightBreakHours += rates.nightBreakHours(shiftHours, line.deductionMinutes / 60);
+          nightExemptHours += Math.min(shiftHours * 0.3, 8 * rates.nightRate);
         }
       }
       if (line.countsAsDayOff) dayOffCount++;
