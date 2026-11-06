@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
-import { NotEmployedError, assertEmployed } from '../../common';
+import { BadRequestError, NotEmployedError, assertEmployed } from '../../common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import {
   SystemRequest,
@@ -29,6 +29,7 @@ import {
   filingWindow,
   isWholeHour,
   advanceDayOpen,
+  advanceWindowEnd,
   planClaims,
   DayConflictError,
   requestDates,
@@ -87,7 +88,7 @@ export interface FilingOptions {
  */
 export type PreviewResult =
   | { ok: true; title: string; summary: Record<string, unknown>; warnings: string[] }
-  | { ok: false; message: string; code?: 'DAY_CONFLICT' | 'NOT_EMPLOYED' }
+  | { ok: false; message: string; code?: 'DAY_CONFLICT' | 'NOT_EMPLOYED' | 'ADVANCE_NOT_ELIGIBLE' }
   | { ok: false; message: string; code: 'PERIOD_LOCKED'; month: string; status: PeriodStatus };
 
 /** Thân đơn nghỉ (§6.1). Số ngày do server đếm: `daysCount` client gửi (nếu có) không được đọc. */
@@ -218,14 +219,35 @@ const makeupRequestsIn = (requests: readonly SystemRequest[], month: string): Sy
     r => r.type === 'LEAVE_WITH_MAKEUP' && isActive(r) && r.leaveStartDate !== null && monthOf(r.leaveStartDate) === month
   );
 
+/** Đơn tạm ứng đang chờ hoặc đã duyệt của tháng `period`: các đơn luật "mỗi tháng một đơn" đếm. */
+const advancesFor = (requests: readonly SystemRequest[], period: string): SystemRequest[] =>
+  requests.filter(r => r.type === 'ADVANCE' && r.advancePeriod === period && isActive(r));
+
 /** Tháng `period` đã có đơn tạm ứng đang chờ hoặc đã duyệt. */
-const hasAdvanceFor = (requests: readonly SystemRequest[], period: string): boolean =>
-  requests.some(r => r.type === 'ADVANCE' && r.advancePeriod === period && isActive(r));
+const hasAdvanceFor = (requests: readonly SystemRequest[], period: string): boolean => advancesFor(requests, period).length > 0;
+
+/**
+ * "Số đơn trong tháng" của form tạm ứng: số đơn tạm ứng của tháng mà luật mỗi tháng một đơn đếm (đang chờ, đã duyệt),
+ * tính cả đơn sắp nộp. Đơn bị từ chối hay đã huỷ không tính, vì không chặn nộp lại.
+ */
+export const advanceOrdersAfterFiling = (requests: readonly SystemRequest[], period: string): number =>
+  advancesFor(requests, period).length + 1;
 
 const monthNumberOf = (period: string): number => Number(period.slice(5, 7));
 const advanceDuplicateMessage = (period: string): string => `Tháng ${monthNumberOf(period)} đã có đơn tạm ứng`;
 const advanceNoWorkDaysMessage = (period: string): string => `Chưa có ngày công 01–15/${period.slice(5, 7)}`;
 const ADVANCE_QUOTE_FAILED = 'Chưa tính được số tiền tạm ứng';
+const ADVANCE_NOT_ELIGIBLE = 'Bạn không thuộc diện tạm ứng';
+
+/** Hồ sơ tắt cờ tạm ứng (`staff.advance_on = 0`, D8): 400 mã `ADVANCE_NOT_ELIGIBLE`. */
+export class AdvanceNotEligibleError extends BadRequestError {
+  constructor() {
+    super(ADVANCE_NOT_ELIGIBLE, { code: 'ADVANCE_NOT_ELIGIBLE' });
+  }
+}
+
+/** Hồ sơ được tạm ứng: cờ thiếu (dữ liệu cũ, test) coi như bật, như hồ sơ nhân sự đọc NULL. */
+const canAdvance = (staff: StaffContext): boolean => staff.canAdvance !== false;
 const NO_FILING_DAYS = 'Không còn ngày đăng ký được';
 
 /** Số ngày phép năm còn lại của hồ sơ trước các đơn `active`; null = loại nhân sự không có tài khoản phép. */
@@ -595,8 +617,8 @@ export class RequestsService {
   }
 
   /**
-   * Loại tạm ứng trên form, xét theo thứ tự (spec 2.1): ngày 16–17, chưa có đơn của tháng, tính được số tiền, có ngày
-   * công. Chỉ tính tiền khi hai điều kiện đầu qua; tính lỗi chỉ khoá loại này.
+   * Loại tạm ứng trên form, xét theo thứ tự (spec 2.1): hồ sơ được tạm ứng (D8), ngày 16–17, chưa có đơn của tháng, tính
+   * được số tiền, có ngày công. Chỉ tính tiền khi ba điều kiện đầu qua; tính lỗi chỉ khoá loại này.
    */
   private async advanceState(
     staff: StaffContext,
@@ -605,6 +627,7 @@ export class RequestsService {
   ): Promise<{ kind: FilingKindState; quote: RequestContextDTO['advance'] }> {
     const month = monthOf(today);
     const locked = (reason: string) => ({ kind: { kind: 'advance', enabled: false, reason } as FilingKindState, quote: null });
+    if (!canAdvance(staff)) return locked(ADVANCE_NOT_ELIGIBLE);
     if (!advanceDayOpen(today)) return locked('Chỉ nộp ngày 16 và 17');
     if (hasAdvanceFor(active, month)) return locked(advanceDuplicateMessage(month));
     let quote: AdvanceQuote;
@@ -614,7 +637,16 @@ export class RequestsService {
       return locked(ADVANCE_QUOTE_FAILED);
     }
     if (quote.amount === 0) return locked(advanceNoWorkDaysMessage(month));
-    return { kind: { kind: 'advance', enabled: true }, quote: { month, ...quote, windowEnd: `${month}-17`, ordersThisMonth: 1, ratePct: ADVANCE_RATE_PCT } };
+    return {
+      kind: { kind: 'advance', enabled: true },
+      quote: {
+        month,
+        ...quote,
+        windowEnd: advanceWindowEnd(month),
+        ordersThisMonth: advanceOrdersAfterFiling(active, month),
+        ratePct: ADVANCE_RATE_PCT
+      }
+    };
   }
 
   async createLeaveRequest(input: CreateLeaveInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
@@ -656,6 +688,9 @@ export class RequestsService {
       }
       if (error instanceof NotEmployedError) {
         return { ok: false, message: error.message, code: 'NOT_EMPLOYED' };
+      }
+      if (error instanceof AdvanceNotEligibleError) {
+        return { ok: false, message: error.message, code: 'ADVANCE_NOT_ELIGIBLE' };
       }
       if (error instanceof PeriodLockedError) {
         const { month, status } = error.details as { month: string; status: PeriodStatus };
@@ -1061,10 +1096,14 @@ export class RequestsService {
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) {
       throw new Error(`period must be a valid YYYY-MM period string, got: ${period}`);
     }
+    const staff = await this.resolveStaff(input.employeeId, period);
+    // D8: hồ sơ tắt cờ tạm ứng thì không ai nộp được cho người này, ngày nào cũng vậy; báo trước hạn nộp.
+    if (!canAdvance(staff)) {
+      throw new AdvanceNotEligibleError();
+    }
     if (opts.filedBy === 'self' && !advanceDayOpen(today)) {
       throw new Error('Chỉ nộp tạm ứng ngày 16 và 17');
     }
-    const staff = await this.resolveStaff(input.employeeId, period);
 
     // Tính số tiền trước khoá nhân viên: bộ tính lương lấy một kết nối pool riêng, không được xin khi khoá đang giữ một
     // kết nối (xem cảnh báo ở database/kysely.ts). Giữ cả giá trị lẫn lỗi; trong khoá vẫn kiểm trùng tháng trước rồi

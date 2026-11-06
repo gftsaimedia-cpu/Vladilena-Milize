@@ -113,6 +113,18 @@ describe('Ngữ cảnh form đơn của nhân viên (spec 2.1)', () => {
     });
   });
 
+  // D8 (người dùng chốt 06/11): cờ tạm ứng của hồ sơ tắt thì loại tạm ứng khoá, kể cả ngày 16–17; không tính tiền.
+  it('advance locked for staff outside the advance scheme (D8)', async () => {
+    ctx.repo.putStaff('nv01', staffContext({ startDate: '2026-11-04', canAdvance: false }));
+    for (const now of ['2026-11-16T03:00:00Z', '2026-11-04T03:00:00Z']) {
+      ctx.service.now = () => new Date(now);
+      const context = await ctx.service.requestContext('nv01');
+      assert.deepEqual(kindOf(context, 'advance'), { kind: 'advance', enabled: false, reason: 'Bạn không thuộc diện tạm ứng' }, now);
+      assert.equal(context.advance, null);
+    }
+    assert.deepEqual(ctx.payroll.calls, []);
+  });
+
   it('advance locked when the month already has one', async () => {
     ctx.service.now = () => new Date('2026-11-16T03:00:00Z');
     const existing = SystemRequest.createAdvanceRequest({
