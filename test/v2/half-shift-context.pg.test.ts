@@ -147,4 +147,103 @@ test('half-shift requestContext on PostgreSQL', async t => {
     // Mọi ngày trong tháng đã chốt có halfShift: null
     assert.ok(closedCtx.days.every(d => d.halfShift === null));
   });
+
+  await withTempDb(t, 'half_shift_debt_context', async (db, client) => {
+    const nvId = '0a7c4e2e-1111-4a6b-9c1d-000000000001';
+    const adminId = '0a7c4e2e-1111-4a6b-9c1d-000000000099';
+
+    await client.query(
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, uuid)
+       VALUES 
+         ('nv01', 'Nhân viên 01', 'nv', 1, 'x', now(), $1),
+         ('admin', 'Admin', 'admin', 1, 'x', now(), $2)`,
+      [nvId, adminId]
+    );
+
+    const service = new RequestsService(
+      new RequestsRepository(db),
+      new AttendanceRepository(db),
+      new TransactionCoordinator(db),
+      new HolidaysRepository(db),
+      new DayStatusRepository(db)
+    );
+
+    // 2 đơn nửa ca duyệt (10/11, 12/11) + 1 đơn chờ (13/11)
+    const hs1 = await service.createHalfShiftLeaveRequest({
+      employeeId: 'nv01',
+      date: '2026-11-10',
+      half: 'FIRST',
+      reason: 'Khám 1'
+    });
+    await service.reviewRequest(hs1.id, 'admin', 'APPROVE');
+
+    const hs2 = await service.createHalfShiftLeaveRequest({
+      employeeId: 'nv01',
+      date: '2026-11-12',
+      half: 'FIRST',
+      reason: 'Khám 2'
+    });
+    await service.reviewRequest(hs2.id, 'admin', 'APPROVE');
+
+    await service.createHalfShiftLeaveRequest({
+      employeeId: 'nv01',
+      date: '2026-11-13',
+      half: 'FIRST',
+      reason: 'Chờ duyệt'
+    });
+
+    // 1 khung OT 4 giờ (17/11 18:00 - 22:00, 240 phút)
+    await service.createOvertimeRequest({
+      employeeId: 'nv01',
+      otDate: '2026-11-17',
+      startTime: '18:00',
+      endTime: '22:00',
+      reason: 'Làm thêm'
+    });
+
+    let ctx = await service.requestContext('nv01');
+    let m11 = ctx.months.find(m => m.month === '2026-11')!;
+
+    // Nợ: 2 đơn duyệt (480 phút), đơn chờ không tính
+    // OT: 240 phút đã đăng ký sau ngày nợ -> registered: 240, remaining: 240
+    assert.deepEqual((m11 as any).halfShiftDebt, {
+      owedMinutes: 480,
+      registeredMinutes: 240,
+      remainingMinutes: 240
+    });
+    // Tháng chỉ có khung trả nợ -> hasOvertime là false
+    assert.equal(m11.hasOvertime, false);
+
+    // Thêm khung OT 5 giờ làm (CN 15/11 08:00 - 14:00, 300 phút) -> tổng OT 540 phút > 480 phút nợ
+    await service.createOvertimeRequest({
+      employeeId: 'nv01',
+      otDate: '2026-11-15',
+      startTime: '08:00',
+      endTime: '14:00',
+      reason: 'Làm thêm 2'
+    });
+
+    ctx = await service.requestContext('nv01');
+    m11 = ctx.months.find(m => m.month === '2026-11')!;
+    assert.deepEqual((m11 as any).halfShiftDebt, {
+      owedMinutes: 480,
+      registeredMinutes: 480,
+      remainingMinutes: 0
+    });
+    // Có thêm khung vượt nợ -> hasOvertime là true
+    assert.equal(m11.hasOvertime, true);
+
+    // Ngày 12/11 thành ngày lễ về sau (T8) -> bỏ nợ ngày 12/11
+    await client.query(
+      `INSERT INTO company_holidays (holiday_date, name, created_at)
+       VALUES ('2026-11-12', 'Lễ phát sinh', now())`
+    );
+
+    ctx = await service.requestContext('nv01');
+    m11 = ctx.months.find(m => m.month === '2026-11')!;
+    // Nợ chỉ còn 240 (ngày 10/11)
+    assert.equal((m11 as any).halfShiftDebt.owedMinutes, 240);
+    assert.equal((m11 as any).halfShiftDebt.registeredMinutes, 240);
+    assert.equal((m11 as any).halfShiftDebt.remainingMinutes, 0);
+  });
 });

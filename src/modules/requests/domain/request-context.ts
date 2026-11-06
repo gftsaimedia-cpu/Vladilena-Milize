@@ -26,6 +26,12 @@ export interface FilingMonthState {
   otLeftMinutes: number;
   hasOvertime: boolean;
   hasMakeupLeave: boolean;
+  /** Nợ nghỉ giữa ca của tháng (đã duyệt, đã đăng ký qua đơn OT, và còn lại). */
+  halfShiftDebt: {
+    owedMinutes: number;
+    registeredMinutes: number;
+    remainingMinutes: number;
+  };
 }
 
 /** Một ngày trong khoảng nộp đơn. `hours` rỗng khi ngày đang nghỉ. */

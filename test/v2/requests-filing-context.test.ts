@@ -194,8 +194,26 @@ describe('Ngữ cảnh form đơn của nhân viên (spec 2.1)', () => {
     await seed(ctx, leaveRequest('2026-11-13', '2026-11-13', 'PENDING'));
     const context = await ctx.service.requestContext('nv01');
     assert.deepEqual(context.months, [
-      { month: '2026-11', closed: false, otMinutes: 120, otCapMinutes: 2400, otLeftMinutes: 2280, hasOvertime: true, hasMakeupLeave: false },
-      { month: '2026-12', closed: false, otMinutes: 0, otCapMinutes: 2400, otLeftMinutes: 2400, hasOvertime: false, hasMakeupLeave: false }
+      {
+        month: '2026-11',
+        closed: false,
+        otMinutes: 120,
+        otCapMinutes: 2400,
+        otLeftMinutes: 2280,
+        hasOvertime: true,
+        hasMakeupLeave: false,
+        halfShiftDebt: { owedMinutes: 0, registeredMinutes: 0, remainingMinutes: 0 }
+      },
+      {
+        month: '2026-12',
+        closed: false,
+        otMinutes: 0,
+        otCapMinutes: 2400,
+        otLeftMinutes: 2400,
+        hasOvertime: false,
+        hasMakeupLeave: false,
+        halfShiftDebt: { owedMinutes: 0, registeredMinutes: 0, remainingMinutes: 0 }
+      }
     ]);
     // Tháng 11 đã có OT nhưng tháng 12 còn trống.
     assert.deepEqual(kindOf(context, 'leave-with-makeup'), { kind: 'leave-with-makeup', enabled: true });

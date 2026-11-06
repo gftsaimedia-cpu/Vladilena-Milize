@@ -75,9 +75,16 @@ export function otLeftMinutes(month: FilingMonthState | undefined): number {
   return month ? Math.max(0, month.otCapMinutes - month.otMinutes) : 0;
 }
 
-/** Giờ OT chọn được của một ngày: bỏ khung dài hơn số phút OT còn lại của tháng; tháng đã có nghỉ có làm bù thì không có. */
+/** Giờ OT chọn được của một ngày: bỏ khung dài hơn số phút OT còn lại của tháng; tháng đã có nghỉ có làm bù thì chỉ nhận khi còn nợ nghỉ giữa ca. */
 export function overtimeHours(day: Pick<DayFacts, 'hours'>, month: FilingMonthState | undefined): HourOption[] {
-  if (!month || month.closed || month.hasMakeupLeave) return [];
+  if (!month || month.closed) return [];
+  if (month.hasMakeupLeave) {
+    if (!month.halfShiftDebt || month.halfShiftDebt.remainingMinutes <= 0) return [];
+    const cap = Math.min(otLeftMinutes(month), month.halfShiftDebt.remainingMinutes);
+    return day.hours
+      .map(h => ({ start: h.start, ends: h.ends.filter(e => e.minutes <= cap) }))
+      .filter(h => h.ends.length > 0);
+  }
   const left = otLeftMinutes(month);
   return day.hours
     .map(h => ({ start: h.start, ends: h.ends.filter(e => e.minutes <= left) }))

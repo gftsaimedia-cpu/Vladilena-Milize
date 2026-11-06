@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
 import { BadRequestError, NotEmployedError, assertEmployed } from '../../common';
 import { isValidDateText } from '../../common/date-text';
-import { halvesOf, type HalfShift } from '../../common/half-shift';
+import { halvesOf, allocateHalfShiftDebt, type HalfShift, type DebtEvent, type WorkPiece } from '../../common/half-shift';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import {
   SystemRequest,
@@ -228,6 +228,31 @@ const makeupRequestsIn = (requests: readonly SystemRequest[], month: string): Sy
   requests.filter(
     r => r.type === 'LEAVE_WITH_MAKEUP' && isActive(r) && r.leaveStartDate !== null && monthOf(r.leaveStartDate) === month
   );
+
+/** Đơn nghỉ giữa ca đã duyệt có ngày nửa ca trong tháng `month` (YYYY-MM), loại bỏ ngày lễ (T8). */
+const halfShiftDebtEvents = (
+  requests: readonly SystemRequest[],
+  month: string,
+  holidayDates: ReadonlySet<string> = new Set()
+): DebtEvent[] =>
+  requests
+    .filter(
+      r =>
+        r.type === 'HALF_SHIFT_LEAVE' &&
+        r.status === 'APPROVED' &&
+        r.halfShiftDate !== null &&
+        monthOf(r.halfShiftDate) === month &&
+        !holidayDates.has(r.halfShiftDate)
+    )
+    .map(r => ({ date: r.halfShiftDate!, minutes: 240 }));
+
+/** Các khung OT (chờ duyệt hoặc đã duyệt) của tháng `month`. */
+const otWorkPieces = (requests: readonly SystemRequest[], month: string): WorkPiece[] =>
+  otRequestsIn(requests, month).map(r => ({
+    date: r.otDate!,
+    start: r.otStartTime ?? '00:00',
+    minutes: r.otHours ? Math.round(r.otHours * 60) : workMinutes(r.otStartTime ?? '00:00', r.otEndTime ?? '00:00')
+  }));
 
 /** Đơn tạm ứng đang chờ hoặc đã duyệt của tháng `period`: các đơn luật "mỗi tháng một đơn" đếm. */
 const advancesFor = (requests: readonly SystemRequest[], period: string): SystemRequest[] =>
@@ -582,7 +607,8 @@ export class RequestsService {
     const staff = await this.resolveStaff(employeeIdOrUsername, currentMonth);
     const { days, active, holidays } = await this.loadDays(staff, window.from, window.to);
 
-    const months = await this.filingMonths([currentMonth, monthOf(window.to)], active);
+    const holidayDates = new Set(holidays.map(h => h.date));
+    const months = await this.filingMonths([currentMonth, monthOf(window.to)], active, holidayDates);
     const explanationDays = this.explanations ? await this.explanations.dueDays(employeeIdOrUsername) : [];
     const advance = await this.advanceState(staff, today, active);
 
@@ -594,7 +620,12 @@ export class RequestsService {
       kinds.push(lockedUnless('leave-with-makeup', openMonths.some(m => !m.hasOvertime)));
     }
     if (staff.benefits.ot) {
-      kinds.push(lockedUnless('overtime', openMonths.some(m => !m.hasMakeupLeave && m.otMinutes < MONTH_OT_CAP_MINUTES)));
+      kinds.push(
+        lockedUnless(
+          'overtime',
+          openMonths.some(m => (!m.hasMakeupLeave || m.halfShiftDebt.remainingMinutes > 0) && m.otMinutes < MONTH_OT_CAP_MINUTES)
+        )
+      );
     }
     kinds.push(lockedUnless('shift-change', openMonths.length > 0));
     kinds.push(
@@ -660,19 +691,36 @@ export class RequestsService {
     };
   }
 
-  /** Trạng thái từng tháng nộp được: chốt công chưa, số phút OT, đã có OT hay nghỉ có làm bù chưa. */
-  private async filingMonths(months: readonly string[], active: readonly SystemRequest[]): Promise<FilingMonthState[]> {
+  /** Trạng thái từng tháng nộp được: chốt công chưa, số phút OT, nợ nghỉ giữa ca, đã có OT hay nghỉ có làm bù chưa. */
+  private async filingMonths(
+    months: readonly string[],
+    active: readonly SystemRequest[],
+    holidayDates: ReadonlySet<string> = new Set()
+  ): Promise<FilingMonthState[]> {
     return await Promise.all(
       months.map(async month => {
         const ot = otRequestsIn(active, month);
+        const debtEvents = halfShiftDebtEvents(active, month, holidayDates);
+        const pieces = otWorkPieces(active, month);
+        const splits = allocateHalfShiftDebt(debtEvents, pieces);
+        const owedMinutes = debtEvents.reduce((sum, e) => sum + e.minutes, 0);
+        const registeredMinutes = splits.reduce((sum, s) => sum + s.repaid, 0);
+        const remainingMinutes = Math.max(0, owedMinutes - registeredMinutes);
+        const hasOvertime = debtEvents.length === 0 ? ot.length > 0 : splits.some(s => s.ot > 0);
+
         return {
           month,
           closed: await this.isClosedMonth(month),
           otMinutes: otMinutesOf(ot),
           otCapMinutes: MONTH_OT_CAP_MINUTES as 2400,
           otLeftMinutes: Math.max(0, MONTH_OT_CAP_MINUTES - otMinutesOf(ot)),
-          hasOvertime: ot.length > 0,
-          hasMakeupLeave: makeupRequestsIn(active, month).length > 0
+          hasOvertime,
+          hasMakeupLeave: makeupRequestsIn(active, month).length > 0,
+          halfShiftDebt: {
+            owedMinutes,
+            registeredMinutes,
+            remainingMinutes
+          }
         };
       })
     );
@@ -1100,7 +1148,16 @@ export class RequestsService {
         throw new Error('Không còn ngày trong tháng để xếp đủ giờ bù');
       }
       if (otRequestsIn(active, month).length > 0) {
-        throw new Error(`Tháng ${month} đã có đơn OT, không nộp đơn nghỉ có làm bù được`);
+        const holidayRepo = stores.holidays ?? this.holidaysRepo;
+        const monthHolidays = holidayRepo ? await holidayRepo.listBetween(`${month}-01`, lastDayOfMonth(month)) : [];
+        const holidayDates = new Set(monthHolidays.map(h => h.date));
+        const debtEvents = halfShiftDebtEvents(active, month, holidayDates);
+        const otPieces = otWorkPieces(active, month);
+        const splits = allocateHalfShiftDebt(debtEvents, otPieces);
+        const hasRealOt = debtEvents.length === 0 ? otPieces.length > 0 : splits.some(s => s.ot > 0);
+        if (hasRealOt) {
+          throw new Error(`Tháng ${month} đã có đơn OT, không nộp đơn nghỉ có làm bù được`);
+        }
       }
 
       // Khung bù không chiếm ngày, chỉ bị chặn ở Thứ Bảy có iSAT (không có dòng nào ghi cho khung).
@@ -1201,7 +1258,27 @@ export class RequestsService {
       }
 
       if (makeupRequestsIn(active, month).length > 0) {
-        throw new Error(`Tháng ${month} đã có đơn nghỉ có làm bù, không đăng ký OT được`);
+        const holidayRepo = stores.holidays ?? this.holidaysRepo;
+        const monthHolidays = holidayRepo ? await holidayRepo.listBetween(`${month}-01`, lastDayOfMonth(month)) : [];
+        const holidayDates = new Set(monthHolidays.map(h => h.date));
+        const debtEvents = halfShiftDebtEvents(active, month, holidayDates);
+        const existingPieces = otWorkPieces(active, month);
+        const owedMinutes = debtEvents.reduce((sum, e) => sum + e.minutes, 0);
+        const existingSplits = allocateHalfShiftDebt(debtEvents, existingPieces);
+        const repaidBefore = existingSplits.reduce((sum, s) => sum + s.repaid, 0);
+        const remainingMinutes = Math.max(0, owedMinutes - repaidBefore);
+
+        if (remainingMinutes === 0) {
+          throw new Error(`Tháng ${month} đã có đơn nghỉ có làm bù, không đăng ký OT được`);
+        }
+
+        const newPiece: WorkPiece = { date, start: startTime, minutes };
+        const allSplits = allocateHalfShiftDebt(debtEvents, [...existingPieces, newPiece]);
+        if (allSplits.some(s => s.ot > 0)) {
+          throw new Error(
+            `Tháng ${monthNumberOf(month)} có đơn nghỉ có làm bù, chỉ đăng ký OT để trả nợ nghỉ giữa ca (còn ${formatHours(remainingMinutes)} giờ)`
+          );
+        }
       }
 
       const request = SystemRequest.createOvertimeRequest({
