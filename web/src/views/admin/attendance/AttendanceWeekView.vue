@@ -1,11 +1,14 @@
 <script setup lang="ts">
 // Chấm công theo tuần trên dữ liệu giả: 6 chỉ số, lưới 28 ngày (tab Tuần) và danh sách việc cần xử lý (tab Cần xử lý).
-// Tab, lọc tên, lọc nhóm, việc đang chọn và hộp chi tiết ngày đều nằm trên URL (?xem, ?q, ?pb (nhóm do BE trả), ?viec, ?hop) và đổi bằng router.replace.
+// Tab, lọc tên, cặp bộ lọc nhân sự, việc đang chọn và hộp chi tiết ngày đều nằm trên URL (?xem, ?q, ?ns (trạng thái nhân sự),
+// ?pb (phòng ban do BE trả), ?viec, ?hop) và đổi bằng router.replace.
 // Tab "Cần xử lý" từ 900px: danh sách bên trái, chi tiết việc đang chọn (BellDetail) bên phải; hẹp hơn thì chỉ có danh sách và
 // bấm dòng mở hộp chi tiết ngày như trước.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BellDetail from '@/components/shell/BellDetail.vue';
+import StaffScopeFilter from '@/components/staff-scope/StaffScopeFilter.vue';
+import { isPst, matchScope, useMineDepts, type StaffPst } from '@/components/staff-scope/staffScope';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -27,6 +30,9 @@ const router = useRouter();
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const q = computed(() => str(route.query.q));
 const dept = computed(() => str(route.query.pb));
+// Trạng thái nhân sự lọc phía máy khách trên các dòng BE trả về (06/11); giá trị lạ trên URL thì bỏ.
+const pst = computed<StaffPst>(() => (isPst(route.query.ns) ? route.query.ns : 'all'));
+const mine = useMineDepts();
 const period = usePeriodStore();
 const shell = useShellStore();
 
@@ -90,10 +96,24 @@ watch(
     if (groups && dept.value && !groups.some(g => g.key === dept.value)) setQuery({ pb: '' });
   }
 );
+watch(
+  () => route.query.ns,
+  ns => {
+    if (ns !== undefined && !isPst(ns)) setQuery({ ns: '' });
+  },
+  { immediate: true }
+);
+const setPst = (v: StaffPst) => setQuery({ ns: v === 'all' ? '' : v });
+const setDept = (v: string) => setQuery({ pb: v });
+const depts = computed(() => (data.value?.groups ?? []).map(g => g.key));
 
-const rows = computed(() => data.value?.rows ?? []);
-const pending = computed(() => data.value?.pending ?? []);
-const filtered = computed(() => !!dept.value || !!q.value.trim());
+// Phòng ban đã lọc ở BE (?pb); ở đây chỉ còn trạng thái nhân sự (và phạm vi "tôi quản lý" theo phòng ban của dòng).
+const inScope = (x: { dept: string; ps?: Parameters<typeof matchScope>[0]['ps'] }) =>
+  matchScope(x, { pst: pst.value, dept: '' }, mine);
+const rows = computed(() => (data.value?.rows ?? []).filter(inScope));
+const pending = computed(() => (data.value?.pending ?? []).filter(inScope));
+const matched = computed(() => (pst.value === 'all' ? (data.value?.matched ?? 0) : rows.value.length));
+const filtered = computed(() => !!dept.value || !!q.value.trim() || pst.value !== 'all');
 
 // ---- Tab "Cần xử lý": việc đang chọn ----
 // Từ 900px có khung chi tiết bên phải; hẹp hơn chỉ còn danh sách.
@@ -114,7 +134,7 @@ const visibleIds = computed(() => pending.value.map(p => p.item.id));
 // Việc vẫn còn trong nguồn (vừa nhắc giải trình) thì lấy bản mới để thẻ hiện "Đã nhắc" và nút "Nhắc lại".
 const shown = shallowRef<InboxItem | null>(null);
 // Đổi bộ lọc thì danh sách do BE trả lại khác hẳn: bỏ bản chụp cũ.
-watch([q, dept], () => (shown.value = null), { flush: 'sync' });
+watch([q, dept, pst], () => (shown.value = null), { flush: 'sync' });
 watch(
   [pending, viecKey],
   () => {
@@ -216,7 +236,7 @@ function onTabKey(event: KeyboardEvent) {
               :tabindex="view === 'pending' ? 0 : -1"
               @click="pickTab('pending')"
             >
-              Cần xử lý<span class="badge">{{ data.pending.length }}</span>
+              Cần xử lý<span class="badge">{{ pending.length }}</span>
             </button>
           </div>
           <label class="fsearch">
@@ -229,17 +249,7 @@ function onTabKey(event: KeyboardEvent) {
               @input="setQuery({ q: ($event.target as HTMLInputElement).value })"
             />
           </label>
-          <label class="fsel">
-            <select
-              aria-label="Nhóm"
-              :value="dept"
-              @change="setQuery({ pb: ($event.target as HTMLSelectElement).value })"
-            >
-              <option value="" :selected="!dept">Nhóm: Tất cả</option>
-              <option v-for="g in data.groups" :key="g.key" :value="g.key">{{ g.key }} ({{ g.count }})</option>
-            </select>
-            <Icon name="chev" :size="16" />
-          </label>
+          <StaffScopeFilter :pst="pst" :dept="dept" :depts="depts" @update:pst="setPst" @update:dept="setDept" />
         </div>
 
         <WeekGrid v-if="view === 'week'" :days="data.days" :rows="rows" :month-no="monthNo" @open-day="openDay" />
@@ -277,7 +287,7 @@ function onTabKey(event: KeyboardEvent) {
 
         <div v-if="view === 'week'" class="foot">
           <span class="live"><span class="dot" aria-hidden="true" />Đang làm</span>
-          <span class="cnt">Hiển thị {{ data.matched }} trong {{ data.total }} nhân viên</span>
+          <span class="cnt">Hiển thị {{ matched }} trong {{ data.total }} nhân viên</span>
         </div>
       </section>
     </template>

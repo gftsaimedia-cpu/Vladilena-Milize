@@ -86,7 +86,7 @@ test('name and group filters live in the URL and survive dialog, reload, back an
   await page.goto('/admin/tong-quan');
   await page.getByRole('navigation', { name: 'Điều hướng' }).getByRole('link', { name: 'Chấm công', exact: true }).click();
   const name = page.getByRole('textbox', { name: 'Lọc theo tên' });
-  const dept = page.getByRole('combobox', { name: 'Nhóm' });
+  const dept = page.getByRole('combobox', { name: 'Phòng ban', exact: true });
 
   await name.fill('nam');
   await expect(page).toHaveURL(/q=nam/);
@@ -124,8 +124,8 @@ test('unknown group in the URL falls back to all', async ({ page }) => {
   await page.goto('/admin/cham-cong?pb=Kho');
   await expect(rowsOf(page)).toHaveCount(11);
   await expect(page).not.toHaveURL(/pb=/);
-  await expect(page.getByRole('combobox', { name: 'Nhóm' }).locator('option:checked')).toHaveText(
-    'Nhóm: Tất cả'
+  await expect(page.getByRole('combobox', { name: 'Phòng ban', exact: true }).locator('option:checked')).toHaveText(
+    'Tất cả phòng ban'
   );
 });
 
@@ -134,7 +134,8 @@ test('phone keeps the labelled filters inside the viewport', async ({ page }) =>
   await page.goto('/admin/cham-cong');
   for (const control of [
     page.getByRole('textbox', { name: 'Lọc theo tên' }),
-    page.getByRole('combobox', { name: 'Nhóm' })
+    page.getByRole('combobox', { name: 'Trạng thái nhân sự', exact: true }),
+    page.getByRole('combobox', { name: 'Phòng ban', exact: true })
   ]) {
     await expect(control).toBeVisible();
     const box = await control.boundingBox();

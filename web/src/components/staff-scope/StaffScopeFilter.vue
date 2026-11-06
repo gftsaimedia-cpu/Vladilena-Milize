@@ -40,6 +40,16 @@ defineProps<{ depts: string[] }>();
   align-items: center;
   gap: 8px;
 }
+/* Màn hẹp (điện thoại): hai ô xuống hàng thay vì tràn ngang. */
+@media (max-width: 599px) {
+  .ssf {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .ssd {
+    max-width: 100%;
+  }
+}
 .ssd {
   position: relative;
   display: inline-flex;
