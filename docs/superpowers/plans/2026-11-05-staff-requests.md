@@ -595,7 +595,7 @@ export interface ExplanationView {
    - `needs.checkIn` mà thiếu giờ vào → `Nhập giờ vào thực tế`;
    - `needs.checkOut` mà thiếu giờ ra → `Nhập giờ ra thực tế`;
    - giờ không cần thì ghi `null`;
-   - ca không qua đêm và giờ ra ≤ giờ vào → `Giờ ra phải sau giờ vào` (R-P5).
+   - ca không qua đêm và giờ ra < giờ vào → `Giờ ra không được trước giờ vào` (R-P5; bằng nhau vẫn nhận, người dùng chốt 06/11).
 5. `summary` = `{ cases, needs }`.
 
 **Các bước:**
@@ -955,3 +955,7 @@ Ledger thực thi là thư mục nháp và sẽ bị xoá; các quyết định 
 - **G1:** Ruling: `fileRequest` qua cổng kỳ trước tiên, trên các ngày client gửi (đọc như planner nhưng bỏ giá trị sai dạng, để planner báo sau), trước mọi kiểm tra khác: giờ tròn và khoảng nộp khi nhân viên tự nộp, tìm nhân sự, NOT_EMPLOYED, ADVANCE_NOT_ELIGIBLE, luật ngày trong khoá. Cổng trong khoá vẫn giữ để giữ khoá chia sẻ của tháng tới khi ghi xong — "PERIOD_LOCKED thắng lỗi luật" áp cho mọi lỗi luật, kể cả khoảng nộp của nhân viên — nếu sai (muốn câu "Chỉ chọn ngày từ…" thắng khi nhân viên tự nộp): chuyển `assertSelfFiling` lên trước cổng.
 - **G2:** Ruling: Admin nộp cho mã nhân viên không có, vào tháng đã khoá, nhận PERIOD_LOCKED chứ không phải "không tìm thấy nhân sự", vì cổng không cần biết là ai — nếu sai: tìm nhân sự trước cổng.
 - **G3 (ngoài phạm vi, chưa sửa):** đơn iSAT (`createIsatRequest`, không đi qua `fileRequest`) vẫn kiểm luật trước cổng kỳ. iSAT chỉ nhận Thứ Bảy sắp tới, nên chỉ gặp khi tháng hiện tại đã chốt công.
+
+**R-P5 sau câu trả lời của người dùng (06/11, chuyển qua điều phối):** "giờ ra phải lớn hơn hoặc bằng giờ vào" — giữ kiểm tra giữa hai giờ khai (thay S3), nhưng giờ ra bằng giờ vào được nhận; câu lỗi đổi thành `Giờ ra không được trước giờ vào`; ca đêm vẫn không xét.
+- **R1:** Ruling: mock FE (`web/src/mock/staff-requests.ts`) đổi cùng luật và cùng câu, không thêm test: dữ liệu giả không có ngày nào cần cả giờ vào lẫn giờ ra (chỉ 24/10 thiếu giờ ra, 09/10 vào muộn), nên nhánh này không chạm được từ UI — nếu sai: mock lệch BE mà không test nào bắt.
+- **R2:** sửa luôn hai câu của contract đã cũ sau G1 ("cổng chỉ xét sau các luật", "xét sau mọi lỗi 400") — nếu sai: không có hại gì.

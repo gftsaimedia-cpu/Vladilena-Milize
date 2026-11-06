@@ -588,8 +588,9 @@ function build(ctx: RequestContext, kind: RequestKind, draft: RequestDraft[Reque
       if ((due.needs.checkIn && !filled(d.actualCheckIn)) || (due.needs.checkOut && !filled(d.actualCheckOut))) return MISSING;
       if ((due.needs.checkIn && !isTime(d.actualCheckIn)) || (due.needs.checkOut && !isTime(d.actualCheckOut)))
         return { ok: false, message: 'Giờ thực tế dạng HH:MM' };
-      if (due.needs.checkIn && due.needs.checkOut && toMin(d.actualCheckOut!) <= toMin(d.actualCheckIn!))
-        return { ok: false, message: 'Giờ ra phải sau giờ vào' };
+      // R-P5 (06/11): giờ ra bằng giờ vào vẫn nhận, chỉ giờ ra trước giờ vào mới bị từ chối (như BE).
+      if (due.needs.checkIn && due.needs.checkOut && toMin(d.actualCheckOut!) < toMin(d.actualCheckIn!))
+        return { ok: false, message: 'Giờ ra không được trước giờ vào' };
       const rec = dayRecord(d.workDate);
       const inAt = due.needs.checkIn ? d.actualCheckIn! : rec?.in;
       return {

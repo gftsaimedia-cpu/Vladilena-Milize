@@ -85,15 +85,21 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
     assert.deepEqual(ctx.repo.requests.get(dto.id)!.actualCheckIn, null);
   });
 
-  it('out must be after in, except on a night shift (R-P5)', async () => {
+  // R-P5, người dùng chốt 06/11: "giờ ra phải lớn hơn hoặc bằng giờ vào".
+  it('out may not be before in, except on a night shift (R-P5)', async () => {
     ctx.att.timesheets = [];
-    await assert.rejects(expl({ actualCheckIn: '17:00', actualCheckOut: '08:00' }), { message: 'Giờ ra phải sau giờ vào' });
-    await assert.rejects(expl({ actualCheckIn: '08:00', actualCheckOut: '08:00' }), { message: 'Giờ ra phải sau giờ vào' });
+    await assert.rejects(expl({ actualCheckIn: '17:00', actualCheckOut: '08:00' }), { message: 'Giờ ra không được trước giờ vào' });
 
     // Ca đêm 22:00–06:00: giờ ra rơi vào sáng hôm sau.
     ctx.repo.schedules.push({ date: '2026-11-03', startTime: '22:00', endTime: '06:00', onLeave: false });
     const dto = await expl({ actualCheckIn: '22:00', actualCheckOut: '06:00' });
     assert.deepEqual([dto.actualCheckIn, dto.actualCheckOut], ['22:00', '06:00']);
+  });
+
+  it('out equal to in is accepted (R-P5)', async () => {
+    ctx.att.timesheets = [];
+    const dto = await expl({ actualCheckIn: '08:00', actualCheckOut: '08:00' });
+    assert.deepEqual([dto.actualCheckIn, dto.actualCheckOut], ['08:00', '08:00']);
   });
 
   // D7 (người dùng chốt 06/11): giải trình nhận mọi giờ khai, kiểm tra là việc của Admin. Giờ khai không bị so với lần chấm

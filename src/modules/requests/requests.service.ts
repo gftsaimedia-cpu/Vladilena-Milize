@@ -1213,12 +1213,12 @@ export class RequestsService {
     if (needs.checkOut && actualCheckOut === null) {
       throw new Error('Nhập giờ ra thực tế');
     }
-    // R-P5: chỉ so hai giờ khai với nhau. Ca đêm (giờ hết ca không sau giờ vào ca) thì giờ ra rơi vào sáng hôm sau, không
-    // so được với giờ vào. D7 (người dùng chốt 06/11): giờ khai không so với lần chấm thật còn lại của ngày; Admin xét khi
-    // duyệt.
+    // R-P5 (người dùng chốt 06/11: "giờ ra phải lớn hơn hoặc bằng giờ vào"): chỉ so hai giờ khai với nhau; giờ ra bằng giờ
+    // vào vẫn nhận. Ca đêm (giờ hết ca không sau giờ vào ca) thì giờ ra rơi vào sáng hôm sau, không so được với giờ vào.
+    // D7 (06/11): giờ khai không so với lần chấm thật còn lại của ngày; Admin xét khi duyệt.
     const overnight = shift.endTime <= shift.startTime;
-    if (!overnight && actualCheckIn !== null && actualCheckOut !== null && actualCheckOut <= actualCheckIn) {
-      throw new Error('Giờ ra phải sau giờ vào');
+    if (!overnight && actualCheckIn !== null && actualCheckOut !== null && actualCheckOut < actualCheckIn) {
+      throw new Error('Giờ ra không được trước giờ vào');
     }
 
     const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {

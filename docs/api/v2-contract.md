@@ -911,7 +911,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
     { "error": "Tháng 10/2026 đã chốt công", "code": "PERIOD_LOCKED", "month": "2026-10", "status": "attendance_locked" }
     ```
   - Câu báo: `Tháng MM/YYYY đã chốt công` (`attendance_locked`, `calculated`), `Kỳ lương tháng MM/YYYY đã phê duyệt` (`approved`), `Kỳ lương tháng MM/YYYY đã trả lương` (`paid`).
-  - Không ghi gì: đơn bị chặn lúc nộp không được lưu; lúc duyệt thì đơn giữ `PENDING`. Cổng chỉ xét sau các luật riêng của từng loại đơn, nên đơn vừa sai luật vừa rơi vào tháng đã chốt nhận lỗi của luật (`400`).
+  - Không ghi gì: đơn bị chặn lúc nộp không được lưu; lúc duyệt thì đơn giữ `PENDING`. Lúc nộp, cổng xét trước mọi luật riêng của loại đơn (khoảng nộp, giờ tròn, thời gian làm việc `NOT_EMPLOYED`, diện tạm ứng `ADVANCE_NOT_ELIGIBLE`, ngày làm việc…), trên các ngày client gửi, nên đơn vừa sai luật vừa rơi vào tháng đã khoá nhận `409 PERIOD_LOCKED`. Ví dụ: tháng 10 đã chốt công, Admin nộp nghỉ Chủ nhật 18/10 → `PERIOD_LOCKED`, không phải `Khoảng nghỉ không có ngày làm việc`. Ngày sai dạng thì cổng bỏ qua, lỗi dạng của ngày đó vẫn là `400`. Riêng iSAT vẫn xét luật của iSAT trước cổng.
   - Áp như nhau cho nhân viên tự nộp (`POST /api/v2/me/requests/:kind`) và Admin nộp thay (`POST /api/v2/requests/leave`, `.../leave-with-makeup`, `.../overtime`, `.../shift-change`, `.../explanation`, `.../advance`, `.../isat`). Giải trình nộp được tới khi kỳ được phê duyệt (người dùng chốt 05/11/2026). Ví dụ: tháng 10 chốt công ngày 01/11, ngày 03/11 Bình nộp giải trình cho 29/10 → được nhận; sau khi Phê duyệt kỳ tháng 10 thì `409` `Kỳ lương tháng 10/2026 đã phê duyệt`.
   - Xem trước (`POST /api/v2/me/requests/:kind/preview`) qua cùng cổng, cùng chỗ, nhưng vẫn trả `200`: `{ "ok": false, "message": "Tháng 10/2026 đã chốt công", "code": "PERIOD_LOCKED", "month": "2026-10", "status": "attendance_locked" }`.
   - Huỷ đơn (`PATCH .../cancel`) không qua cổng kỳ.
@@ -1002,8 +1002,8 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   | `Giờ thực tế không hợp lệ: <giá trị>` | `actualCheckIn`/`actualCheckOut` có giá trị nhưng không phải `HH:mm` |
   | `Nhập giờ vào thực tế` | Ngày `MISSING_CHECK_IN` mà không có `actualCheckIn` |
   | `Nhập giờ ra thực tế` | Ngày `MISSING_CHECK_OUT` mà không có `actualCheckOut` |
-  | `Giờ ra phải sau giờ vào` | Cả hai giờ cùng nhập, giờ ra không sau giờ vào (ca đêm không xét) |
-- **Lỗi `409 PERIOD_LOCKED`**: kỳ lương của tháng `workDate` đã phê duyệt (`Kỳ lương tháng MM/YYYY đã phê duyệt`) hoặc đã trả lương (`Kỳ lương tháng MM/YYYY đã trả lương`). Tháng đã chốt công hay đã tính lương vẫn nộp được. Xét sau mọi lỗi `400` ở trên, trong khoá (xem "Quy ước chung").
+  | `Giờ ra không được trước giờ vào` | Cả hai giờ cùng nhập, giờ ra trước giờ vào; bằng nhau vẫn nhận (ca đêm không xét) |
+- **Lỗi `409 PERIOD_LOCKED`**: kỳ lương của tháng `workDate` đã phê duyệt (`Kỳ lương tháng MM/YYYY đã phê duyệt`) hoặc đã trả lương (`Kỳ lương tháng MM/YYYY đã trả lương`). Tháng đã chốt công hay đã tính lương vẫn nộp được. Xét trước mọi lỗi `400` ở trên, trừ khi `workDate` sai dạng (xem "Quy ước chung").
 - Nộp dưới khoá `requests_<uuid>`. Đơn và các trường hợp (bảng `explanation_cases`) được ghi trong cùng một giao dịch.
 - **Duyệt**: `APPROVE` đặt trạng thái ngày công `workDate` của người đó thành `VALID`; `REJECT` không đổi gì.
 

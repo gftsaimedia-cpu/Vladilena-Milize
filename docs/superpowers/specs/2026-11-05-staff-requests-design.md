@@ -292,7 +292,7 @@ Một ngày D của nhân viên là "cần giải trình" khi đủ mọi điề
 - **Giờ thực tế:**
   - `needs.checkIn` thì bắt buộc `actualCheckIn`, `needs.checkOut` thì bắt buộc `actualCheckOut`, dạng `HH:MM`;
   - không cần thì bỏ qua giá trị client gửi;
-  - giờ ra phải sau giờ vào khi có cả hai.
+  - giờ ra không được trước giờ vào khi có cả hai; bằng nhau vẫn nhận (người dùng chốt 06/11).
 - **Lý do:** một lý do bắt buộc.
 - **Tiêu đề:** server đặt (mục 2.4).
 
