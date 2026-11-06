@@ -4,10 +4,13 @@
 import { INBOX_GROUPS } from '@/constants/labels';
 import { MOCK_MONTH, MOCK_TODAY } from './clock';
 import { pendingInbox, type InboxItem } from './inbox';
+import type { PersonStatus } from '../components/staff-scope/staffScope';
 import { payrollView, type PayrollStatus } from './payroll';
 
 export type { PayrollStatus } from './payroll';
 
+// dept, ps: cho cặp bộ lọc nhân sự của thẻ (06/11). Máy chủ thật chưa trả hai trường này (bộ lọc phòng ban khoá, ai cũng coi là
+// đang làm chính thức); dữ liệu giả gắn ở services/admin-main.ts.
 export type PayrollRow = {
   id: string;
   name: string;
@@ -18,6 +21,8 @@ export type PayrollRow = {
   allowance: string;
   net: string;
   status: PayrollStatus;
+  dept?: string;
+  ps?: PersonStatus;
 };
 
 export type OverviewKpi = {

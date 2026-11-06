@@ -69,3 +69,30 @@ test('cần xử lý dùng cùng cặp bộ lọc', async ({ page }) => {
   await expect(pendRows(page)).toHaveCount(4);
   await expect(page).toHaveURL(/xem=can-xu-ly/);
 });
+
+// Tổng quan (A): thẻ bảng lương dùng cặp bộ lọc, lọc tại chỗ trên các dòng của thẻ.
+test('Tổng quan: bảng lương có cặp bộ lọc thay nút Lọc', async ({ page }) => {
+  await page.goto('/admin/tong-quan');
+  const card = page.locator('.card.pt');
+  const rows = card.locator('tbody tr');
+  await expect(rows).toHaveCount(6);
+  await expect(card.getByRole('button', { name: 'Lọc', exact: true })).toHaveCount(0);
+
+  const p = card.getByRole('combobox', { name: 'Trạng thái nhân sự', exact: true });
+  const d = card.getByRole('combobox', { name: 'Phòng ban', exact: true });
+  const f = card.getByRole('textbox', { name: 'Tìm theo tên' });
+  const [pb, db, fb] = [(await p.boundingBox())!, (await d.boundingBox())!, (await f.boundingBox())!];
+  expect(pb.x).toBeLessThan(db.x);
+  expect(db.x).toBeLessThan(fb.x);
+  expect(Math.abs(pb.y + pb.height / 2 - (fb.y + fb.height / 2))).toBeLessThan(3);
+
+  await d.selectOption({ label: 'Kỹ thuật' });
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('Trần Minh Quân');
+  await expect(rows.nth(1)).toContainText('Võ Đức Thịnh');
+
+  await d.selectOption({ label: 'Tất cả phòng ban' });
+  await p.selectOption({ label: 'Đang thử việc' });
+  await expect(rows).toHaveCount(1);
+  await expect(rows).toContainText('Đỗ Mai Linh');
+});

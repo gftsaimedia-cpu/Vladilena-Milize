@@ -15,6 +15,8 @@ import {
   type SystemNote
 } from '@/mock/inbox';
 import { overviewDto, type OverviewDTO, type OverviewView } from '@/mock/overview';
+import { payrollView } from '@/mock/payroll';
+import { personStatusOf } from '@/mock/people-status';
 import { respond } from '@/mock/respond';
 import { usePeriodStore } from '@/stores/period';
 import { ApiError, api, qs } from './http';
@@ -91,7 +93,12 @@ const OVERVIEW_DAYS = 6;
 export async function getOverview(month: string): Promise<OverviewView> {
   if (__MOCK__) {
     const details = new Map(pendingInbox().map(i => [i.id, i]));
-    return respond(overviewFrom(overviewDto(month), details));
+    const view = overviewFrom(overviewDto(month), details);
+    // DTO giả giữ đúng dạng phản hồi BE (chưa có phòng ban / trạng thái nhân sự): gắn hai trường cho bộ lọc của thẻ bảng lương.
+    const board = payrollView(month);
+    const deptOf = new Map(board.empty ? [] : board.lines.map(l => [l.id, l.dept]));
+    view.payroll.rows = view.payroll.rows.map(r => ({ ...r, dept: deptOf.get(r.id), ps: personStatusOf(r.name) }));
+    return respond(view);
   }
   const now = Date.now();
   const [dto, pending] = await Promise.all([
