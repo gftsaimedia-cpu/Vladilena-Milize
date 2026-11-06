@@ -195,6 +195,8 @@ export interface SystemRequestDTO {
   reviewNote: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Lúc nhân viên tự huỷ đơn (status CANCELLED); null với đơn khác. Đơn đã huỷ không đổi nữa, nên bằng `updatedAt`. */
+  cancelledAt: string | null;
   /** Các ngày đơn giữ hoặc chạm tới (`requestDates`), tăng dần; tạm ứng là []. */
   dates: string[];
 

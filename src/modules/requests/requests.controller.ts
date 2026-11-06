@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject, O
 import { RequestIdPipe } from './request-id.pipe';
 import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { AuditEntryError } from '../audit';
+import { StaffDirectory, isNeutralStaffFilter, staffFilterFromQuery } from '../departments';
 import { RequestsService } from './requests.service';
 import { ExplanationsService, type DueItem } from './explanations.service';
 import { createdBody, dayConflictHttp } from './request-http';
@@ -19,8 +20,15 @@ function requireEmployeeId(body: any): string {
 export class RequestsController {
   constructor(
     @Inject(RequestsService) private readonly service: RequestsService,
-    @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService
+    @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService,
+    // Bắt buộc khi chạy thật (Nest tiêm); kiểu TS tuỳ chọn để test dựng tay các route không cần nó.
+    @Inject(StaffDirectory) private readonly directory?: StaffDirectory
   ) {}
+
+  private staffDirectory(): StaffDirectory {
+    if (!this.directory) throw new Error('StaffDirectory chưa được cấu hình');
+    return this.directory;
+  }
 
   private explanationsService(): ExplanationsService {
     if (!this.explanations) throw new Error('ExplanationsService chưa được cấu hình');
@@ -207,13 +215,36 @@ export class RequestsController {
     @Query('type') type?: RequestType,
     @Query('status') status?: RequestStatus,
     @Query('limit') limitStr?: string,
-    @Query('offset') offsetStr?: string
+    @Query('offset') offsetStr?: string,
+    @Query('staffStatus') staffStatus?: string,
+    @Query('departmentId') departmentId?: string,
+    @Query('q') q?: string,
+    @Query('sort') sort?: string
   ): Promise<unknown> {
+    const filter = staffFilterFromQuery({ staffStatus, departmentId, q });
+    if (sort !== undefined && sort !== '' && sort !== 'inbox') {
+      throw new BadRequestError('sort chỉ nhận inbox', { code: 'INVALID_SORT' });
+    }
     try {
       const limit = limitStr ? Number(limitStr) : undefined;
       const offset = offsetStr ? Number(offsetStr) : undefined;
-      return await this.service.listRequests({ employeeId, type, status, limit, offset });
+      const people = await this.staffDirectory().find(filter);
+      // Bộ lọc không loại ai thì không giới hạn nhân sự (giữ cả đơn của người không còn trong bảng nhân sự).
+      const staffIds = isNeutralStaffFilter(filter) ? undefined : StaffDirectory.idsOf(people);
+      const result = await this.service.listRequests({
+        employeeId,
+        type,
+        status,
+        limit,
+        offset,
+        staffIds,
+        sort: sort === 'inbox' ? 'inbox' : undefined,
+        withCounts: true
+      });
+      const byId = new Map(people.map(p => [p.id, p]));
+      return { ...result, items: result.items.map(item => ({ ...item, employee: byId.get(item.employeeId) ?? null })) };
     } catch (err: any) {
+      if (err instanceof HttpError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }

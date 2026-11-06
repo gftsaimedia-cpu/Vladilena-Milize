@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { Kysely, sql } from 'kysely';
+import { Kysely, sql, type SelectQueryBuilder } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
 import { isValidDateText } from '../../common/date-text';
 import { DEFAULT_SHIFT } from '../../common/shift-catalog';
@@ -35,8 +35,22 @@ export interface RequestListFilter {
   employeeIds?: string[];
   type?: RequestType;
   status?: RequestStatus;
+  /** Chỉ đơn của những nhân sự này (uuid hoặc username); mảng rỗng = không đơn nào (khác `employeeIds` rỗng = không lọc). */
+  staffIds?: string[];
+  /** Bỏ các loại đơn này khỏi danh sách và số đếm. */
+  excludeTypes?: RequestType[];
+  /** 'inbox': đơn chờ trước (cũ nhất trước), đơn đã xử lý sau (mới nhất trước). Mặc định: mới nhất trước. */
+  sort?: 'inbox';
   limit?: number;
   offset?: number;
+}
+
+/** Một nhóm (trạng thái, loại) của số đếm tab Yêu cầu; `oldest` là thời điểm tạo sớm nhất trong nhóm. */
+export interface RequestCountGroup {
+  status: RequestStatus;
+  type: RequestType;
+  total: number;
+  oldest: Date | null;
 }
 
 export interface IsatProfile {
@@ -241,22 +255,40 @@ export class RequestsRepository {
     return this.attachChildren(rows);
   }
 
-  async list(filter: RequestListFilter = {}): Promise<SystemRequest[]> {
-    let query = this.selectRequests();
-
+  /** Điều kiện chung của danh sách, số đếm và nhóm đếm. Không đụng `status`/`type` khi `withKind` sai. */
+  private scoped<O>(query: SelectQueryBuilder<DB, 'system_requests', O>, filter: RequestListFilter, withKind = true) {
     if (filter.employeeIds?.length) {
       query = query.where('employee_id', 'in', filter.employeeIds);
     } else if (filter.employeeId) {
       query = query.where('employee_id', '=', filter.employeeId);
     }
-    if (filter.type) {
+    if (filter.staffIds) {
+      query = filter.staffIds.length ? query.where('employee_id', 'in', filter.staffIds) : query.where(sql<boolean>`false`);
+    }
+    if (filter.excludeTypes?.length) {
+      query = query.where('type', 'not in', filter.excludeTypes);
+    }
+    if (withKind && filter.type) {
       query = query.where('type', '=', filter.type);
     }
-    if (filter.status) {
+    if (withKind && filter.status) {
       query = query.where('status', '=', filter.status);
     }
+    return query;
+  }
 
-    query = query.orderBy('created_at', 'desc');
+  async list(filter: RequestListFilter = {}): Promise<SystemRequest[]> {
+    let query = this.scoped(this.selectRequests(), filter);
+
+    if (filter.sort === 'inbox') {
+      query = query
+        .orderBy(sql`(status = 'PENDING')`, 'desc')
+        .orderBy(sql`CASE WHEN status = 'PENDING' THEN created_at END`, 'asc')
+        .orderBy(sql`CASE WHEN status <> 'PENDING' THEN created_at END`, 'desc')
+        .orderBy('id');
+    } else {
+      query = query.orderBy('created_at', 'desc');
+    }
 
     if (filter.limit !== undefined && filter.limit > 0) {
       query = query.limit(filter.limit);
@@ -542,23 +574,27 @@ export class RequestsRepository {
   }
 
   async count(filter: Omit<RequestListFilter, 'limit' | 'offset'> = {}): Promise<number> {
-    let query = this.qb
-      .selectFrom('system_requests')
-      .select(sql<number>`COUNT(*)`.as('total'));
-
-    if (filter.employeeIds?.length) {
-      query = query.where('employee_id', 'in', filter.employeeIds);
-    } else if (filter.employeeId) {
-      query = query.where('employee_id', '=', filter.employeeId);
-    }
-    if (filter.type) {
-      query = query.where('type', '=', filter.type);
-    }
-    if (filter.status) {
-      query = query.where('status', '=', filter.status);
-    }
-
+    const query = this.scoped(this.qb.selectFrom('system_requests').select(sql<number>`COUNT(*)`.as('total')), filter);
     const res = await query.executeTakeFirst();
     return Number(res?.total ?? 0);
+  }
+
+  /** Số đơn theo (trạng thái, loại) trong phạm vi nhân sự của bộ lọc, không theo `status` và `type` đang chọn. */
+  async countGroups(filter: Omit<RequestListFilter, 'limit' | 'offset' | 'status' | 'type'> = {}): Promise<RequestCountGroup[]> {
+    const query = this.scoped(
+      this.qb
+        .selectFrom('system_requests')
+        .select(['status', 'type', sql<number>`COUNT(*)`.as('total'), sql<Date | null>`MIN(created_at)`.as('oldest')])
+        .groupBy(['status', 'type']),
+      filter,
+      false
+    );
+    const rows = await query.execute();
+    return rows.map(r => ({
+      status: r.status as RequestStatus,
+      type: r.type as RequestType,
+      total: Number(r.total),
+      oldest: r.oldest ? new Date(r.oldest) : null
+    }));
   }
 }

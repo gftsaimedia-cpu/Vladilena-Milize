@@ -9,6 +9,8 @@ import {
   RequestStatus,
   LeaveType,
   SystemRequestDTO,
+  requestCountsOf,
+  type RequestCounts,
   EmployeeDays,
   addDays,
   eachDate,
@@ -1638,25 +1640,42 @@ export class RequestsService {
     return req ? req.toJSON() : null;
   }
 
-  async listRequests(filter: RequestListFilter = {}): Promise<{ items: SystemRequestDTO[]; total: number }> {
+  async listRequests(
+    filter: RequestListFilter & { withCounts?: boolean } = {}
+  ): Promise<{ items: SystemRequestDTO[]; total: number; counts?: RequestCounts }> {
     // Đơn iSAT lưu theo uuid, các loại khác có thể lưu theo username: lọc theo cả hai khi biết uuid của nhân sự.
-    const { employeeId, ...rest } = filter;
-    const scoped: RequestListFilter = employeeId ? { ...rest, employeeIds: await this.employeeIdsFor(employeeId) } : filter;
+    const { employeeId, withCounts, ...rest } = filter;
+    const base: RequestListFilter = employeeId ? { ...rest, employeeIds: await this.employeeIdsFor(employeeId) } : rest;
+    // Tab Yêu cầu (sort=inbox) không hiện iSAT.
+    const scoped: RequestListFilter = filter.sort === 'inbox' ? { ...base, excludeTypes: [...(base.excludeTypes ?? []), 'ISAT'] } : base;
 
     const [items, total] = await Promise.all([
       this.repo.list(scoped),
       this.repo.count({
         employeeId: scoped.employeeId,
         employeeIds: scoped.employeeIds,
+        staffIds: scoped.staffIds,
+        excludeTypes: scoped.excludeTypes,
         type: scoped.type,
         status: scoped.status
       })
     ]);
 
-    return {
+    const result: { items: SystemRequestDTO[]; total: number; counts?: RequestCounts } = {
       items: items.map(r => r.toJSON()),
       total
     };
+    if (withCounts) {
+      // Số đếm không theo status và type đang chọn, để thẻ nào cũng đủ số; iSAT không nằm trên tab nên luôn bị bỏ.
+      const groups = await this.repo.countGroups({
+        employeeId: scoped.employeeId,
+        employeeIds: scoped.employeeIds,
+        staffIds: scoped.staffIds,
+        excludeTypes: ['ISAT']
+      });
+      result.counts = requestCountsOf(groups);
+    }
+    return result;
   }
 
   private async employeeIdsFor(employeeId: string): Promise<string[]> {

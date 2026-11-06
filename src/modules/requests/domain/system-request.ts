@@ -686,6 +686,7 @@ export class SystemRequest {
       reviewNote: this.reviewNote,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString(),
+      cancelledAt: this.status === 'CANCELLED' ? this.updatedAt.toISOString() : null,
       dates: requestDates(this),
 
       leaveType: this.leaveType,
