@@ -2,7 +2,7 @@
 // Ánh xạ trường theo docs/fe-yeu-cau/in-phieu-luong-a4--noi-api-v2.md; FE chỉ ghép ô, mọi số lấy nguyên của BE.
 import { expect, test } from '@playwright/test';
 import { approvedSheetsFromRecords, sheetFromRecord } from '../src/builders/api/payslip-a4';
-import { periodLine, statCells, staffLine } from '../src/views/print/parts/a4-format';
+import { actualText, periodLine, statCells, staffLine, titleLine } from '../src/views/print/parts/a4-format';
 
 // Phiếu nv bậc 1 tháng 10/2026, hai dòng ngày: thứ Tư 07/10 có OT 18:00–20:00 (ra 19:20), thứ Năm 08/10 nghỉ phép năm.
 const details = (over: Record<string, unknown> = {}) => ({
@@ -94,25 +94,36 @@ const record = (over: Record<string, unknown> = {}, d: Record<string, unknown> =
   ...over
 });
 
-test('header: person, position, staff status and slip status come from the record', () => {
+test('header: person, position and staff status come from the record', () => {
   const s = sheetFromRecord(record() as any);
   expect({
     month: s.month, name: s.name, kind: s.kind, level: s.level, employmentStatus: s.employmentStatus, contract: s.contract,
-    from: s.from, to: s.to, periodNote: s.periodNote, stdDays: s.stdDays, dayRate: s.dayRate, net: s.net, leaveLeft: s.leaveLeft,
-    slipStatus: s.slipStatus
+    from: s.from, to: s.to, stdDays: s.stdDays, dayRate: s.dayRate, net: s.net, leaveLeft: s.leaveLeft
   }).toEqual({
     month: '2026-10', name: 'Lê Hoàng Nam', kind: 'NV', level: 1, employmentStatus: 'Chính thức', contract: 'HĐLĐ từ 3 tháng',
-    from: '2026-10-01', to: '2026-10-31', periodNote: '', stdDays: 26, dayRate: 230769, net: 3685422, leaveLeft: 10,
-    slipStatus: 'done'
+    from: '2026-10-01', to: '2026-10-31', stdDays: 26, dayRate: 230769, net: 3685422, leaveLeft: 10
   });
   expect(sheetFromRecord(record({}, { employeeType: 'ctv', level: 2, employmentStatus: 'probation' }) as any)).toMatchObject({
     kind: 'CTV', level: 2, employmentStatus: 'Thử việc'
   });
 });
 
-test('slip status: approved is done, rejected stays rejected, anything else is a draft', () => {
-  const st = (status: string) => sheetFromRecord(record({ status }) as any).slipStatus;
-  expect([st('approved'), st('draft'), st('rejected'), st('pending'), st('error')]).toEqual(['done', 'draft', 'rejected', 'draft', 'draft']);
+// D11 (06/11): bản in không ghi trạng thái phiếu; phiếu nháp, bị từ chối hay đã duyệt in cùng tiêu đề và dòng phụ.
+test('D11: every slip status prints the same title and period line, with no status on the sheet', () => {
+  for (const status of ['approved', 'draft', 'rejected', 'pending', 'error']) {
+    const s = sheetFromRecord(record({ status }) as any);
+    expect(['slipStatus' in s, 'periodNote' in s]).toEqual([false, false]);
+    expect(titleLine(s)).toBe('Phiếu lương tháng 10/2026');
+    expect(periodLine(s)).toBe('Từ 01/10 đến 31/10/2026 · công chuẩn theo quy chế: 26 ngày');
+  }
+});
+
+// D12 (06/11): OT đã duyệt mà ra 0 đ chỉ hiện 0, không thêm cờ hay chú thích.
+test('D12: an OT line that pays 0 reads 0, with no flag or hint', () => {
+  const s = sheetFromRecord(record({}, { ot15Pay: 0, otPayTotal: 0 }) as any);
+  const line = s.groups.find(g => g.title === 'Làm thêm giờ')!.lines[0];
+  expect(line).toEqual({ label: 'OT ngày thường (×1,5)', qty: { n: 1.3333333333333333, unit: 'giờ' }, actual: 0 });
+  expect(actualText(line.actual)).toBe('0');
 });
 
 test('days: every daily line, real in/out times, OT in the day amount, leave days marked paid', () => {
@@ -201,9 +212,8 @@ test('a slip saved before the new BE fields: blanks, and one OT line with the st
   expect(staffLine(s)).toBe('— · HĐLĐ từ 3 tháng · từ 01/10 đến 31/10/2026');
 });
 
-test('the period line drops an empty note instead of leaving "· ·"', () => {
+test('the staff line of page 2 names type · level, contract and period', () => {
   const s = sheetFromRecord(record({ status: 'draft' }) as any);
-  expect(periodLine(s)).toBe('Từ 01/10 đến 31/10/2026 · công chuẩn theo quy chế: 26 ngày');
   expect(staffLine(s)).toBe('NV · Bậc 1 · HĐLĐ từ 3 tháng · từ 01/10 đến 31/10/2026');
 });
 
@@ -214,7 +224,7 @@ test('In tất cả keeps only approved records, sorted by name like Bảng lư�
     record({ username: 'lg-a', status: 'approved' }, { fullName: 'Lương Văn An' }),
     record({ username: 'lg-d', status: 'rejected' }, { fullName: 'Lương Minh' })
   ] as any);
-  expect(list.map(s => [s.name, s.slipStatus])).toEqual([['Lương Văn An', 'done'], ['Lương Văn Dũng', 'done']]);
+  expect(list.map(s => s.name)).toEqual(['Lương Văn An', 'Lương Văn Dũng']);
   expect(approvedSheetsFromRecords([])).toEqual([]);
 });
 
