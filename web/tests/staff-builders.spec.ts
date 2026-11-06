@@ -45,3 +45,9 @@ test('the drawer shows the department name', () => {
   const fact = staffProfileFromEmployee(emp(), '2026-11-06').groups[0].facts.find(f => f.label === 'Phòng ban');
   expect(fact?.value).toBe('Phòng ban 2');
 });
+
+test('the people index carries department and status for the Yêu cầu tab', async () => {
+  const { peopleOf } = await import('../src/builders/api/staff');
+  const map = peopleOf([emp(), emp({ departmentName: null, staffStatus: 'on_leave', account: { username: 'mai', roles: [], isLocked: false, lockedAt: null, createdAt: '2026-01-01T00:00:00Z' }, profile: { uuid: 'u2', fullName: 'Mai', birthday: null, dependants: 0 } } as any)]);
+  expect([map.get('ha')?.dept, map.get('ha')?.ps, map.get('u2')?.dept, map.get('u2')?.ps]).toEqual(['Phòng ban 2', 'ok', '—', 'off']);
+});

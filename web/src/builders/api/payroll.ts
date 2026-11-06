@@ -19,6 +19,8 @@ export type PayslipRecordDTO = {
   note?: string | null;
   decidedBy?: string | null;
   decidedAt?: string | null;
+  /** Phòng ban và trạng thái nhân sự của người có phiếu (BE 06/11); thiếu ở phản hồi cũ. */
+  employee?: { departmentName: string | null; staffStatus: 'working' | 'probation' | 'on_leave' | 'resigned' } | null;
   details: {
     fullName: string;
     positionLevelText: string;
@@ -40,6 +42,7 @@ export type PayslipRecordDTO = {
 };
 
 const NONE = '—';
+const PS_OF = { working: 'ok', probation: 'try', on_leave: 'off', resigned: 'out' } as const;
 // Trạng thái phiếu của BE: nháp → nháp; Admin đã duyệt hoặc kỳ đã chốt → xong; Admin từ chối → bị từ chối.
 export const statusOf = (s: string): PayrollStatus =>
   s === 'final' || s === 'approved' ? 'done' : s === 'rejected' ? 'rejected' : 'draft';
@@ -54,7 +57,8 @@ function lineOf(r: PayslipRecordDTO): PayrollLine {
     id: r.username,
     name,
     initials: initials(name),
-    dept: NONE,
+    dept: r.employee?.departmentName || NONE,
+    ps: r.employee ? PS_OF[r.employee.staffStatus] : undefined,
     title: d.positionLevelText || NONE,
     base: d.baseSalaryPolicy,
     days: d.actualWorkDays,

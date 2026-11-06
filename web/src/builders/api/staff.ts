@@ -25,7 +25,7 @@ export type EmployeeDTO = {
 const NONE = '—';
 
 /** Tóm tắt một nhân sự cho màn Yêu cầu và chuông: họ tên, chức danh, loại (mã thường) và bậc. */
-export type PersonCard = { name: string; title: string; type: string; levelName: string };
+export type PersonCard = { name: string; title: string; type: string; levelName: string; dept: string; ps: StaffStatus };
 
 /** Tra hồ sơ theo cả tên đăng nhập lẫn uuid: đơn mới lưu theo uuid, đơn cũ có thể còn lưu theo tên đăng nhập. */
 export function peopleOf(employees: EmployeeDTO[]): Map<string, PersonCard> {
@@ -35,7 +35,9 @@ export function peopleOf(employees: EmployeeDTO[]): Map<string, PersonCard> {
       name: e.profile.fullName || e.account.username,
       title: e.contract.position.jobTitle || NONE,
       type: e.contract.position.type,
-      levelName: `Bậc ${e.contract.position.level}`
+      levelName: `Bậc ${e.contract.position.level}`,
+      dept: e.departmentName || NONE,
+      ps: statusOf(e)
     };
     map.set(e.account.username, card);
     if (e.profile.uuid) map.set(e.profile.uuid, card);

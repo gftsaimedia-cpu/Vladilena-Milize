@@ -65,6 +65,8 @@ export type PayrollLine = {
   name: string;
   initials: string;
   dept: string;
+  /** Trạng thái nhân sự do BE trả; thiếu thì màn coi là đang làm chính thức. */
+  ps?: 'ok' | 'try' | 'off' | 'out';
   title: string;
   base: number;
   days: number;

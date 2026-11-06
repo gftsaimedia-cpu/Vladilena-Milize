@@ -89,7 +89,7 @@ const shown = computed<PayrollLine[]>(() => {
   return (board.value?.lines ?? []).filter(
     l =>
       (filter.value === 'all' || l.status === filter.value) &&
-      matchScope({ dept: l.dept, ps: __MOCK__ ? personStatusOf(l.name) : undefined }, scope, mine) &&
+      matchScope({ dept: l.dept, ps: l.ps ?? (__MOCK__ ? personStatusOf(l.name) : undefined) }, scope, mine) &&
       (!q || foldText(l.name).includes(q))
   );
 });

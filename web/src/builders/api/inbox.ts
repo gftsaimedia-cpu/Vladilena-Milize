@@ -1,6 +1,7 @@
 // Việc chờ duyệt (chuông, thẻ Việc cần duyệt) từ GET /api/v2/requests?status=PENDING. Mỗi đơn đang chờ là một việc
 // "decide"; duyệt / từ chối qua PATCH /api/v2/requests/:id/review. Việc "nhắc giải trình" (ngày chấm công thiếu hoặc
 // lệch mà nhân viên chưa gửi giải trình) đến từ GET /requests/explanations-due (inboxFromDue), nhóm Chấm công.
+import type { PersonStatus } from '../../components/staff-scope/staffScope';
 import type { InboxGroup, InboxItem } from '../../mock/inbox';
 import { INBOX_GROUPS } from '../../constants/labels';
 import { dm, initials, vndc, weekdayName } from '../../utils/format';
@@ -41,7 +42,7 @@ export type RequestDTO = {
   dates?: string[];
 };
 
-export type PersonInfo = { name: string; title: string };
+export type PersonInfo = { name: string; title: string; dept?: string; ps?: PersonStatus };
 
 const GROUP_OF: Record<RequestDTO['type'], InboxGroup> = {
   LEAVE: 'leave',
