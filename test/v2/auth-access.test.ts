@@ -86,9 +86,11 @@ const TABLE: Array<[any, string, AccessRule]> = [
     'listExplanationCases',
     'listExplanationsDue',
     'remindExplanation',
+    'remindExplanationMany',
     'listRequests',
     'getRequest',
     'reviewRequest',
+    'reviewMany',
     'cancelRequest'
   ].map(m => [RequestsController, m, cap('requests.review')] as [any, string, AccessRule]),
   ...['profile', 'today', 'punch', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income', 'requestContext', 'previewRequest'].map(

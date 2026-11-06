@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject, Optional } from '@nestjs/common';
 import { RequestIdPipe } from './request-id.pipe';
-import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
+import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, CurrentUser, UserSession, RequireCap, requireBulkIds, requireBulkItems } from '../../common';
 import { AuditEntryError } from '../audit';
-import { StaffDirectory, isNeutralStaffFilter, staffFilterFromQuery } from '../departments';
+import { StaffDirectory, isNeutralStaffFilter, staffFilterFromQuery, type EmployeeBlock } from '../departments';
 import { RequestsService } from './requests.service';
 import { ExplanationsService, type DueItem } from './explanations.service';
 import { createdBody, dayConflictHttp } from './request-http';
@@ -184,10 +184,19 @@ export class RequestsController {
   // Ngày cần giải trình của mọi nhân sự (chuông của Admin); khai báo trước @Get(':id') để 'explanations-due' không bị bắt làm id
   @RequireCap('requests.review')
   @Get('explanations-due')
-  async listExplanationsDue(): Promise<{ items: DueItem[] }> {
+  async listExplanationsDue(
+    @Query('staffStatus') staffStatus?: string,
+    @Query('departmentId') departmentId?: string,
+    @Query('q') q?: string
+  ): Promise<{ items: Array<DueItem & { employee: EmployeeBlock | null }> }> {
+    const filter = staffFilterFromQuery({ staffStatus, departmentId, q });
     try {
-      return { items: await this.explanationsService().listDue() };
+      const people = await this.staffDirectory().find(filter);
+      const items = await this.explanationsService().listDue(isNeutralStaffFilter(filter) ? {} : { onlyIds: people.map(p => p.id) });
+      const byId = new Map(people.map(p => [p.id, p]));
+      return { items: items.map(item => ({ ...item, employee: byId.get(item.employeeId) ?? null })) };
     } catch (err: any) {
+      if (err instanceof HttpError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
@@ -206,6 +215,19 @@ export class RequestsController {
       if (err instanceof HttpError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
+  }
+
+  // Nhắc nhiều (người, ngày) một lúc: 200 { done, failed }; phần tử lỗi (kỳ đã khoá → PERIOD_LOCKED...) không kéo phần tử khác.
+  @RequireCap('requests.review')
+  @Post('explanations-due/remind-many')
+  async remindExplanationMany(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
+    const items = requireBulkItems<{ employeeId: string; date: string }>(body?.items, item => {
+      const employeeId = typeof item.employeeId === 'string' ? item.employeeId.trim() : '';
+      const date = typeof item.date === 'string' ? item.date : '';
+      if (!employeeId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+      return `${employeeId}|${date}`;
+    }).map(item => ({ employeeId: item.employeeId.trim(), date: item.date }));
+    return await this.explanationsService().remindMany(items, user.username);
   }
 
   @RequireCap('requests.review')
@@ -281,6 +303,23 @@ export class RequestsController {
       }
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
+  }
+
+  // Duyệt nhiều đơn một lúc, chỉ APPROVE (mỗi đơn từ chối cần lý do riêng). Duyệt tuần tự theo thứ tự `ids`; đơn lỗi vào
+  // `failed`; phiếu lương của mỗi người tính lại một lần ở mỗi tháng đang `calculated` (trong `recalculated`).
+  @RequireCap('requests.review')
+  @Post('review-many')
+  async reviewMany(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
+    if (body?.action === 'REJECT') {
+      throw new BadRequestError('Từ chối cần lý do riêng cho từng đơn, không từ chối nhiều đơn một lúc', {
+        code: 'BULK_REJECT_NOT_ALLOWED'
+      });
+    }
+    if (body?.action !== 'APPROVE') {
+      throw new BadRequestError('action phải là APPROVE', { code: 'BAD_REQUEST' });
+    }
+    const ids = requireBulkIds(body?.ids);
+    return await this.service.approveMany(ids, user.username);
   }
 
   @RequireCap('requests.review')

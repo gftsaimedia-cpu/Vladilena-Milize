@@ -56,20 +56,21 @@ export function bulkFailureOf(err: unknown): { code: string; message: string } {
   return { code: 'BAD_REQUEST', message };
 }
 
-/** Chạy tuần tự từng phần tử; lỗi nào vào `failed` kèm `idOf` của phần tử, không dừng cả lô. */
+/** Chạy tuần tự từng phần tử; lỗi nào vào `failed` kèm `idOf` (và `extraOf`) của phần tử, không dừng cả lô. */
 export async function runBulk<I, R>(
   inputs: readonly I[],
   idOf: (input: I) => string,
   work: (input: I) => Promise<R>,
-  failureOf: (err: unknown) => { code: string; message: string } = bulkFailureOf
-): Promise<{ done: R[]; failed: BulkFailure[] }> {
+  failureOf: (err: unknown) => { code: string; message: string } = bulkFailureOf,
+  extraOf: (input: I) => Record<string, unknown> = () => ({})
+): Promise<{ done: R[]; failed: Array<BulkFailure & Record<string, unknown>> }> {
   const done: R[] = [];
-  const failed: BulkFailure[] = [];
+  const failed: Array<BulkFailure & Record<string, unknown>> = [];
   for (const input of inputs) {
     try {
       done.push(await work(input));
     } catch (err) {
-      failed.push({ id: idOf(input), ...failureOf(err) });
+      failed.push({ ...extraOf(input), id: idOf(input), ...failureOf(err) });
     }
   }
   return { done, failed };

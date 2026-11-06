@@ -14,6 +14,8 @@ import {
   type RequestStatus,
   type SystemRequest
 } from './domain';
+import { bulkFailureOf, runBulk, type BulkFailure } from '../../common';
+import { AuditEntryError } from '../audit/domain/audit-entry';
 import { RequestsRepository, type StaffContext } from './requests.repository';
 import { DayStatusRepository } from './day-status.repository';
 import { ExplanationRemindersRepository } from './explanation-reminders.repository';
@@ -78,6 +80,12 @@ export type StaffDayCheck =
 /** Lỗi 409 `PERIOD_LOCKED` của một lần từ chối vì kỳ lương; lần từ chối khác thành lỗi nghiệp vụ thường. */
 export function refusalError(refusal: DayRefusal): Error {
   return refusal.locked ? new PeriodLockedError(refusal.locked.month, refusal.locked.status) : new Error(refusal.message);
+}
+
+/** Mã và câu lỗi của một phần tử nhắc: lỗi lập trình (nhật ký) ném lại, còn lại như `bulkFailureOf`. */
+function explanationFailureOf(err: unknown): { code: string; message: string } {
+  if (err instanceof AuditEntryError) throw err;
+  return bulkFailureOf(err);
 }
 
 /** Đơn giải trình của một ngày, như màn nhân viên hiện (spec 3.6). `sentAt` là lúc nộp (ISO). */
@@ -223,8 +231,10 @@ export class ExplanationsService {
    * Ngày cần giải trình của mọi nhân sự đang nộp đơn, ngày mới trước rồi theo tên. Hồ sơ không đọc được (thiếu cấu hình
    * loại nhân sự, dòng Admin không có loại...) bị bỏ qua để một hồ sơ hỏng không làm hỏng chuông của Admin.
    */
-  async listDue(): Promise<DueItem[]> {
-    const people = await this.requests.listFilingStaff();
+  async listDue(scope: { onlyIds?: readonly string[] } = {}): Promise<DueItem[]> {
+    // `onlyIds` (uuid) giới hạn người xét: mảng rỗng = không ai; bỏ trống = mọi người.
+    const only = scope.onlyIds ? new Set(scope.onlyIds) : null;
+    const people = (await this.requests.listFilingStaff()).filter(p => !only || only.has(p.uuid));
     const items: DueItem[] = [];
     for (const person of people) {
       let due: DueDay[];
@@ -257,6 +267,27 @@ export class ExplanationsService {
     const remindedAt = this.now();
     await this.reminderRows.upsert({ employeeId: staff.employeeId, date, remindedBy: adminId, remindedAt });
     return { remindedAt: remindedAt.toISOString() };
+  }
+
+  /**
+   * Nhắc nhiều (người, ngày) một lúc, tuần tự theo thứ tự gửi lên, mỗi phần tử như `remind`: phần tử lỗi (kỳ đã khoá →
+   * `PERIOD_LOCKED`, ngày đã có đơn giải trình...) vào `failed` kèm `date`, không kéo các phần tử khác. Nhắc lại người đã
+   * được nhắc vẫn ghi đè lần nhắc cũ, chưa có khoảng cách tối thiểu (câu hỏi Q5 chưa chốt).
+   */
+  async remindMany(
+    items: ReadonlyArray<{ employeeId: string; date: string }>,
+    adminIdOrUsername: string
+  ): Promise<{
+    done: Array<{ employeeId: string; date: string; remindedAt: string }>;
+    failed: Array<BulkFailure & Record<string, unknown>>;
+  }> {
+    return await runBulk(
+      items,
+      item => item.employeeId,
+      async item => ({ employeeId: item.employeeId, date: item.date, ...(await this.remind(item.employeeId, item.date, adminIdOrUsername)) }),
+      explanationFailureOf,
+      item => ({ date: item.date })
+    );
   }
 
   /** Lời nhắc còn hiệu lực của nhân sự, ngày mới trước: chỉ ngày còn cần giải trình (giải trình rồi thì mất, huỷ thì hiện lại). */
