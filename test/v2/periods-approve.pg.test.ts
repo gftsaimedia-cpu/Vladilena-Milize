@@ -197,6 +197,51 @@ test('pending makeup and iSAT dates count, decided requests do not', async t => 
   });
 });
 
+// Đơn chờ của mọi loại chạm tới tháng 10 thì tính, kể cả khoảng ngày đi qua cả tháng 10; đơn chỉ ở tháng khác thì không.
+test('pending requests count by the months they touch: ranges across October, each date kind, and nothing outside', async t => {
+  await withTempDb(t, 'periods_appr', async (db, client) => {
+    const f = await ready(db, client);
+    await approveAll(f);
+    const add = async (type: string, cols: Record<string, string>): Promise<string> => {
+      const names = Object.keys(cols).map(n => `${n}, `).join('');
+      const values = Object.values(cols);
+      const placeholders = values.map((_, i) => `$${i + 2}, `).join('');
+      return (
+        await client.query(
+          `INSERT INTO system_requests (id, employee_id, title, type, reason, ${names}created_at, updated_at)
+           VALUES (gen_random_uuid(), 'pg-uuid-1', 't', $1, 'r', ${placeholders}now(), now()) RETURNING id`,
+          [type, ...values]
+        )
+      ).rows[0].id;
+    };
+    // Tính (7): nghỉ 30/09–01/11 đi qua cả tháng 10; nghỉ 31/10–02/11; đổi ca 28/09–01/10; OT 01/10; giải trình 31/10;
+    // tạm ứng kỳ 2026-10; iSAT chờ duyệt Thứ Bảy 24/10.
+    await add('LEAVE', { leave_type: 'ANNUAL', leave_start_date: '2026-09-30', leave_end_date: '2026-11-01' });
+    await add('LEAVE', { leave_type: 'ANNUAL', leave_start_date: '2026-10-31', leave_end_date: '2026-11-02' });
+    await add('SHIFT_CHANGE', { change_start_date: '2026-09-28', change_end_date: '2026-10-01' });
+    await add('OVERTIME', { ot_date: '2026-10-01' });
+    await add('EXPLANATION', { explanation_date: '2026-10-31' });
+    await add('ADVANCE', { advance_period: '2026-10' });
+    const isat = await add('ISAT', {});
+    await client.query(
+      `INSERT INTO isat_registrations (request_id, saturday, full_name, team, position_type, position_level, shift_type, shift_start_time, shift_end_time)
+       VALUES ($1, '2026-10-24', 'n', 't', 'nv', 1, 'NORMAL', '08:00', '17:00')`,
+      [isat]
+    );
+    // Không tính (5): nghỉ cả trong tháng 9; đổi ca 01–02/11; OT 30/09; tạm ứng kỳ 2026-11; làm bù chỉ trong tháng 11.
+    await add('LEAVE', { leave_type: 'ANNUAL', leave_start_date: '2026-09-01', leave_end_date: '2026-09-30' });
+    await add('SHIFT_CHANGE', { change_start_date: '2026-11-01', change_end_date: '2026-11-02' });
+    await add('OVERTIME', { ot_date: '2026-09-30' });
+    await add('ADVANCE', { advance_period: '2026-11' });
+    const makeup = await add('LEAVE_WITH_MAKEUP', { leave_type: 'ANNUAL', leave_start_date: '2026-11-03', leave_end_date: '2026-11-03' });
+    await client.query(
+      `INSERT INTO makeup_slots (request_id, work_date, start_time, end_time, work_minutes) VALUES ($1, '2026-11-07', '08:00', '17:00', 480)`,
+      [makeup]
+    );
+    assert.equal((await f.periods.view(MONTH)).actions.approve?.blockers?.pendingRequests, 7);
+  });
+});
+
 test('approve freezes the run', async t => {
   await withTempDb(t, 'periods_appr', async (db, client) => {
     const f = await ready(db, client);
