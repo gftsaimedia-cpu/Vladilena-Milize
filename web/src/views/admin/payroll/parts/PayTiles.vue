@@ -2,10 +2,15 @@
 // Bốn ô số của Bảng lương. Ô đầu (nền vàng) là ô vàng duy nhất của màn; ô cuối có thanh chia đoạn theo số đếm phiếu.
 import { computed } from 'vue';
 import type { PayrollScreen, SlipCounts } from '@/mock/payroll';
-import { billions, monthNo } from '@/utils/format';
+import { money, moneyText, monthNo } from '@/utils/format';
 
 type Board = Extract<PayrollScreen, { empty: false }>;
 const props = defineProps<{ month: string; growth: string; totals: Board['totals']; counts: SlipCounts }>();
+
+// Đơn vị theo độ lớn (tỷ / triệu / đồng), không gán cứng "tỷ ₫".
+const gross = computed(() => money(props.totals.gross));
+const net = computed(() => money(props.totals.net));
+const deductions = computed(() => money(props.totals.deductions));
 
 const BAR = [
   { key: 'done', color: 'var(--status-done)' },
@@ -20,20 +25,20 @@ const bar = computed(() => BAR.map(b => ({ ...b, count: props.counts[b.key] })))
   <section class="tiles" aria-label="Chỉ số kỳ lương">
     <article class="tile gold" :aria-label="`Tổng thu nhập tháng ${monthNo(month)}`">
       <span class="l">Tổng thu nhập tháng {{ monthNo(month) }}</span>
-      <span class="v">{{ billions(totals.gross) }} <span class="u">tỷ ₫</span></span>
+      <span class="v">{{ gross.value }} <span class="u">{{ gross.unit }}</span></span>
       <span class="n">{{ growth }}</span>
     </article>
     <article class="tile" aria-label="Thực nhận">
       <span class="l">Thực nhận</span>
-      <span class="v">{{ billions(totals.net) }} <span class="u">tỷ ₫</span></span>
+      <span class="v">{{ net.value }} <span class="u">{{ net.unit }}</span></span>
       <span class="n">{{ totals.netShare }}% tổng thu nhập</span>
     </article>
     <article class="tile" aria-label="Khấu trừ">
       <span class="l">Khấu trừ</span>
-      <span class="v">{{ billions(totals.deductions) }} <span class="u">tỷ ₫</span></span>
+      <span class="v">{{ deductions.value }} <span class="u">{{ deductions.unit }}</span></span>
       <span class="n"
-        >Bảo hiểm {{ billions(totals.insurance) }} · Thuế {{ billions(totals.tax) }} · Tạm ứng
-        {{ billions(totals.advance) }}</span
+        >Bảo hiểm {{ moneyText(totals.insurance) }} · Thuế {{ moneyText(totals.tax) }} · Tạm ứng
+        {{ moneyText(totals.advance) }}</span
       >
     </article>
     <article class="tile" aria-label="Phiếu đã duyệt">

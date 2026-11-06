@@ -57,8 +57,24 @@ export function initials(name = '') {
   return two.map(s => s[0].toUpperCase()).join('');
 }
 
-/** 2480805872 → "2,48" (tỷ đồng, đúng 2 số lẻ) */
-export const billions = (n: number): string => (n / 1e9).toFixed(2).replace('.', ',');
+const round = (x: number, digits: number) => Math.round(x * 10 ** digits) / 10 ** digits;
+/**
+ * Tiền lớn, tự chọn đơn vị theo độ lớn: 2110759432 → { value: "2,11", unit: "tỷ ₫" }; 370500000 → "370,5" "triệu ₫";
+ * 850000 → "850.000" "₫". Làm tròn mà chạm 1.000 triệu thì lên tỷ (999.960.000 → "1 tỷ ₫").
+ */
+export function money(n: number): { value: string; unit: string } {
+  const a = Math.abs(n);
+  const sign = n < 0 ? -1 : 1;
+  const millions = round(a / 1e6, 1);
+  if (a >= 1e9 || millions >= 1000) return { value: num(sign * round(a / 1e9, 2), 2), unit: 'tỷ ₫' };
+  if (a >= 1e6) return { value: num(sign * millions, 1), unit: 'triệu ₫' };
+  return { value: vnd(n), unit: '₫' };
+}
+/** 2110759432 → "2,11 tỷ ₫"; 20000000 → "20 triệu ₫" */
+export const moneyText = (n: number): string => {
+  const m = money(n);
+  return `${m.value} ${m.unit}`;
+};
 /** "Đỗ Mai Linh" → "do mai linh" (bỏ dấu, viết thường, để so khớp khi tìm) */
 export const foldText = (s: string): string =>
   s

@@ -33,7 +33,7 @@ export function periodView(month: string, status: MockStatus = initialStatus(mon
       approvedAt: step(['approved', 'paid']),
       paidAt: step(['paid'])
     },
-    payday: '2026-11-05',
+    payday: '2026-11-10',
     actions
   };
 }

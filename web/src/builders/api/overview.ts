@@ -1,10 +1,10 @@
 // Màn Tổng quan: GET /api/v2/overview?month=&days= (BE tính hết). Builder này CHỈ ÁNH XẠ DTO sang dữ liệu view
-// (đổi ngày ISO sang dd/mm, số sang chữ tiền / tỷ ₫, ghép nhãn); không đếm, không cộng, không tính tỉ lệ.
+// (đổi ngày ISO sang dd/mm, số sang chữ tiền theo đơn vị tỷ / triệu / đồng, ghép nhãn); không đếm, không cộng, không tính tỉ lệ.
 // Việc cần duyệt: danh sách và số đếm từ `approvals`; head / sub / facts của cửa sổ duyệt là chi tiết lấy từ GET /requests
 // (service truyền vào `details`, khớp theo id); không có thì head = loại việc, sub = ngày.
 import type { InboxItem } from '../../mock/inbox';
 import type { OverviewDTO, OverviewView } from '../../mock/overview';
-import { billions, dm, dmy, monthNo, vnd } from '../../utils/format';
+import { dm, dmy, money, moneyText, monthNo, vnd } from '../../utils/format';
 
 const pct = (n: number) => `${Math.abs(n).toFixed(1).replace('.', ',')}%`;
 
@@ -41,8 +41,7 @@ export function overviewFrom(dto: OverviewDTO, details: Map<string, InboxItem> =
       {
         key: 'payroll',
         label: `Quỹ lương tháng ${m}`,
-        value: billions(kpis.payrollGross),
-        unit: 'tỷ ₫',
+        ...money(kpis.payrollGross),
         ...(prev
           ? { delta: { dir: prev.grossDeltaPct < 0 ? ('down' as const) : ('up' as const), text: pct(prev.grossDeltaPct), good: true } }
           : {}),
@@ -70,8 +69,8 @@ export function overviewFrom(dto: OverviewDTO, details: Map<string, InboxItem> =
       statusLabel: period.label,
       range: `${dm(period.from)} – ${dmy(period.to)}`,
       payday: dmy(period.payday),
-      net: `${billions(payroll.net)} tỷ ₫`,
-      deductions: `${billions(payroll.deductions)} tỷ ₫`,
+      net: moneyText(payroll.net),
+      deductions: moneyText(payroll.deductions),
       netShare: payroll.netShare,
       slips: {
         done: payroll.counts.done,
