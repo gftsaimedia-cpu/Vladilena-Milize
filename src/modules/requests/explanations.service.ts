@@ -348,8 +348,9 @@ export class ExplanationsService {
       .filter(r => r.explanationDate === date && r.status !== 'CANCELLED')
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 
+    // Cùng cửa sổ với `dueDays` (R1): ngày trước ngày 01 của tháng trước không còn giải trình được, nên không báo "cần giải trình".
     let due: { cases: ExplanationCase[]; needs: ExplanationNeeds; remindedAt: string | null } | null = null;
-    if (check.ok) {
+    if (check.ok && date >= firstOfLastMonth(vietnamToday(this.now()))) {
       const reminders = await this.remindersOf(staff.employeeId, date, date);
       due = { cases: check.cases, needs: check.needs, remindedAt: reminders.get(date) ?? null };
     }

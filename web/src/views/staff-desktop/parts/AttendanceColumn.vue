@@ -21,11 +21,20 @@ import RecentDays from '@/views/staff-phone/components/RecentDays.vue';
 const props = defineProps<{ stamp: number }>();
 // Tháng đang xem, dùng chung với cột Thu nhập (v-model:month ở trang cha).
 const month = defineModel<string | null>('month', { default: null });
+// Tháng mà cột đang hiện thật (máy chủ trả; khi `month` là null đó là tháng hiện tại): trang cha dùng để mở Tạo yêu cầu đúng tháng.
+const viewed = defineModel<string | null>('viewed', { default: null });
 
 const router = useRouter();
 const load = useLoad(() => getAttendance(7, month.value), () => month.value);
 useStaffLive(load.refresh, ['attendance.punched', 'attendance.changed', 'request.decided']);
 const { data, error, loading, reload } = load;
+watch(
+  data,
+  v => {
+    if (v?.month) viewed.value = v.month;
+  },
+  { immediate: true }
+);
 const head = ref<HTMLElement | null>(null);
 const { errBox, retry, after } = useRetry(load, head);
 const back = computed(() => backTo(data.value, month.value));

@@ -360,7 +360,8 @@ test.describe('desktop', () => {
   test('Tạo yêu cầu in the Today column opens the K3 drawer; ‹ returns from the form to the menu', async ({ page }) => {
     const calls = await openDesktop(page, '/nv/hom-nay');
     await page.getByRole('button', { name: 'Tạo yêu cầu' }).click();
-    await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon$/);
+    // Máy tính mang theo tháng cột Chấm công đang hiện (?thang=) để form Giải trình chỉ hiện ngày của tháng đó.
+    await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon&thang=2026-10$/);
     const drawer = menuSheet(page);
     await expect(page.locator('.sd-drawer')).toHaveCount(1);
     await expect(page.locator('.ph-sheet')).toHaveCount(0);
@@ -369,12 +370,12 @@ test.describe('desktop', () => {
     await expect(kindRow(drawer, 'Tạm ứng')).toBeDisabled();
     await expect(kindRow(drawer, 'Tạm ứng')).toContainText('Chỉ nộp ngày 16 và 17');
     await kindRow(drawer, 'Đơn nghỉ').click();
-    await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=nghi$/);
+    await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=nghi&thang=2026-10$/);
     const form = leaveSheet(page);
     await expect(form.getByLabel('Hình thức nghỉ').locator('option')).toHaveText(LEAVE_TYPES);
     await expect(dayOptions(form.getByLabel('Từ ngày')).first()).toHaveText('T4 28/10');
     await form.getByRole('button', { name: 'Quay lại chọn loại' }).click();
-    await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon$/);
+    await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon&thang=2026-10$/);
     await expect(rowsOf(menuSheet(page))).toHaveCount(7);
     expect(calls).toEqual([]);
   });

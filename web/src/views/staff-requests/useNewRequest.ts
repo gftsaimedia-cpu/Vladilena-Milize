@@ -36,9 +36,11 @@ export function useTaoParam() {
   return computed(() => (route.path === REQUESTS_PATH ? first(route.query.tao) : null));
 }
 
-/** Query sau khi đóng luồng: bỏ tao và ngay, giữ phần còn lại. */
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** Query sau khi đóng luồng: bỏ tao, ngay và thang, giữ phần còn lại. */
 export function withoutFlow(query: LocationQuery): LocationQuery {
-  const { tao: _tao, ngay: _ngay, ...rest } = query;
+  const { tao: _tao, ngay: _ngay, thang: _thang, ...rest } = query;
   return rest;
 }
 
@@ -47,6 +49,13 @@ export function useNewRequest() {
   const router = useRouter();
   const tao = useTaoParam();
   const ngay = computed(() => first(route.query.ngay));
+  // Tháng đang xem ở màn Chấm công (?thang=YYYY-MM): form Giải trình chỉ hiện ngày của tháng đó. Mở thẳng từ một ngày (?ngay=) thì
+  // lấy tháng của ngày đó.
+  const explicitMonth = computed(() => {
+    const m = first(route.query.thang);
+    return m && MONTH.test(m) ? m : null;
+  });
+  const thang = computed(() => explicitMonth.value ?? (ngay.value && /^\d{4}-\d{2}-\d{2}$/.test(ngay.value) ? ngay.value.slice(0, 7) : null));
 
   const ctx = shallowRef<RequestContext | null>(null);
   /** Câu lỗi khi chưa có request-context nào; tải lại hỏng khi đã có thì giữ request-context cũ, không đụng form. */
@@ -68,7 +77,8 @@ export function useNewRequest() {
   const kind = computed(() => (ctx.value && wanted.value && openable(wanted.value) ? wanted.value : null));
 
   // Đổi bước bằng replace, bỏ ngay: ngày điền sẵn chỉ đi kèm liên kết mở thẳng form Giải trình.
-  const go = (slug: string) => router.replace({ path: REQUESTS_PATH, query: { ...withoutFlow(route.query), tao: slug } });
+  const go = (slug: string) =>
+    router.replace({ path: REQUESTS_PATH, query: { ...withoutFlow(route.query), tao: slug, ...(explicitMonth.value ? { thang: explicitMonth.value } : {}) } });
   const pick = (k: RequestKind) => go(TAO_SLUG[k]);
   const toMenu = () => go(TAO_MENU);
 
@@ -175,6 +185,7 @@ export function useNewRequest() {
     retryContext: loadContext,
     kind,
     ngay,
+    thang,
     pick,
     toMenu,
     draft,

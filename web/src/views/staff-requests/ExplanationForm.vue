@@ -12,11 +12,13 @@ import type { ExplanationDraft, PreviewResult, RequestContext } from '@/mock/sta
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
 import RequestSummary from './RequestSummary.vue';
 
-const props = defineProps<{ ctx: RequestContext; ngay?: string | null; preview?: PreviewResult<'explanation'> | null }>();
+const props = defineProps<{ ctx: RequestContext; ngay?: string | null; month?: string | null; preview?: PreviewResult<'explanation'> | null }>();
 const emit = defineEmits<{ draft: [draft: ExplanationDraft | null] }>();
 
 const id = useId();
-const dates = computed(() => startDates(props.ctx, 'explanation'));
+// Chỉ ngày của tháng đang xem (nếu biết tháng); không biết tháng thì đủ các ngày máy báo.
+const dates = computed(() => startDates(props.ctx, 'explanation').filter(d => !props.month || d.startsWith(props.month)));
+const monthNo = computed(() => (props.month ? Number(props.month.slice(5, 7)) : null));
 const workDate = ref(props.ngay && dates.value.includes(props.ngay) ? props.ngay : '');
 const checkIn = ref('');
 const checkOut = ref('');
@@ -70,13 +72,16 @@ watch(draft, d => emit('draft', d), { immediate: true });
   <div class="nr-fl">
     <label :for="`${id}-ngay`">Ngày</label>
     <div class="nr-box nr-sel">
-      <select :id="`${id}-ngay`" v-model="workDate" class="nr-in" :aria-describedby="`${id}-ngay-d`">
+      <select :id="`${id}-ngay`" v-model="workDate" class="nr-in" :disabled="!dates.length" :aria-describedby="`${id}-ngay-d`">
         <option value="" disabled>Chọn ngày</option>
         <option v-for="d in dates" :key="d" :value="d">{{ dateLabel(d) }}</option>
       </select>
       <PhIcon name="down" />
     </div>
-    <span :id="`${id}-ngay-d`" class="mut sm">Chỉ có những ngày máy báo cần giải trình và chưa gửi đơn</span>
+    <span v-if="monthNo && !dates.length" :id="`${id}-ngay-d`" class="mut sm" role="status">Tháng {{ monthNo }} không có ngày nào cần giải trình</span>
+    <span v-else :id="`${id}-ngay-d`" class="mut sm">
+      {{ monthNo ? `Ngày của tháng ${monthNo} mà máy báo cần giải trình và chưa gửi đơn` : 'Chỉ có những ngày máy báo cần giải trình và chưa gửi đơn' }}
+    </span>
   </div>
   <template v-if="due">
     <div class="nr-fl">

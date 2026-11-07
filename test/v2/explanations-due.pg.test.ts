@@ -192,6 +192,23 @@ test('Ngày cần giải trình trên PostgreSQL (spec 5.2)', async t => {
       ]);
     });
 
+    await t.test('dayView offers a due only inside the same window as dueDays (from the 1st of last month)', async () => {
+      // Hôm nay 05/11: cửa sổ từ 01/10. Ngày 30/09 thiếu giờ ra (kỳ tháng 9 còn mở) nhưng đã quá hạn giải trình.
+      await client.query(`UPDATE staff SET start_date = '2026-09-01' WHERE uuid = $1`, [NV]);
+      await punch('2026-09-30', '2026-09-30T01:00:00Z', null);
+      try {
+        const inside = await explanations.dayView('nv1', '2026-11-02');
+        const outside = await explanations.dayView('nv1', '2026-09-30');
+        assert.ok(inside.due, 'ngày 02/11 trong cửa sổ phải còn cần giải trình');
+        assert.equal(outside.due, null);
+        assert.ok(!(await explanations.dueDays('nv1')).some(d => d.date < '2026-10-01'));
+      } finally {
+        await client.query(`DELETE FROM punch_events WHERE work_date = '2026-09-30'`);
+        await client.query(`DELETE FROM timesheet_entries WHERE work_date = '2026-09-30'`);
+        await client.query(`UPDATE staff SET start_date = '2026-10-01' WHERE uuid = $1`, [NV]);
+      }
+    });
+
     await t.test('requestContext returns the expected explanation days', async () => {
       const context = await requests.requestContext('nv1');
       assert.deepEqual(context.explanationDays, [

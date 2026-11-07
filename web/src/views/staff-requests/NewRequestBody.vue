@@ -48,7 +48,7 @@ const MENU: { kind: RequestKind; label: string; icon: PhoneIconName; hint: strin
 const LABEL = Object.fromEntries(MENU.map(m => [m.kind, m.label])) as Record<RequestKind, string>;
 
 const flow = useNewRequest();
-const { ctx, loadError, kind, ngay, shownPreview, canSend, sending, sendError } = flow;
+const { ctx, loadError, kind, ngay, thang, shownPreview, canSend, sending, sendError } = flow;
 
 const title = computed(() => (kind.value ? LABEL[kind.value] : 'Tạo yêu cầu'));
 watch(title, t => emit('title', t), { immediate: true });
@@ -140,7 +140,7 @@ watch(kind, async (now, before) => {
       </div>
       <template v-else-if="form">
         <div class="nr-form">
-          <component :is="form" :ctx="ctx" :ngay="ngay" :preview="shownPreview" @draft="flow.setDraft" v-bind="kind === 'leave-with-makeup' ? { onHint: setHint } : {}" />
+          <component :is="form" :ctx="ctx" :ngay="ngay" :preview="shownPreview" @draft="flow.setDraft" v-bind="kind === 'leave-with-makeup' ? { onHint: setHint } : kind === 'explanation' ? { month: thang } : {}" />
         </div>
         <button type="button" class="nr-send" :disabled="!canSend" :aria-busy="sending || undefined" @click="onSend">
           Gửi yêu cầu

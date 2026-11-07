@@ -23,7 +23,7 @@ import ShiftCard from '@/views/staff-phone/components/ShiftCard.vue';
 import WeekCard from '@/views/staff-phone/components/WeekCard.vue';
 import { REQUESTS_PATH, TAO_MENU } from '@/views/staff-requests/useNewRequest';
 
-const props = defineProps<{ requestsStamp?: number }>();
+const props = defineProps<{ requestsStamp?: number; month?: string | null }>();
 const emit = defineEmits<{ checkedOut: [] }>();
 const router = useRouter();
 
@@ -45,7 +45,8 @@ watch(
     requestsLoad.reload();
   }
 );
-const openFlow = () => router.push({ path: REQUESTS_PATH, query: { tao: TAO_MENU } });
+// Mở luồng kèm tháng cột Chấm công đang hiện (chưa tải xong thì không kèm): form Giải trình chỉ hiện ngày của tháng đó.
+const openFlow = () => router.push({ path: REQUESTS_PATH, query: { tao: TAO_MENU, ...(props.month ? { thang: props.month } : {}) } });
 
 // Đã chấm mà chưa tải lại được thẻ ca (null) thì tải lại; vẫn lỗi thì phần đó hiện LoadError.
 function onPunch(v: HomeView | null) {

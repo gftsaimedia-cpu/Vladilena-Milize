@@ -24,6 +24,8 @@ const username = computed(() => (session.user ? String(session.user.username) : 
 const stamp = ref(0);
 // Tháng đang xem ('YYYY-MM'; null = tháng hiện tại): cột Chấm công chọn, cột Thu nhập đi theo.
 const month = ref<string | null>(null);
+// Tháng cột Chấm công đang hiện thật (kể cả tháng hiện tại khi `month` là null).
+const viewedMonth = ref<string | null>(null);
 // Tăng sau mỗi lần gửi yêu cầu ở K3 hay huỷ đơn; cột 1 nhận làm :requests-stamp để tải lại danh sách yêu cầu và phần Hôm nay.
 const requestsStamp = ref(0);
 const flowTitle = ref('Tạo yêu cầu');
@@ -41,8 +43,8 @@ function onRequestChanged(id: string) {
   <div class="sd-app">
     <DesktopBar />
     <main class="sd-pg">
-      <TodayColumn :requests-stamp="requestsStamp" @checked-out="stamp++" />
-      <AttendanceColumn v-model:month="month" :stamp="stamp" />
+      <TodayColumn :requests-stamp="requestsStamp" :month="viewedMonth" @checked-out="stamp++" />
+      <AttendanceColumn v-model:month="month" v-model:viewed="viewedMonth" :stamp="stamp" />
       <IncomeColumn :month="month" />
     </main>
     <SideDrawer v-if="day" :title="day.title" :sub="day.shiftLine" @close="closeDetail">
