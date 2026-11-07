@@ -176,7 +176,7 @@ describe('Bảng lương từ /payroll/:month', () => {
     const screen: any = payrollScreenFromPayslips(
       [record(), record({ id: 2, username: 'ha', status: 'final', gross: 1_000_000, insurance: 0, tax: 0, advance: 0, net: 1_000_000 }, { username: 'ha', fullName: 'Nguyễn Thu Hà', kpiApplicable: false })],
       '2026-10',
-      TOTALS
+      { ...TOTALS, statusCounts: { all: 2, draft: 1, approved: 1, rejected: 0 } } // do BE đếm
     );
     assert.equal(screen.empty, false);
     assert.equal(screen.range, '01–31/10');

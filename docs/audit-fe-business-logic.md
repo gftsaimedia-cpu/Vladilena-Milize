@@ -58,3 +58,11 @@ Mục 1–7, 17, 19, 21, 26, 27 đã chuyển; 2 và 16 giữ phần UX. Trườ
 - Nhân viên: SSE `/realtime/me`; tổng tiền nghỉ phép (`leavePay`), năm phần KPI, khoá nút chấm công (`POST /me/punches/check`), chữ luật (`rules.shiftGapMinutes`) và bộ chọn giờ bù (`POST /me/requests/leave-with-makeup/plan`) đều do BE tính.
 - Admin: #13 làm lại trên nền remote (`GET /employees` trả `work` từng người và `summary`); công chuẩn của tuần sắp đổi (`upcoming`) và bảng công chuẩn theo số ngày (`standardByDays`) do BE trả; tổng giờ làm thêm trên phiếu lấy từ `totalOtHours` của BE.
 - Còn ở FE và được giữ: kiểm tổng trọng số KPI trước khi lưu và tổng các ô đang nhập ở ngăn Cách tính lương (kiểm nhập liệu, BE kiểm lại khi lưu), tổng số ngày lễ của năm đang xem (đếm các dòng BE đã gửi), vị trí vẽ thanh thời gian ở lịch sử chấm công (hình học).
+
+## Rà soát phía Admin (07/11/2026)
+
+- **Realtime:** BE phát thêm `request.filed`, `period.changed`, `staff.changed` (chỉ qua `/stream` của Admin). Chuông, số cạnh mục Yêu cầu, Tổng quan, Yêu cầu, Chấm công, Hồ sơ chấm công, Bảng lương, Nhân sự và Tài khoản tự cập nhật.
+- **Số đếm do BE tính:** `GET /requests` trả `counts` đủ 8 loại đơn (iSAT và nghỉ giữa ca trước đây thiếu); `GET /payroll/:month` trả `totals.statusCounts`. FE không còn tự đếm các thẻ trạng thái của Yêu cầu và Bảng lương.
+- **Còn ở FE và được giữ có chủ ý:** lọc, tìm, sắp xếp, phân trang trên danh sách đã tải (Nhân sự, Bảng lương, Yêu cầu: vài trăm dòng, đổi tức thì); dựng file CSV từ dòng đang hiện; kiểm tổng trọng số KPI trước khi lưu (BE kiểm lại); số ngày lễ của năm (đếm các dòng BE đã gửi); hình học (vòng tròn kỳ lương, thanh giờ, bán kính vùng chấm công). Chữ "5 phút trước" dùng giờ máy chủ đã hiệu chỉnh (`clockOffsetMs`), không dùng đồng hồ máy khách thô.
+- **Tab Vai trò:** ma trận vai trò không có API ở BE v2, nên với BE thật tab bị ẩn và địa chỉ cũ chuyển sang Tài khoản (dữ liệu giả vẫn giữ màn cũ).
+- **Ô bấm được:** bốn thẻ chỉ số, thẻ Chấm công và thẻ Kỳ lương ở Tổng quan dẫn tới màn tương ứng; ngày trong lịch sử chấm công của một nhân viên mở chi tiết ngày.

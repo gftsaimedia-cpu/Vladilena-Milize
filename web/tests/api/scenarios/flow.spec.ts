@@ -7,6 +7,7 @@ import {
   skipWithoutAdmin, test, vnMonth, workdaysOf, type KindSlug, type Staff
 } from './helpers';
 import type { APIRequestContext, Page } from '@playwright/test';
+import { REST_DAY_REASON, REST_DAY_TODAY } from '../rest-day';
 
 test.use({ permissions: ['geolocation'], geolocation: OFFICE });
 test.describe.configure({ mode: 'serial' });
@@ -37,6 +38,7 @@ const KINDS: Array<{ slug: KindSlug; api: string; pick: number; label: RegExp }>
 ];
 
 test('nhân viên Check-in rồi Check-out trên điện thoại: giờ hiển thị khớp /me/today', async ({ page }) => {
+  test.skip(REST_DAY_TODAY, REST_DAY_REASON);
   await page.setViewportSize(PHONE);
   await signIn(page, staff.username, staff.password);
   const card = page.getByRole('region', { name: 'Ca hôm nay' });

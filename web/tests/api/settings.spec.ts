@@ -82,13 +82,19 @@ async function saveAndConfirm(page: Page, scope: Page | ReturnType<Page['locator
   await expect(dlg).toHaveCount(0);
 }
 
-test('Phân quyền offers only the Vai trò and Tài khoản tabs', async ({ page }) => {
+test('Phân quyền on the real BE shows only Tài khoản: the Vai trò matrix has no API, so its tab is hidden and its address goes to Tài khoản', async ({ page }) => {
   await signIn(page, ADMIN_USER, ADMIN_PASS);
   await page.goto('/admin/cai-dat/phan-quyen/tai-khoan');
   const tabs = page.locator('.tabs.in');
   await expect(tabs.getByRole('link', { name: /Tài khoản/ })).toBeVisible();
-  await expect(tabs.getByRole('link', { name: /Vai trò/ })).toBeVisible();
+  await expect(tabs.getByRole('link', { name: /Vai trò/ })).toHaveCount(0);
   await expect(tabs.getByRole('link', { name: 'Xử lý yêu cầu' })).toHaveCount(0);
+  // Địa chỉ cũ của Vai trò và của Xử lý yêu cầu đều về Tài khoản, không còn màn luôn báo lỗi.
+  for (const old of ['/admin/cai-dat/phan-quyen', '/admin/cai-dat/phan-quyen/xu-ly-yeu-cau']) {
+    await page.goto(old);
+    await expect(page).toHaveURL(/\/admin\/cai-dat\/phan-quyen\/tai-khoan$/);
+    await expect(page.getByRole('textbox', { name: 'Tìm tên' })).toBeVisible();
+  }
 });
 
 test('no settings page calls the v1 settings routes', async ({ page }) => {

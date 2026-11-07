@@ -3,6 +3,7 @@
 // ngày 01 của hai tháng trước, nên chỉ chạy trên DB thử. Lỗi máy chủ (hay mạng chậm) được giả bằng page.route cho đúng những
 // lần gọi cần thử.
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { REST_DAY_REASON, REST_DAY_TODAY } from './rest-day';
 
 const ADMIN_USER = process.env.PW_ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.PW_ADMIN_PASS || '';
@@ -87,6 +88,7 @@ test('Hôm nay shows my own name on the phone and on the desktop', async ({ page
 });
 
 test('a refused check-out shows the server message, then a check-out that cannot reload still says it worked', async ({ page }) => {
+  test.skip(REST_DAY_TODAY, REST_DAY_REASON);
   await page.setViewportSize(PHONE);
   await signIn(page);
   const card = page.getByRole('region', { name: 'Ca hôm nay' });

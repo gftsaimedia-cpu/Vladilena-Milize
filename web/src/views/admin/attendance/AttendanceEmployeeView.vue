@@ -236,6 +236,7 @@ function onTabKey(event: KeyboardEvent) {
               :entries="entries"
               :mode="tab"
               empty="Không có ngày nào có ngoại lệ."
+              @open-day="date => openDay(view!.person.id, date)"
             />
           </div>
         </section>

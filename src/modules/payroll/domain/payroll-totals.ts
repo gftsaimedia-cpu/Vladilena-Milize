@@ -5,6 +5,8 @@
 
 /** Phần của một phiếu đã lưu mà dòng tổng đọc (khớp PayslipRecord). */
 export interface TotalsSlip {
+  /** Trạng thái phiếu: 'draft', 'approved' / 'final' (đã duyệt), 'rejected'. */
+  status?: string;
   gross: number;
   insurance: number;
   tax: number;
@@ -19,8 +21,17 @@ export interface TotalsSlip {
   } | null;
 }
 
+/** Số phiếu theo trạng thái cho các thẻ lọc của bảng lương (phiếu đã duyệt gồm cả 'final'). */
+export interface SlipStatusCounts {
+  all: number;
+  draft: number;
+  approved: number;
+  rejected: number;
+}
+
 export interface PayrollTotals {
   count: number;
+  statusCounts: SlipStatusCounts;
   baseSalaryActual: number; // cột "Tiền ngày công"
   kpiActualPay: number; // cột "Lương KPI"
   allowance: number; // cột "Phụ cấp"
@@ -42,8 +53,16 @@ export function payrollTotalsOf(slips: ReadonlyArray<TotalsSlip>): PayrollTotals
   const tax = sum(s => s.tax);
   const advance = sum(s => s.advance);
   const net = sum(s => s.net);
+  const statusCount = (...names: string[]) => slips.filter(s => names.includes(String(s.status))).length;
   return {
     count: slips.length,
+    // Nháp là mọi phiếu chưa được duyệt hay từ chối (kể cả trạng thái lạ), nên bốn số cộng lại bằng `all`.
+    statusCounts: {
+      all: slips.length,
+      draft: slips.length - statusCount('approved', 'final') - statusCount('rejected'),
+      approved: statusCount('approved', 'final'),
+      rejected: statusCount('rejected')
+    },
     baseSalaryActual: sum(s => s.details?.baseSalaryActual),
     kpiActualPay: sum(s => s.details?.kpiActualPay),
     allowance: sum(s => s.details?.totalAllowanceActual),

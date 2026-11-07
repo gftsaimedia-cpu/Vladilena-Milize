@@ -4,6 +4,7 @@ import {
   DESKTOP, OFFICE, PHONE, adminApi, createStaff, expect, savedSetting, signIn, signInAdmin, skipWithoutAdmin, submitRequestUI, test, watchConsole, type Staff
 } from './helpers';
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
+import { REST_DAY_REASON, REST_DAY_TODAY } from '../rest-day';
 
 test.use({ permissions: ['geolocation'], geolocation: OFFICE });
 
@@ -36,6 +37,7 @@ const approveBtn = (page: Page, name: string) => page.getByRole('button', { name
 const pendingOf = async (s: Staff) => ((await (await admin.get('/api/v2/requests?status=PENDING&limit=200')).json()).items as any[]);
 
 test('hai admin cùng bấm Duyệt một đơn trên Tổng quan: bên chậm nhận "đã được xử lý", đơn chỉ được duyệt một lần', async ({ browser, baseURL }) => {
+  test.skip(REST_DAY_TODAY, REST_DAY_REASON);
   const s = await createStaff(admin, baseURL!, 'cc1');
   await submitRequestUI(browser, baseURL!, s, 'ot', { pick: 5 });
   const a = await adminPage(browser, baseURL!);
@@ -172,6 +174,7 @@ test('hai nơi cùng sửa một nhóm cài đặt: nơi lưu sau nhận 409 "C�
 });
 
 test('hai thiết bị cùng Check-in: không treo, cả hai về cùng trạng thái đúng sau khi tải lại, chỉ một lượt vào ca', async ({ browser, baseURL }) => {
+  test.skip(REST_DAY_TODAY, REST_DAY_REASON);
   const s = await createStaff(admin, baseURL!, 'cc5');
   const one = await staffPage(browser, baseURL!, s);
   const two = await staffPage(browser, baseURL!, s);

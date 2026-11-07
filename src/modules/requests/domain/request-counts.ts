@@ -1,8 +1,17 @@
 import { businessDateText } from '../../../common/business-date';
 import type { RequestStatus, RequestType } from './types';
 
-/** 6 loại đơn của tab Yêu cầu: nhân viên chỉ nộp 6 loại này, iSAT không nằm trên tab. */
-export const TAB_REQUEST_TYPES = ['LEAVE', 'LEAVE_WITH_MAKEUP', 'SHIFT_CHANGE', 'OVERTIME', 'ADVANCE', 'EXPLANATION'] as const;
+/** Mọi loại đơn có trên tab Yêu cầu (danh sách hiện đủ 8 loại, nên số đếm cũng đủ 8 loại, để hai bên khớp nhau). */
+export const TAB_REQUEST_TYPES = [
+  'LEAVE',
+  'LEAVE_WITH_MAKEUP',
+  'HALF_SHIFT_LEAVE',
+  'ISAT',
+  'SHIFT_CHANGE',
+  'OVERTIME',
+  'ADVANCE',
+  'EXPLANATION'
+] as const;
 export type TabRequestType = (typeof TAB_REQUEST_TYPES)[number];
 
 /** Một nhóm (trạng thái, loại) đã đếm; `oldest` là thời điểm tạo sớm nhất trong nhóm. */
@@ -26,7 +35,7 @@ const isTabType = (type: string): type is TabRequestType => (TAB_REQUEST_TYPES a
 export function requestCountsOf(groups: readonly RequestCountInput[]): RequestCounts {
   const counts: RequestCounts = {
     byStatus: { all: 0, PENDING: 0, APPROVED: 0, REJECTED: 0, CANCELLED: 0 },
-    pendingByType: { LEAVE: 0, LEAVE_WITH_MAKEUP: 0, SHIFT_CHANGE: 0, OVERTIME: 0, ADVANCE: 0, EXPLANATION: 0 },
+    pendingByType: { LEAVE: 0, LEAVE_WITH_MAKEUP: 0, HALF_SHIFT_LEAVE: 0, ISAT: 0, SHIFT_CHANGE: 0, OVERTIME: 0, ADVANCE: 0, EXPLANATION: 0 },
     oldestPendingDate: null
   };
   let oldest: Date | null = null;

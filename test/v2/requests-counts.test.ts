@@ -17,7 +17,7 @@ describe('requestCountsOf', () => {
   it('zeroes every card and every tab type when there are no requests', () => {
     assert.deepEqual(requestCountsOf([]), {
       byStatus: { all: 0, PENDING: 0, APPROVED: 0, REJECTED: 0, CANCELLED: 0 },
-      pendingByType: { LEAVE: 0, LEAVE_WITH_MAKEUP: 0, SHIFT_CHANGE: 0, OVERTIME: 0, ADVANCE: 0, EXPLANATION: 0 },
+      pendingByType: { LEAVE: 0, LEAVE_WITH_MAKEUP: 0, HALF_SHIFT_LEAVE: 0, ISAT: 0, SHIFT_CHANGE: 0, OVERTIME: 0, ADVANCE: 0, EXPLANATION: 0 },
       oldestPendingDate: null
     });
   });
@@ -31,15 +31,20 @@ describe('requestCountsOf', () => {
       group('CANCELLED', 'ADVANCE', 2, '2026-09-03T01:00:00Z')
     ]);
     assert.deepEqual(counts.byStatus, { all: 12, PENDING: 7, APPROVED: 2, REJECTED: 1, CANCELLED: 2 });
-    assert.deepEqual(counts.pendingByType, { LEAVE: 4, LEAVE_WITH_MAKEUP: 0, SHIFT_CHANGE: 0, OVERTIME: 0, ADVANCE: 0, EXPLANATION: 3 });
+    assert.deepEqual(counts.pendingByType, { LEAVE: 4, LEAVE_WITH_MAKEUP: 0, HALF_SHIFT_LEAVE: 0, ISAT: 0, SHIFT_CHANGE: 0, OVERTIME: 0, ADVANCE: 0, EXPLANATION: 3 });
     assert.equal(counts.oldestPendingDate, '2026-10-15', 'the oldest pending, not the oldest overall');
   });
 
-  it('ignores a type that is not on the tab', () => {
-    const counts = requestCountsOf([group('PENDING', 'ISAT', 5, '2026-01-01T00:00:00Z'), group('PENDING', 'LEAVE', 1, '2026-10-01T05:00:00Z')]);
-    assert.equal(counts.byStatus.all, 1);
-    assert.equal(counts.byStatus.PENDING, 1);
-    assert.equal(counts.oldestPendingDate, '2026-10-01');
+  it('counts iSAT and half-shift leave too: the list shows them, so the numbers must match', () => {
+    const counts = requestCountsOf([
+      group('PENDING', 'ISAT', 5, '2026-01-01T00:00:00Z'),
+      group('PENDING', 'HALF_SHIFT_LEAVE', 2, '2026-02-01T00:00:00Z'),
+      group('PENDING', 'LEAVE', 1, '2026-10-01T05:00:00Z')
+    ]);
+    assert.equal(counts.byStatus.all, 8);
+    assert.equal(counts.byStatus.PENDING, 8);
+    assert.deepEqual([counts.pendingByType.ISAT, counts.pendingByType.HALF_SHIFT_LEAVE, counts.pendingByType.LEAVE], [5, 2, 1]);
+    assert.equal(counts.oldestPendingDate, '2026-01-01', 'the oldest pending across all types');
   });
 });
 

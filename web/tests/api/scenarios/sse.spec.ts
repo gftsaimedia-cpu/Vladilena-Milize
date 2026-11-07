@@ -1,6 +1,7 @@
 // Nhóm 3 — Luồng SSE (/api/v2/realtime/stream) trên trình duyệt thật: sự kiện tới ngay (ô nháy, thông báo), luồng bị cắt thì chuyển
 // sang hỏi lại mỗi 30 giây (đồng hồ giả của Playwright) rồi nối lại và tải lại, nhân viên không mở luồng, admin bị khoá thì luồng đóng.
 import { DESKTOP, OFFICE, PHONE, adminApi, apiAs, createStaff, expect, json, setLocked, signIn, signInAdmin, skipWithoutAdmin, test, vnToday, type Staff } from './helpers';
+import { REST_DAY_REASON, REST_DAY_TODAY } from '../rest-day';
 import type { APIRequestContext, Page } from '@playwright/test';
 
 test.use({ permissions: ['geolocation'], geolocation: OFFICE });
@@ -28,6 +29,7 @@ function countWeek(page: Page) {
 }
 
 test('check-in rồi check-out của nhân viên: admin thấy thông báo và ô nháy ngay, không tải lại trang', async ({ page, baseURL }) => {
+  test.skip(REST_DAY_TODAY, REST_DAY_REASON);
   const s = await createStaff(admin, baseURL!, 'sse1');
   const own = await apiAs(baseURL!, s.username, s.password);
   await page.setViewportSize(DESKTOP);
@@ -53,6 +55,7 @@ test('check-in rồi check-out của nhân viên: admin thấy thông báo và �
 });
 
 test('admin chấm công hộ: sự kiện cũng tới (nguồn admin)', async ({ page, baseURL }) => {
+  test.skip(REST_DAY_TODAY, REST_DAY_REASON);
   const s = await createStaff(admin, baseURL!, 'sse2');
   await page.setViewportSize(DESKTOP);
   await signInAdmin(page);
@@ -64,6 +67,7 @@ test('admin chấm công hộ: sự kiện cũng tới (nguồn admin)', async (
 });
 
 test('luồng bị cắt: chuyển sang hỏi lại 30 giây (đồng hồ giả), nối lại thì tải lại và đèn xanh trở lại', async ({ page, baseURL }) => {
+  test.skip(REST_DAY_TODAY, REST_DAY_REASON);
   await page.setViewportSize(DESKTOP);
   // Luồng giả: lần nối đầu báo `ready` rồi đóng ngay (mô phỏng bị cắt); mọi lần nối sau trả 500 cho tới khi `heal`.
   let healed = false;

@@ -2,6 +2,7 @@
 // thông báo và lưới tự tải lại (dòng của nhân viên mới xuất hiện) mà KHÔNG tải lại trang. Nhân viên không mở được luồng (403).
 // Tạo một nhân viên thử mới mỗi lần chạy, nên chỉ chạy trên DB thử.
 import { expect, request as pwRequest, test, type APIRequestContext } from '@playwright/test';
+import { REST_DAY_REASON, REST_DAY_TODAY } from './rest-day';
 
 const ADMIN_USER = process.env.PW_ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.PW_ADMIN_PASS || '';
@@ -52,6 +53,7 @@ test('staff cannot open the stream; anonymous gets 401', async ({ baseURL }) => 
 });
 
 test('a punch by staff shows up on the admin attendance grid within 3 seconds without reloading', async ({ page }) => {
+  test.skip(REST_DAY_TODAY, REST_DAY_REASON);
   await page.goto('/dang-nhap');
   await page.locator('#lg-user').fill(ADMIN_USER);
   await page.locator('#lg-pass').fill(ADMIN_PASS);

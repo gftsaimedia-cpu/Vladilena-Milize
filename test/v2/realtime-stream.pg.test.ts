@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
-import { test } from 'node:test';
+import { mock, test } from 'node:test';
 import { Client } from 'pg';
 import { hashPassword } from '../../src/modules/employees/employees.service';
 
@@ -114,7 +114,9 @@ test('SSE /api/v2/realtime/stream: admin nhận sự kiện chấm công của n
     assert.equal(bad.status, 400);
     assert.equal(await sse.next(400), null);
 
-    // Chấm hợp lệ: admin nhận sự kiện trong 2 giây
+    // Chấm hợp lệ: admin nhận sự kiện trong 2 giây. Đồng hồ cố định ở Thứ Ba 03/11/2026 để test không phụ thuộc hôm nay là thứ mấy.
+    mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-03T08:40:00+07:00') });
+    t.after(() => mock.timers.reset());
     const before = Date.now();
     const ok = await fetch(base + '/api/v2/me/punches', {
       method: 'POST',

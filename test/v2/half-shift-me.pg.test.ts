@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { mock, test } from 'node:test';
 import { withTempDb } from './helpers/pg-temp-db.js';
 import { TransactionCoordinator } from '../../src/database/transaction.js';
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository.js';
@@ -20,6 +20,9 @@ import { vnToday } from '../../src/modules/me/domain/index.js';
 const NV1 = '11111111-1111-4111-8111-111111111111';
 
 test('GET /me/today và GET /me/attendance có cờ halfShift', async t => {
+  // Đồng hồ cố định ở một ngày làm (Thứ Ba 03/11/2026): test không được phụ thuộc hôm nay là thứ mấy (Chủ nhật không phải ngày làm).
+  mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-03T08:00:00+07:00') });
+  t.after(() => mock.timers.reset());
   await withTempDb(t, 'half_shift_me', async (db, client) => {
     await client.query(
       `INSERT INTO staff (username, name, role, type, level, pass_hash, created_at, uuid, start_date)

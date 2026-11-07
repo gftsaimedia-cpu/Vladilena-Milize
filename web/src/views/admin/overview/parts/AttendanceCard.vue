@@ -1,9 +1,12 @@
 <script setup lang="ts">
 // Thẻ Chấm công: tỉ lệ có mặt hôm nay và biểu đồ cột 6 ngày làm việc gần nhất (HTML thuần).
 import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import type { OverviewView } from '@/mock/overview';
 
 const props = defineProps<{ attendance: OverviewView['attendance'] }>();
+const route = useRoute();
+const to = computed(() => ({ path: '/admin/cham-cong', query: route.query.thang ? { thang: route.query.thang } : {} }));
 
 const label = computed(
   () =>
@@ -15,6 +18,7 @@ const label = computed(
 <template>
   <section class="card at" aria-labelledby="ov-at-h">
     <h2 id="ov-at-h">Chấm công</h2>
+    <RouterLink class="card-link" :to="to"><span class="sr-only">Mở Chấm công</span></RouterLink>
     <p class="big">
       {{ attendance.todayRate }}<span class="pc">%</span>
       <span class="sub">có mặt hôm nay · {{ attendance.present }} / {{ attendance.total }}</span>
@@ -38,6 +42,18 @@ const label = computed(
 </template>
 
 <style scoped>
+.at {
+  position: relative;
+}
+.card-link {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.card-link:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 .at {
   padding: 24px;
   min-width: 0;

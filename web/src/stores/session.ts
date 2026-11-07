@@ -47,6 +47,8 @@ export const useSessionStore = defineStore('session', {
     caps: [],
     payrollSubject: true,
     serverNow: null,
+    // Độ lệch đồng hồ máy khách so với máy chủ (ms, = giờ máy chủ − giờ máy khách lúc nhận phiên); 0 khi chưa biết.
+    clockOffsetMs: 0,
     me: null
   }),
   getters: {
@@ -77,6 +79,8 @@ export const useSessionStore = defineStore('session', {
       this.caps = user && Array.isArray(data.caps) ? data.caps : [];
       this.payrollSubject = user ? data.payrollSubject !== false : true;
       this.serverNow = (data && data.serverNow) || null;
+      const skew = this.serverNow ? Date.parse(this.serverNow) - Date.now() : 0;
+      this.clockOffsetMs = Number.isFinite(skew) ? skew : 0;
       this.me = user ? data : null;
       this.ready = true;
     },

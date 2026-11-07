@@ -9,6 +9,29 @@ import { inboxFromRequests, type PersonInfo, type RequestDTO } from './inbox';
 export type ReqKind = 'leave' | 'makeup' | 'half' | 'shift' | 'ot' | 'adv' | 'exp';
 export type ReqStatus = 'pend' | 'ok' | 'rej' | 'cancel';
 
+/** Số đếm của tab Yêu cầu do BE tính trên mọi đơn: thẻ trạng thái, đơn chờ theo loại, ngày của đơn chờ cũ nhất. */
+export type ReqCounts = {
+  tabs: Record<'all' | ReqStatus, number>;
+  /** Đơn chờ duyệt theo loại hiển thị (iSAT gộp vào nghỉ). */
+  kinds: Record<ReqKind, number>;
+  /** Ngày 'YYYY-MM-DD' của đơn chờ cũ nhất; null khi không còn đơn chờ. */
+  oldestPending: string | null;
+};
+
+type CountsDto = {
+  byStatus: { all: number; PENDING: number; APPROVED: number; REJECTED: number; CANCELLED: number };
+  pendingByType: Partial<Record<RequestDTO['type'], number>>;
+  oldestPendingDate: string | null;
+};
+
+/** Phản hồi `counts` của GET /requests thành số hiển thị; FE không tự đếm. */
+export function reqCountsFromDto(c: CountsDto): ReqCounts {
+  const kinds: Record<ReqKind, number> = { leave: 0, makeup: 0, half: 0, shift: 0, ot: 0, adv: 0, exp: 0 };
+  for (const [type, n] of Object.entries(c.pendingByType)) kinds[KIND_OF[type as RequestDTO['type']] ?? 'leave'] += n ?? 0;
+  const s = c.byStatus;
+  return { tabs: { all: s.all, pend: s.PENDING, ok: s.APPROVED, rej: s.REJECTED, cancel: s.CANCELLED }, kinds, oldestPending: c.oldestPendingDate };
+}
+
 export type ReqRow = {
   id: string;
   kind: ReqKind;

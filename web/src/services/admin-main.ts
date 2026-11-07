@@ -19,6 +19,7 @@ import { payrollView } from '@/mock/payroll';
 import { personStatusOf } from '@/mock/people-status';
 import { respond } from '@/mock/respond';
 import { usePeriodStore } from '@/stores/period';
+import { serverNowMs } from '@/utils/server-clock';
 import { ApiError, api, qs } from './http';
 import { changePassword as sessionChangePassword, logout as sessionLogout } from './session';
 
@@ -100,7 +101,7 @@ export async function getOverview(month: string): Promise<OverviewView> {
     view.payroll.rows = view.payroll.rows.map(r => ({ ...r, dept: deptOf.get(r.id), ps: personStatusOf(r.name) }));
     return respond(view);
   }
-  const now = Date.now();
+  const now = serverNowMs();
   const [dto, pending] = await Promise.all([
     api.get(`/overview${qs({ month, days: OVERVIEW_DAYS })}`) as Promise<OverviewDTO>,
     api.get(`/requests${qs({ status: 'PENDING', limit: INBOX_LIMIT })}`).then(
@@ -132,7 +133,7 @@ export async function getInbox(): Promise<{ items: InboxItem[]; notes: SystemNot
     ),
     peopleIndex()
   ]);
-  const now = Date.now();
+  const now = serverNowMs();
   const items = [...inboxFromDue(due, people, now), ...inboxFromRequests(res.items || [], people, now)];
   lastInbox.clear();
   for (const item of items) lastInbox.set(item.id, item);

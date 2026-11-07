@@ -4,6 +4,8 @@
 import type { HistoryRow } from '@/builders/api/attendance';
 
 defineProps<{ entries: HistoryRow[]; mode: 'timeline' | 'table'; empty: string }>();
+// Bấm ngày để mở chi tiết ngày (cùng hộp như lưới tháng).
+const emit = defineEmits<{ 'open-day': [date: string] }>();
 
 // Vị trí (phần trăm) của giờ 'HH:MM' trên trục 06:00–20:00.
 const pct = (t: string) => Math.round((((Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))) / 60 - 6) / 15) * 10000) / 100;
@@ -22,7 +24,7 @@ const barStyle = (row: HistoryRow) =>
     </div>
     <ul class="hl-list" aria-label="Dòng thời gian">
       <li v-for="row in entries" :key="row.date" class="hl-r">
-        <span class="d">{{ row.dayLabel }}</span>
+        <span class="d"><button type="button" class="dl" @click="emit('open-day', row.date)">{{ row.dayLabel }}</button></span>
         <span class="i">
           <span class="rg">{{ row.range }}</span>
           <span class="sb">{{ row.sub }}</span>
@@ -49,7 +51,7 @@ const barStyle = (row: HistoryRow) =>
       </thead>
       <tbody>
         <tr v-for="row in entries" :key="row.date">
-          <th scope="row">{{ row.dayLabel }}</th>
+          <th scope="row"><button type="button" class="dl" @click="emit('open-day', row.date)">{{ row.dayLabel }}</button></th>
           <td>{{ row.inText }}</td>
           <td>{{ row.outText }}</td>
           <td><span class="b" :class="row.tone" aria-hidden="true" />{{ row.status }}</td>
@@ -60,6 +62,21 @@ const barStyle = (row: HistoryRow) =>
 </template>
 
 <style scoped>
+.dl {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.dl:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 .hl-none {
   margin: 0;
   padding: 20px 24px 24px;

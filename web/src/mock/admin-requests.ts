@@ -7,6 +7,7 @@ import {
   sortRequests,
   splitRole,
   type ReqKind,
+  type ReqCounts,
   type ReqRow,
   type ReqStatus
 } from '@/builders/api/admin-requests';
@@ -215,6 +216,21 @@ function historyRow(h: History): ReqRow {
 }
 
 const sentOf = (id: string) => vn(SENT[id] ?? '28/10 09:40');
+
+/** Số đếm giả: như BE, đếm trên mọi đơn (dữ liệu giả đóng vai máy chủ). */
+export function mockRequestCounts(): ReqCounts {
+  const rows = mockRequests();
+  const tabs = { all: rows.length, pend: 0, ok: 0, rej: 0, cancel: 0 };
+  const kinds: ReqCounts['kinds'] = { leave: 0, makeup: 0, half: 0, shift: 0, ot: 0, adv: 0, exp: 0 };
+  for (const r of rows) {
+    tabs[r.status] += 1;
+    if (r.status === 'pend') kinds[r.kind] += 1;
+  }
+  // Đơn chờ cũ nhất theo ngày gửi (giờ Việt Nam), như BE.
+  const sent = rows.filter(r => r.status === 'pend').map(r => r.sentAt).sort()[0];
+  const oldestPending = sent ? new Date(Date.parse(sent) + 7 * 3600000).toISOString().slice(0, 10) : null;
+  return { tabs, kinds, oldestPending };
+}
 
 /** Mọi đơn của tab Yêu cầu: chờ (cũ nhất trước), rồi đã xử lý (mới xử lý nhất trước). Gắn trạng thái nhân sự giả. */
 export function mockRequests(): ReqRow[] {

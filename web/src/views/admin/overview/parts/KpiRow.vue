@@ -1,11 +1,21 @@
 <script setup lang="ts">
 // Hàng 4 thẻ chỉ số của Tổng quan. Thẻ đầu (hero) là thẻ nền vàng duy nhất của màn.
+import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import type { OverviewKpi } from '@/mock/overview';
 
 defineProps<{ kpis: OverviewKpi[] }>();
 
 const ICON = { payroll: 'cash', staff: 'users', present: 'check', requests: 'inbox' };
+// Mỗi thẻ dẫn tới màn của số đó (giữ ?thang). Liên kết phủ cả thẻ nên bấm chỗ nào cũng được và bàn phím tới được.
+const route = useRoute();
+const DEST: Record<string, [string, string]> = {
+  payroll: ['/admin/bang-luong', 'Bảng lương'],
+  staff: ['/admin/nhan-su', 'Nhân sự'],
+  present: ['/admin/cham-cong', 'Chấm công'],
+  requests: ['/admin/yeu-cau', 'Yêu cầu']
+};
+const to = (key: string) => ({ path: DEST[key][0], query: route.query.thang ? { thang: route.query.thang } : {} });
 </script>
 
 <template>
@@ -19,6 +29,7 @@ const ICON = { payroll: 'cash', staff: 'users', present: 'check', requests: 'inb
         {{ k.value }}<span v-if="k.of" class="kpi-of"> / {{ k.of }}</span
         ><span v-if="k.unit" class="kpi-u">&nbsp;{{ k.unit }}</span>
       </div>
+      <RouterLink class="tile-link" :to="to(k.key)"><span class="sr-only">Mở {{ DEST[k.key][1] }}</span></RouterLink>
       <div class="kpi-n">
         <span v-if="k.delta" class="delta" :class="{ good: k.delta.good, bad: !k.delta.good }">
           <span aria-hidden="true">{{ k.delta.dir === 'up' ? '▲' : '▼' }}</span>
@@ -41,7 +52,17 @@ const ICON = { payroll: 'cash', staff: 'users', present: 'check', requests: 'inb
   border: 0;
   border-radius: 0;
 }
+.tile-link {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.tile-link:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 .kpi {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;

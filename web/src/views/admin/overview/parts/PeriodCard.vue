@@ -1,9 +1,12 @@
 <script setup lang="ts">
 // Thẻ Kỳ lương: trạng thái, thông tin kỳ, biểu đồ vòng thực nhận / khấu trừ, thanh chia trạng thái phiếu.
 import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import type { OverviewView } from '@/mock/overview';
 
 const props = defineProps<{ period: OverviewView['period'] }>();
+const route = useRoute();
+const to = computed(() => ({ path: '/admin/bang-luong', query: route.query.thang ? { thang: route.query.thang } : {} }));
 
 const R = 48;
 const CIRC = 2 * Math.PI * R;
@@ -26,6 +29,7 @@ const slips = computed(() =>
 
 <template>
   <section class="card pd" aria-labelledby="ov-pd-h">
+    <RouterLink class="card-link" :to="to"><span class="sr-only">Mở Bảng lương</span></RouterLink>
     <div class="head">
       <h2 id="ov-pd-h">{{ period.title }}</h2>
       <span class="pill st-pending">{{ period.statusLabel }}</span>
@@ -83,6 +87,18 @@ const slips = computed(() =>
 </template>
 
 <style scoped>
+.pd {
+  position: relative;
+}
+.card-link {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.card-link:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 .pd {
   padding: 24px;
   min-width: 0;

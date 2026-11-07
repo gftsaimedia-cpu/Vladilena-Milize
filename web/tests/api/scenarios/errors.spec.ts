@@ -1,6 +1,7 @@
 // Nhóm 2 — Lỗi máy chủ / mạng trên từng màn chính: 500, 409, 429, 502 trả HTML, mạng rớt. Mỗi màn phải hiện khối "Không tải được…" với
 // nút Thử lại, bấm được, không trắng trang; hết lỗi thì Thử lại đưa dữ liệu về. Console/pageerror sạch (fixture trong helpers.ts).
 import { DESKTOP, FAIL_TEXT, OFFICE, PHONE, adminApi, breakApi, createStaff, expect, fillRequest, savedSetting, signIn, signInAdmin, skipWithoutAdmin, submitRequestUI, test, type Fail, type Staff } from './helpers';
+import { REST_DAY_REASON, REST_DAY_TODAY } from '../rest-day';
 import type { APIRequestContext, Page } from '@playwright/test';
 
 test.use({ permissions: ['geolocation'], geolocation: OFFICE });
@@ -112,6 +113,7 @@ async function countCalls(page: Page, re: RegExp, method: string, delayMs = 500)
 
 test.describe('thao tác của nhân viên', () => {
   test('Check-in: 500 hiện câu của máy chủ và nút bấm lại được; bấm nhanh hai lần chỉ gửi một lần', async ({ page }) => {
+    test.skip(REST_DAY_TODAY, REST_DAY_REASON);
     await page.setViewportSize(PHONE);
     await signIn(page, staff.username, staff.password);
     const card = page.getByRole('region', { name: 'Ca hôm nay' });
@@ -129,6 +131,7 @@ test.describe('thao tác của nhân viên', () => {
   });
 
   test('Check-in khi mạng rớt: báo không kết nối, vẫn chưa vào ca', async ({ page }) => {
+    test.skip(REST_DAY_TODAY, REST_DAY_REASON);
     await page.setViewportSize(PHONE);
     const s = await createStaff(admin, test.info().project.use.baseURL!, 'net');
     await signIn(page, s.username, s.password);

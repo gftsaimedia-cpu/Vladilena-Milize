@@ -155,4 +155,13 @@ describe('payrollTotalsOf', () => {
     assert.equal(t.deductions, 48);
     assert.equal(t.netShare, 84);
   });
+
+  it('đếm phiếu theo trạng thái: final tính là đã duyệt, trạng thái lạ tính là nháp, bốn số cộng lại bằng all', () => {
+    const slip = (status?: string) => ({ status, gross: 1, insurance: 0, tax: 0, advance: 0, net: 1 });
+    assert.deepEqual(payrollTotalsOf([]).statusCounts, { all: 0, draft: 0, approved: 0, rejected: 0 });
+    const t = payrollTotalsOf([slip('draft'), slip('approved'), slip('final'), slip('rejected'), slip('rejected'), slip('lạ'), slip()]);
+    assert.deepEqual(t.statusCounts, { all: 7, draft: 3, approved: 2, rejected: 2 });
+    const c = t.statusCounts;
+    assert.equal(c.draft + c.approved + c.rejected, c.all);
+  });
 });

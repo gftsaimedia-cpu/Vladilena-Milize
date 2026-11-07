@@ -978,6 +978,7 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
 - **`GET /api/v2/me/profile`**: `leave.remainingDays` do server tính từ đơn (cùng hàm với `annualLeaveLeft`), `0` khi không có quyền lợi phép năm; nếu không tính được thì giữ số trong hợp đồng.
 
 #### Route Admin về giải trình (cần quyền `requests.review`)
+- **`GET /api/v2/requests`** (quyền `requests.review`): `{ items, total, counts }`. `counts` do BE đếm trên mọi đơn (không phụ thuộc `limit`, `offset`, `status` hay bộ lọc người): `byStatus` `{ all, PENDING, APPROVED, REJECTED, CANCELLED }` cho các thẻ trạng thái; `pendingByType` số đơn **chờ duyệt** theo từng loại (`LEAVE`, `LEAVE_WITH_MAKEUP`, `HALF_SHIFT_LEAVE`, `ISAT`, `SHIFT_CHANGE`, `OVERTIME`, `ADVANCE`, `EXPLANATION`); `oldestPendingDate` là ngày (giờ Việt Nam) của đơn chờ cũ nhất, `null` khi không còn đơn chờ. Đủ 8 loại, khớp với danh sách. FE chỉ hiện các số này, không tự đếm.
 - **`GET /api/v2/requests/explanations-due`**: mọi ngày cần giải trình của mọi nhân sự đang làm, mới nhất trước. Trả `{ "items": [{ "employeeId", "name", "date", "cases", "needs", "remindedAt", "checkIn", "checkOut" }] }`. Ngày của tháng đã chốt công hay đã tính lương vẫn có; ngày của tháng mà kỳ lương đã phê duyệt hay đã trả lương thì không.
 - **`POST /api/v2/requests/explanations-due/remind`**: body `{ "employeeId", "date" }`; người nhắc lấy từ phiên Admin. Trả `{ "reminded": true, "remindedAt": "<ISO>" }`. Nhắc lại thì ghi đè lần trước. Ngày không còn cần giải trình thì `400 BAD_REQUEST` với lý do cụ thể, ví dụ `Ngày 02/11 đã có đơn giải trình`, `Ngày 02/11 không có gì cần giải trình`, `Ngày 02/11 không phải ngày làm`. Kỳ lương của tháng đã phê duyệt hay đã trả lương thì `409 PERIOD_LOCKED` (`Kỳ lương tháng 10/2026 đã phê duyệt`, kèm `month`, `status`); tháng đã chốt công hay đã tính lương vẫn nhắc được.
 - Cả hai khai báo trước `GET /api/v2/requests/:id`.
@@ -1572,6 +1573,7 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | Trường | Ý nghĩa |
   |--------|---------|
   | `count` | Số phiếu |
+  | `statusCounts` | Số phiếu theo trạng thái cho các thẻ lọc của bảng lương: `{ all, draft, approved, rejected }`; `approved` gồm cả phiếu `final` (kỳ đã phê duyệt), `draft` là mọi phiếu chưa duyệt hay từ chối, nên `draft + approved + rejected = all`. FE chỉ hiện, không tự đếm |
   | `baseSalaryActual`, `kpiActualPay`, `allowance`, `otPay` | Tổng cột "Tiền ngày công" (`details.baseSalaryActual`), "Lương KPI", "Phụ cấp" (`details.totalAllowanceActual`), "Làm thêm" (`details.otPayTotal`) |
   | `lateDeduction` | Tổng cột "Trừ giờ", số **dương** (mỗi phiếu lưu `lateEarlyDeductionAmount` là số âm) |
   | `gross`, `insurance`, `tax`, `advance`, `net` | Tổng các cột cùng tên của bản ghi phiếu |

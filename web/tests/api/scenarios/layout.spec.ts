@@ -1,6 +1,7 @@
 // Nhóm 6 — Giao diện hẹp (390px) và rộng (1440px) trên BE thật: các màn chính không tràn ngang, nút / liên kết nằm trong tầm bấm; bàn phím
 // (Tab, Enter, Esc) đi hết các form chính. Console / pageerror sạch (fixture trong helpers.ts).
 import { DESKTOP, OFFICE, PHONE, adminApi, createStaff, expect, expectNoHScroll, signIn, signInAdmin, skipWithoutAdmin, test, type Staff } from './helpers';
+import { REST_DAY_REASON, REST_DAY_TODAY } from '../rest-day';
 import type { APIRequestContext, Page } from '@playwright/test';
 
 test.use({ permissions: ['geolocation'], geolocation: OFFICE });
@@ -136,6 +137,7 @@ test('chuông Admin: mở bằng Enter, Esc đóng và trả focus về chuông;
 });
 
 test('nút bấm được ở 390px: Check-in, Tạo yêu cầu và Đăng xuất nằm trong khung và nhận cú bấm thật', async ({ page }) => {
+  test.skip(REST_DAY_TODAY, REST_DAY_REASON);
   await page.setViewportSize(PHONE);
   await signIn(page, staff.username, staff.password);
   await page.getByRole('region', { name: 'Ca hôm nay' }).getByRole('button', { name: /Check-in/ }).click({ trial: true });

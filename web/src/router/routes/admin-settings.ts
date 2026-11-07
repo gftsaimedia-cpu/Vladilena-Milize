@@ -28,18 +28,22 @@ export default [
     component: () => import('@/views/admin/settings/KpiRulesView.vue'),
     meta: meta('Đánh giá KPI')
   },
-  {
-    path: '/admin/cai-dat/phan-quyen',
-    component: () => import('@/views/admin/settings/PermRolesView.vue'),
-    meta: meta('Phân quyền · Vai trò')
-  },
+  // Ma trận vai trò chỉ có ở dữ liệu giả: BE v2 chỉ có hai vai trò cố định (admin, staff) và chưa có API sửa. Với BE thật, địa chỉ
+  // này đưa thẳng sang Tài khoản (tab Vai trò đã ẩn) thay vì một màn luôn báo lỗi.
+  __MOCK__
+    ? {
+        path: '/admin/cai-dat/phan-quyen',
+        component: () => import('@/views/admin/settings/PermRolesView.vue'),
+        meta: meta('Phân quyền · Vai trò')
+      }
+    : { path: '/admin/cai-dat/phan-quyen', redirect: '/admin/cai-dat/phan-quyen/tai-khoan' },
   {
     path: '/admin/cai-dat/phan-quyen/tai-khoan',
     component: () => import('@/views/admin/settings/PermAccountsView.vue'),
     meta: meta('Phân quyền · Tài khoản')
   },
   // Xử lý yêu cầu chưa có API ở BE v2 (bảng v1 /settings/params đã bỏ): địa chỉ cũ đưa về Vai trò.
-  { path: '/admin/cai-dat/phan-quyen/xu-ly-yeu-cau', redirect: '/admin/cai-dat/phan-quyen' },
+  { path: '/admin/cai-dat/phan-quyen/xu-ly-yeu-cau', redirect: __MOCK__ ? '/admin/cai-dat/phan-quyen' : '/admin/cai-dat/phan-quyen/tai-khoan' },
   {
     path: '/admin/cai-dat/nhat-ky',
     component: () => import('@/views/admin/settings/AuditLogView.vue'),

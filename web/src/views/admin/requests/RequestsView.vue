@@ -27,6 +27,7 @@ import {
 } from '@/builders/api/admin-requests';
 import { ALREADY_HANDLED, decisionText } from '@/services/admin-main';
 import { getRequests } from '@/services/admin-requests';
+import type { ReqCounts } from '@/builders/api/admin-requests';
 import { useShellStore } from '@/stores/shell';
 import { foldText } from '@/utils/format';
 import LoadFail from '@/views/admin/settings/fields/LoadFail.vue';
@@ -40,6 +41,8 @@ const router = useRouter();
 const shell = useShellStore();
 
 const all = ref<ReqRow[] | null>(null);
+// Số đếm do BE tính (thẻ trạng thái, đơn chờ theo loại, đơn chờ cũ nhất); chưa tải xong thì hiện 0.
+const counts = ref<ReqCounts | null>(null);
 const failed = ref(false);
 // Dòng vừa duyệt trên bảng: nút Duyệt biến mất nên focus chuyển sang nút Xem của chính dòng đó sau khi tải lại.
 let focusAfter = '';
@@ -49,9 +52,10 @@ let loadSeq = 0;
 async function load() {
   const mine = ++loadSeq;
   try {
-    const rows = await getRequests();
+    const list = await getRequests();
     if (mine !== loadSeq) return;
-    all.value = rows;
+    all.value = list.rows;
+    counts.value = list.counts;
     failed.value = false;
   } catch {
     if (mine === loadSeq) failed.value = true;
@@ -77,12 +81,12 @@ const mine = useMineDepts();
 
 const rows = computed(() => all.value ?? []);
 const depts = computed(() => deptOptions(rows.value));
-const count = computed(() => {
-  const c: Record<Tab, number> = { all: rows.value.length, pend: 0, ok: 0, rej: 0, cancel: 0 };
-  for (const r of rows.value) c[r.status] += 1;
-  return c;
+const count = computed<Record<Tab, number>>(() => counts.value?.tabs ?? { all: 0, pend: 0, ok: 0, rej: 0, cancel: 0 });
+// Ngày của đơn chờ cũ nhất (BE tính), viết 'dd/mm'.
+const oldestPend = computed(() => {
+  const d = counts.value?.oldestPending;
+  return d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : '';
 });
-const firstPend = computed(() => rows.value.find(r => r.status === 'pend'));
 const TILES: [Tab, string][] = [
   ['all', 'Tất cả'],
   ['pend', 'Chờ duyệt'],
@@ -93,7 +97,7 @@ const TILES: [Tab, string][] = [
 const tileSub = (t: Tab) =>
   ({
     all: 'cả đơn đã xử lý',
-    pend: firstPend.value ? `cũ nhất từ ${firstPend.value.date}` : 'không còn đơn nào',
+    pend: oldestPend.value ? `cũ nhất từ ${oldestPend.value}` : 'không còn đơn nào',
     ok: 'đã báo kết quả cho nhân viên',
     rej: 'kèm lý do cho nhân viên',
     cancel: 'nhân viên tự huỷ khi còn chờ'
@@ -102,7 +106,7 @@ const kinds = computed(() =>
   (['all', ...KIND_ORDER] as const).map(k => ({
     key: k,
     label: k === 'all' ? 'Tất cả loại' : KIND_LABEL[k],
-    n: rows.value.filter(r => r.status === 'pend' && (k === 'all' || r.kind === k)).length
+    n: k === 'all' ? (counts.value?.tabs.pend ?? 0) : (counts.value?.kinds[k] ?? 0)
   }))
 );
 

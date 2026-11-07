@@ -7,11 +7,13 @@ import { PATHS } from '../nav';
 
 defineProps({ active: { type: String, required: true } }); // vai-tro | tai-khoan
 const { data } = useLoad(() => getPermSummary());
+const showRoles = __MOCK__;
 </script>
 
 <template>
   <div class="tabs in">
-    <RouterLink :to="PATHS.vaiTro" class="tab" :class="{ on: active === 'vai-tro' }">
+    <!-- Ma trận vai trò chỉ có ở dữ liệu giả; BE thật chỉ có hai vai trò cố định, nên tab bị ẩn. -->
+    <RouterLink v-if="showRoles" :to="PATHS.vaiTro" class="tab" :class="{ on: active === 'vai-tro' }">
       Vai trò <small v-if="data">{{ data.roles }}</small>
     </RouterLink>
     <RouterLink :to="PATHS.taiKhoan" class="tab" :class="{ on: active === 'tai-khoan' }">

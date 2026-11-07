@@ -81,6 +81,8 @@ function lineOf(r: PayslipRecordDTO): PayrollLine {
 
 // `totals` của GET /payroll/:month: cộng sẵn cả kỳ (mọi phiếu của lần chạy hiện tại, không theo bộ lọc của màn).
 export type PayrollTotalsDTO = {
+  /** Số phiếu theo trạng thái do BE đếm (thẻ lọc của bảng lương). */
+  statusCounts?: { all: number; draft: number; approved: number; rejected: number };
   baseSalaryActual: number;
   kpiActualPay: number;
   allowance: number;
@@ -98,8 +100,9 @@ export type PayrollTotalsDTO = {
 export function payrollScreenFromPayslips(items: PayslipRecordDTO[], month: string, totals: PayrollTotalsDTO): PayrollScreen {
   if (!items.length) return { month, empty: true };
   const lines = items.map(lineOf).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
-  const count = (s: PayrollStatus) => lines.filter(l => l.status === s).length;
-  const counts: SlipCounts = { all: lines.length, draft: count('draft'), pending: count('pending'), done: count('done'), rejected: count('rejected') };
+  // Số phiếu theo trạng thái do BE đếm; `pending` không còn trạng thái nào ứng với nó nên luôn 0.
+  const sc = totals.statusCounts ?? { all: lines.length, draft: lines.length, approved: 0, rejected: 0 };
+  const counts: SlipCounts = { all: sc.all, draft: sc.draft, pending: 0, done: sc.approved, rejected: sc.rejected };
   const [y, m] = month.split('-').map(Number);
   const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
   return {

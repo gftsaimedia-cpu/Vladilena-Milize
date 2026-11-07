@@ -1,6 +1,7 @@
 // Nhóm 1 — Phiên: hết hạn, bị khoá, bị đăng xuất ở nơi khác giữa chừng; đăng nhập sai nhiều lần; chặn chéo khu Admin / nhân viên.
 // Mọi màn phải về đăng nhập với câu báo rõ ràng, không treo, không còn dữ liệu cũ của phiên trước.
 import { ADMIN_PASS, ADMIN_USER, DESKTOP, OFFICE, PHONE, adminApi, apiAs, createStaff, expect, expectAtLogin, json, signIn, resetPassword, setLocked, signInAdmin, skipWithoutAdmin, test, type Staff } from './helpers';
+import { REST_DAY_REASON, REST_DAY_TODAY } from '../rest-day';
 import type { APIRequestContext } from '@playwright/test';
 
 test.use({ permissions: ['geolocation'], geolocation: OFFICE });
@@ -37,6 +38,7 @@ test.describe('phiên hết hạn giữa chừng', () => {
   });
 
   test('staff desktop: Check-in khi phiên đã mất → về đăng nhập, không treo nút', async ({ page, baseURL, context }) => {
+    test.skip(REST_DAY_TODAY, REST_DAY_REASON);
     const s = await createStaff(admin, baseURL!, 'dksess');
     await page.setViewportSize(DESKTOP);
     await signIn(page, s.username, s.password);
