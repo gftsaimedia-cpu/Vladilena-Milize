@@ -13,6 +13,7 @@ import { RequestsService } from '../../src/modules/requests/requests.service.js'
 import { RequestsRepository } from '../../src/modules/requests/requests.repository.js';
 import { DayStatusRepository } from '../../src/modules/requests/day-status.repository.js';
 import { HolidaysRepository } from '../../src/modules/holidays/holidays.repository.js';
+import { CalendarService } from '../../src/modules/calendar/calendar.service.js';
 import { MeController } from '../../src/modules/me/me.controller.js';
 import { vnToday } from '../../src/modules/me/domain/index.js';
 
@@ -49,7 +50,8 @@ test('GET /me/today và GET /me/attendance có cờ halfShift', async t => {
       { findByUsernameOrUuid: async () => ({ toDTO: () => ({ contract: { effectiveFrom: '2026-01-01' } }) }) } as any,
       { getPeriod: async () => null } as any,
       { reminders: async () => [] } as any,
-      setReader
+      setReader,
+      new CalendarService(attDaysRepo, attSettings, dayStatusRepo)
     );
 
     const today = vnToday(); // YYYY-MM-DD

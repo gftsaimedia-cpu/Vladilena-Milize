@@ -148,7 +148,7 @@ function shiftTypeOf(raw: string): ShiftFacts['type'] {
 }
 
 /** Ca của ngày làm: lịch SHIFT_CHANGE chưa huỷ, nếu không thì ca mặc định trong hồ sơ (R3). */
-function shiftOf(src: DaySources): ShiftFacts {
+export function shiftOf(src: Pick<DaySources, 'schedule' | 'defaultShift'>): ShiftFacts {
   const s = src.schedule;
   if (!s || s.scheduleType !== 'SHIFT_CHANGE' || s.status === 'CANCELLED') return src.defaultShift;
   const type = shiftTypeOf(s.shiftType);
@@ -160,12 +160,12 @@ function shiftOf(src: DaySources): ShiftFacts {
   };
 }
 
-function isOutside(date: string, employment: DaySources['employment']): boolean {
+export function isOutside(date: string, employment: DaySources['employment']): boolean {
   if (employment.startDate !== null && date < employment.startDate) return true;
   return employment.resignedOn !== null && date > employment.resignedOn;
 }
 
-function leaveStatusOf(s: ScheduleFacts, benefits: Benefits): AttendanceDayStatus {
+export function leaveStatusOf(s: ScheduleFacts, benefits: Benefits): AttendanceDayStatus {
   if (s.scheduleType === 'ISAT' || s.requestType === 'ISAT') return 'ISAT';
   if (s.requestType === 'LEAVE_WITH_MAKEUP') return 'LEAVE_MAKEUP';
   const group = LEAVE_TYPES.find(t => t.code === s.leaveType)?.payGroup;
@@ -181,6 +181,23 @@ function explainedInstant(date: string, hhmm: string, notBefore: Date | null): D
   const same = vnInstant(date, hhmm);
   if (!notBefore || same >= notBefore) return same;
   return new Date(same.getTime() + 24 * HOUR_MS);
+}
+
+/** Ca của ngày làm sau khi áp nghỉ giữa ca (nếu có): giờ của nửa còn làm; ca đêm bắt đầu ở ngày kế thì mang `startDate`. */
+export function workShiftOf(
+  src: Pick<DaySources, 'date' | 'schedule' | 'defaultShift' | 'halfShift'>
+): ShiftFacts & { startDate?: string } {
+  const baseShift = shiftOf(src);
+  if (!src.halfShift) return baseShift;
+  const isOvernightBase = baseShift.end <= baseShift.start;
+  const startsNextDay = isOvernightBase && src.halfShift.start < baseShift.start;
+  return {
+    type: baseShift.type,
+    start: src.halfShift.start,
+    end: src.halfShift.end,
+    allowancePct: baseShift.allowancePct,
+    ...(startsNextDay ? { startDate: addDaysText(src.date, 1) } : {})
+  };
 }
 
 export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
@@ -346,20 +363,8 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
   }
 
   // 5. Ngày làm.
-  const baseShift = shiftOf(src);
-  let shift: ShiftFacts & { startDate?: string } = baseShift;
-  if (src.halfShift) {
-    const isOvernightBase = baseShift.end <= baseShift.start;
-    const startsNextDay = isOvernightBase && src.halfShift.start < baseShift.start;
-    shift = {
-      type: baseShift.type,
-      start: src.halfShift.start,
-      end: src.halfShift.end,
-      allowancePct: baseShift.allowancePct,
-      ...(startsNextDay ? { startDate: addDaysText(date, 1) } : {})
-    };
-    row.halfShift = src.halfShift.half;
-  }
+  const shift = workShiftOf(src);
+  if (src.halfShift) row.halfShift = src.halfShift.half;
   row.shift = {
     type: shift.type,
     start: shift.start,

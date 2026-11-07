@@ -4,6 +4,7 @@ import 'reflect-metadata';
 import { HTTP_CODE_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ACCESS_KEY } from '../../src/common';
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
+import { Month } from '../../src/modules/calendar';
 import { MeController } from '../../src/modules/me/me.controller';
 import { vnToday } from '../../src/modules/me/domain';
 import { PeriodLockedError } from '../../src/modules/periods/periods.errors';
@@ -46,7 +47,25 @@ function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'perio
   const periods = over.periods ?? fake({ getPeriod: () => null });
   const expl = over.expl ?? fake({ reminders: () => [], dayView: () => ({ explanation: null, due: null }) });
   const set = over.set ?? settingsFake();
-  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, periods.proxy, expl.proxy, set.proxy), att, reqs, pay, emp, periods, expl, set };
+  // Lịch giả: Month dựng từ tuần làm của `set` (thiếu tuần làm thì T2–T7), không có đơn hay lễ.
+  const cal = fake({
+    monthOf: async (uuid: string, month: string) => {
+      let workWeek = MON_SAT;
+      try {
+        workWeek = (await (set.proxy as any).workWeekOf(uuid, month)).weekdays;
+      } catch (err) {
+        if (!(err instanceof TypeWeekMissingError)) throw err;
+      }
+      const context = {
+        employment: { startDate: null, resignedOn: null },
+        benefits: { paidLeave: true, paidHoliday: true, isat: true },
+        workWeek,
+        defaultShift: { type: 'NORMAL' as const, start: '08:00', end: '17:00', allowancePct: 0 }
+      };
+      return Month.of({ month, context, days: [] }, new Date());
+    }
+  });
+  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, periods.proxy, expl.proxy, set.proxy, cal.proxy), att, reqs, pay, emp, periods, expl, set };
 }
 
 describe('MeController', () => {

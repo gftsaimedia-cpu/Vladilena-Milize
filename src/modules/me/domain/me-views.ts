@@ -1,4 +1,5 @@
 import type { HalfShift } from '../../../common/half-shift';
+import type { Day, DayKind as CalendarDayKind, Phase } from '../../calendar/domain/day';
 
 // Hàm thuần dựng dữ liệu "của tôi" từ bảng công và đơn từ: ngày theo giờ Việt Nam, tuần thứ Hai – Chủ nhật,
 // một ô ngày công, công cả tháng và các bước của một đơn.
@@ -22,6 +23,9 @@ export type DaySummary = {
   /** Không đặt tên là `explanation`: route ngày đã trả đối tượng `explanation` của đơn giải trình. */
   explanationStatus: ExplanationState;
   cases: DayCase[];
+  /** Ngày là gì và đã diễn ra chưa (từ `Day`), khi nơi gọi có lịch của tháng. */
+  dayKind?: CalendarDayKind;
+  phase?: Phase;
 };
 
 /** Phần của dòng ngày (DailyTimesheetDTO) mà /me đọc. */
@@ -86,17 +90,20 @@ export function daySummaryOf(
   ts: TimesheetLike | undefined,
   date: string,
   today: string,
-  weekdays: readonly number[] = DEFAULT_WEEKDAYS
+  weekdays: readonly number[] = DEFAULT_WEEKDAYS,
+  day?: Day
 ): DaySummary {
   const halfShift = ts?.halfShift ?? null;
-  const base = { date, halfShift, in: null, out: null, lateMinutes: 0, explanationStatus: 'none' as ExplanationState, cases: [] as DayCase[] };
+  const calendar = day ? { dayKind: day.kind, phase: day.phase } : {};
+  const base = { date, halfShift, in: null, out: null, lateMinutes: 0, explanationStatus: 'none' as ExplanationState, cases: [] as DayCase[], ...calendar };
   if (!ts) {
+    if (day) return noRowSummary(day, base);
     if (!weekdays.includes(dow(date))) return { ...base, kind: 'off' };
     return { ...base, kind: date > today ? 'future' : 'absent' };
   }
   const cases = ts.cases ?? [];
   const explanationStatus = explanationOf(ts.explanationStatus);
-  const shown = { date, halfShift, in: hhmm(ts.actualCheckIn), out: hhmm(ts.actualCheckOut), lateMinutes: ts.metrics?.lateMinutes || 0, explanationStatus, cases };
+  const shown = { date, halfShift, in: hhmm(ts.actualCheckIn), out: hhmm(ts.actualCheckOut), lateMinutes: ts.metrics?.lateMinutes || 0, explanationStatus, cases, ...calendar };
   const leave = LEAVE_OF[ts.status];
   if (leave) return { ...base, kind: 'leave', leave, explanationStatus, cases };
   switch (ts.status) {
@@ -120,6 +127,30 @@ export function daySummaryOf(
   }
 }
 
+const LEAVE_OF_DAY: Partial<Record<CalendarDayKind, LeaveKind>> = {
+  HOLIDAY: 'holiday',
+  ISAT: 'isat',
+  LEAVE_PAID: 'paid',
+  LEAVE_UNPAID: 'unpaid',
+  LEAVE_MAKEUP: 'makeup'
+};
+
+/** Ngày chưa có dòng chấm công: loại của ngày do `Day` quyết (nghỉ, lễ, ngoài, ngoài tuần); ngày làm thì sắp diễn ra hoặc vắng. */
+function noRowSummary(day: Day, base: Omit<DaySummary, 'kind'>): DaySummary {
+  const leave = LEAVE_OF_DAY[day.kind];
+  if (leave) return { ...base, kind: 'leave', leave };
+  switch (day.kind) {
+    case 'OUTSIDE':
+      return { ...base, kind: 'outside' };
+    case 'REST':
+      return { ...base, kind: 'off' };
+    case 'EXTRA':
+      return { ...base, kind: 'extra' };
+    default:
+      return { ...base, kind: day.phase === 'UPCOMING' ? 'future' : 'absent' };
+  }
+}
+
 /** Công cả tháng: một ô mỗi ngày và số đếm (workDays = số dòng tính là ngày công, ngày công chuẩn = các ngày của tháng có thứ thuộc `weekdays`; controller
  *  thay bằng số chuẩn của cài đặt).
  *  Kỳ công "locked" khi Admin đã Chốt công tháng đó (periodStatus của payroll_periods khác 'open') hoặc tháng có dòng
@@ -129,14 +160,15 @@ export function monthOf(
   month: string,
   today: string,
   periodStatus?: string | null,
-  weekdays: readonly number[] = DEFAULT_WEEKDAYS
+  weekdays: readonly number[] = DEFAULT_WEEKDAYS,
+  calendar?: { day(date: string): Day }
 ) {
   const [y, m] = month.split('-').map(Number);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const by = new Map(timesheets.map(t => [t.workDate, t]));
   const days = Array.from({ length: last }, (_, i) => {
     const date = `${month}-${String(i + 1).padStart(2, '0')}`;
-    return daySummaryOf(by.get(date), date, today, weekdays);
+    return daySummaryOf(by.get(date), date, today, weekdays, calendar?.day(date));
   });
   const inMonth = timesheets.filter(t => t.workDate.startsWith(month));
   return {

@@ -10,6 +10,7 @@ import {
   UnauthorizedError,
 } from '../../common';
 import { isValidDateText } from '../../common/date-text';
+import { CalendarService } from '../calendar/calendar.service';
 import { checkPunchLocation } from '../settings/domain/attendance-zone';
 import { planMakeup } from '../requests/domain/makeup-plan';
 import { RequestIdPipe } from '../requests/request-id.pipe';
@@ -23,6 +24,7 @@ import { payDateOf, SettingsReader, TypeWeekMissingError, type WorkWeek } from '
 import { PeriodsService } from '../periods';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
+import type { Month } from '../calendar/domain/day';
 import { ALERT_MONTHS_BACK, KPI_PARTS, daySummaryOf, estimateIncomeOf, leaveIncomePayOf, monthOf, monthRangeOf, shiftMonth, stepsOf, vnToday, weekOf } from './domain';
 
 // Nhóm "của tôi": mọi route chỉ cần phiên; danh tính luôn là req.user. Không route nào đọc employeeId / username của
@@ -87,7 +89,8 @@ export class MeController {
     @Inject(EmployeesService) private readonly employees: EmployeesService,
     @Inject(PeriodsService) private readonly periods: PeriodsService,
     @Inject(ExplanationsService) private readonly explanations: ExplanationsService,
-    @Inject(SettingsReader) private readonly settings: SettingsReader
+    @Inject(SettingsReader) private readonly settings: SettingsReader,
+    @Inject(CalendarService) private readonly calendar: CalendarService
   ) {}
 
   // Tuần làm của tôi ở từng tháng mà các ngày thuộc về: mỗi tháng hỏi một lần (một tuần trải tối đa hai tháng).
@@ -101,10 +104,11 @@ export class MeController {
     }
   }
 
-  private async weeksOf(me: Who, dates: string[]): Promise<Map<string, WorkWeek | null>> {
+  // Lịch của tôi ở từng tháng mà các ngày thuộc về (một tuần trải tối đa hai tháng): `Day` quyết ngày là gì và đã diễn ra chưa.
+  private async monthsOf(me: Who, dates: string[]): Promise<Map<string, Month>> {
     const months = [...new Set(dates.map(d => d.slice(0, 7)))];
-    const weeks = await Promise.all(months.map(m => this.weekOrNull(me.uuid, m)));
-    return new Map(months.map((m, i) => [m, weeks[i]]));
+    const built = await Promise.all(months.map(m => this.calendar.monthOf(me.uuid, m)));
+    return new Map(months.map((m, i) => [m, built[i]]));
   }
 
   // Từ tháng vào làm tới tháng hiện tại (giờ VN).
@@ -182,8 +186,8 @@ export class MeController {
     const rows = await this.attendance.listTimesheets({ employeeId: me.uuid, startDate: week[0], endDate: week[6] });
     const by = new Map(rows.map(r => [r.workDate, r]));
     const ts = by.get(date);
-    const weeks = await this.weeksOf(me, week);
-    const days = week.map(d => daySummaryOf(by.get(d) as any, d, date, weeks.get(d.slice(0, 7))?.weekdays));
+    const months = await this.monthsOf(me, week);
+    const days = week.map(d => daySummaryOf(by.get(d) as any, d, date, undefined, months.get(d.slice(0, 7))?.day(d)));
     const [zone, workday] = await Promise.all([this.settings.zone(), this.attendance.workdayOf(me.uuid, date)]);
     // Nhắc việc không được chặn màn chấm công: lỗi khi dựng danh sách thì trả [] như `reminders`.
     const alerts = await this.alertsOf(me, date).catch(() => []);
@@ -252,12 +256,13 @@ export class MeController {
     const me = who(req);
     const range = await this.monthRange(me);
     const m = needMonthIn(month, range);
-    const [rows, period, workWeek] = await Promise.all([
+    const [rows, period, workWeek, calendar] = await Promise.all([
       this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${m}-01`, endDate: monthEnd(m) }),
       this.periods.getPeriod(m),
       this.weekOrNull(me.uuid, m),
+      this.calendar.monthOf(me.uuid, m),
     ]);
-    const view = monthOf(rows as any, m, vnToday(), period?.status ?? null, workWeek?.weekdays);
+    const view = monthOf(rows as any, m, vnToday(), period?.status ?? null, workWeek?.weekdays, calendar);
     return { ...view, totals: workWeek ? { ...view.totals, standardDays: workWeek.standardWorkdays } : view.totals, range };
   }
 
@@ -268,11 +273,11 @@ export class MeController {
     if (!DATE.test(date || '') || !isValidDateText(date)) throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
     // Cài đặt chỉ có từ 2000-01 (tháng gieo), hỏi tuần làm trước đó sẽ thành lỗi 500.
     if (date < '2000-01-01') throw new BadRequestError('Ngày phải từ 01/01/2000 trở đi', { code: 'INVALID_DATE' });
-    const [ts, workWeek] = await Promise.all([this.attendance.getTimesheet(me.uuid, date), this.weekOrNull(me.uuid, date.slice(0, 7))]);
+    const [ts, calendar] = await Promise.all([this.attendance.getTimesheet(me.uuid, date), this.calendar.monthOf(me.uuid, date.slice(0, 7))]);
     // Phần giải trình lỗi thì ngày công vẫn mở được, chỉ thiếu thông tin giải trình.
     const explained = await this.explanations.dayView(me.username, date).catch(() => ({ explanation: null, due: null }));
     return {
-      ...daySummaryOf((ts ?? undefined) as any, date, vnToday(), workWeek?.weekdays),
+      ...daySummaryOf((ts ?? undefined) as any, date, vnToday(), undefined, calendar.day(date)),
       shift: ts?.shiftType ? { start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
       ...explained,
     };
