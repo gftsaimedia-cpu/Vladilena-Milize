@@ -21,11 +21,14 @@ const route = useRoute();
 const linkTo = (path: string) => ({ path, query: route.query.thang ? { thang: route.query.thang } : {} });
 const period = usePeriodStore();
 const shell = useShellStore();
-const { data, error, reload } = useLoad(
+const { data, error, reload, refresh } = useLoad(
   () => getOverview(period.month),
   () => `${period.month}|${shell.version}`
 );
-useRealtimeReload(reload);
+// Chấm công, đơn mới hoặc đã xử lý, phiếu lương và kỳ lương đổi đều làm số trên Tổng quan đổi.
+useRealtimeReload(refresh, {
+  types: ['attendance.punched', 'attendance.changed', 'request.filed', 'request.decided', 'payslip.decided', 'period.changed']
+});
 
 const deciding = new Set<string>();
 async function decide(id: string, approve: boolean) {

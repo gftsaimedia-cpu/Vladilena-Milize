@@ -4,7 +4,7 @@
 // ?hop=chuong | menu-tai-khoan | doi-mat-khau mở sẵn (mục lục thiết kế).
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { onRealtime, type PunchEvent } from '@/services/realtime';
+import { onRealtime, type PunchEvent, type RequestFiledEvent } from '@/services/realtime';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
 import { useUiStore } from '@/stores/ui';
@@ -30,7 +30,19 @@ onMounted(() => period.refresh());
 const offPunch = onRealtime('attendance.punched', (e: PunchEvent) =>
   toast.ok(`${e.name} vừa check-${e.direction === 'IN' ? 'in' : 'out'} ${e.time}`)
 );
-onUnmounted(offPunch);
+// Đơn mới: thông báo và cập nhật chuông, số cạnh mục Yêu cầu. Đơn được xử lý ở nơi khác: chỉ cập nhật số. Kỳ lương đổi: dải bước kỳ.
+const offFiled = onRealtime('request.filed', (e: RequestFiledEvent) => {
+  toast.ok(`${e.name} gửi yêu cầu: ${e.title}`);
+  shell.load();
+});
+const offDecided = onRealtime('request.decided', () => shell.load());
+const offPeriod = onRealtime('period.changed', () => period.refresh());
+onUnmounted(() => {
+  offPunch();
+  offFiled();
+  offDecided();
+  offPeriod();
+});
 
 // Dải bước kỳ lương chỉ hiện ở các màn gắn với kỳ lương.
 const STEPS_NAV = ['cham-cong'];

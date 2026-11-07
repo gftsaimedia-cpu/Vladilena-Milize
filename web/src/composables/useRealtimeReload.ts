@@ -2,11 +2,11 @@
 // Cũng tải lại khi `ready` sau khi nối lại (không tải lần nối đầu) và mỗi nhịp hỏi lại 30 giây khi SSE hỏng.
 // Sau khi dữ liệu mới về, ô (username + workDate) của người vừa chấm nháy sáng.
 import { getCurrentScope, nextTick, onScopeDispose } from 'vue';
-import { onRealtime, type RealtimeEvent } from '@/services/realtime';
+import { onRealtime, type LiveType, type RealtimeEvent } from '@/services/realtime';
 import { flashKey, useRealtimeStore } from '@/stores/realtime';
 
 type Options = {
-  types?: Array<'attendance.punched' | 'attendance.changed' | 'request.decided' | 'payslip.decided'>;
+  types?: LiveType[];
   debounceMs?: number;
   /** Chỉ tải lại cho sự kiện thoả điều kiện (vd. đúng người đang xem). `ready` và `poll` luôn tải lại. */
   filter?: (event: any) => boolean;

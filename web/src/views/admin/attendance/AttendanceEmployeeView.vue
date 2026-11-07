@@ -35,7 +35,11 @@ const { data: view, loading, error, reload } = useLoad(
   () => getEmployeeAttendance(personId.value, period.month),
   () => `${personId.value}|${period.month}|${shell.version}`
 );
-useRealtimeReload(reload, { filter: e => e.username === personId.value });
+// Sự kiện của người đang xem (công, đơn); kỳ lương đổi (không có username) thì luôn tải lại.
+useRealtimeReload(reload, {
+  types: ['attendance.punched', 'attendance.changed', 'request.decided', 'period.changed'],
+  filter: e => e.type === 'period.changed' || e.username === personId.value
+});
 const tab = ref<(typeof TABS)[number]['key']>('timeline');
 
 // Trả focus sau hộp chi tiết ngày. Nút mở còn (ngày vẫn trong dải, lời nhắc còn ngày chờ khác) thì focus về nút đó.

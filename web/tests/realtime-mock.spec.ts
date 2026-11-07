@@ -127,3 +127,55 @@ test('admin opens exactly one stream and closes it on sign-out', async ({ page }
   await expect(page).toHaveURL(/\/dang-nhap/);
   expect(await inApp<number>(page, `${R} return R.sources.length;`)).toBe(0);
 });
+
+// ---- Sự kiện dành cho Admin: đơn mới, kỳ lương đổi, hồ sơ nhân sự đổi (BE: request.filed, period.changed, staff.changed) ----
+const FILED = { type: 'request.filed', username: 'hoang-minh-duc', name: 'Hoàng Minh Đức', requestId: 'r1', kind: 'LEAVE', title: 'Nghỉ 10/11' };
+async function openScreen(page: Page, path: string, heading: RegExp | string) {
+  await page.goto(path);
+  await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+  await settle(page);
+  await page.evaluate(() => ((window).__mockCalls = 0));
+}
+
+test('request.filed: toast with who and what, and the bell/sidebar counts reload', async ({ page }) => {
+  await openScreen(page, '/admin/tong-quan', /Tổng quan/);
+  await emit(page, FILED);
+  await expect(page.getByText('Hoàng Minh Đức gửi yêu cầu: Nghỉ 10/11')).toBeVisible();
+  await expect.poll(() => calls(page)).toBeGreaterThan(0);
+});
+
+test('Yêu cầu reloads on request.filed and request.decided, not on unrelated events', async ({ page }) => {
+  await openScreen(page, '/admin/yeu-cau', /Yêu cầu/);
+  await emit(page, { type: 'staff.changed', username: 'x', change: 'updated' });
+  await settle(page);
+  expect(await calls(page)).toBe(0);
+  await emit(page, FILED);
+  await expect.poll(() => calls(page)).toBeGreaterThan(0);
+  await page.evaluate(() => ((window).__mockCalls = 0));
+  await emit(page, { type: 'request.decided', username: 'hoang-minh-duc', requestId: 'r1', kind: 'LEAVE', status: 'APPROVED' });
+  await expect.poll(() => calls(page)).toBeGreaterThan(0);
+});
+
+test('Bảng lương reloads on period.changed and payslip.decided', async ({ page }) => {
+  await openScreen(page, '/admin/bang-luong', /Bảng lương/);
+  await emit(page, { type: 'period.changed', month: '2026-10', state: 'calculated' });
+  await expect.poll(() => calls(page)).toBeGreaterThan(0);
+  await page.evaluate(() => ((window).__mockCalls = 0));
+  await emit(page, { type: 'payslip.decided', username: 'hoang-minh-duc', month: '2026-10', status: 'approved' });
+  await expect.poll(() => calls(page)).toBeGreaterThan(0);
+});
+
+test('Nhân sự reloads on staff.changed', async ({ page }) => {
+  await openScreen(page, '/admin/nhan-su', /Nhân sự/);
+  await emit(page, { type: 'staff.changed', username: 'hoang-minh-duc', change: 'ended' });
+  await expect.poll(() => calls(page)).toBeGreaterThan(0);
+});
+
+test('Chấm công reloads on request.decided and period.changed', async ({ page }) => {
+  await open(page);
+  await emit(page, { type: 'request.decided', username: 'hoang-minh-duc', requestId: 'r1', kind: 'LEAVE', status: 'APPROVED' });
+  await expect.poll(() => calls(page)).toBeGreaterThan(0);
+  await page.evaluate(() => ((window).__mockCalls = 0));
+  await emit(page, { type: 'period.changed', month: '2026-10', state: 'attendance_locked' });
+  await expect.poll(() => calls(page)).toBeGreaterThan(0);
+});

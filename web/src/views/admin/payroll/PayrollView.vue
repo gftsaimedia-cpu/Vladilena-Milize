@@ -12,6 +12,7 @@ import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
+import { useRealtimeReload } from '@/composables/useRealtimeReload';
 import PageLoadError from '@/components/shell/PageLoadError.vue';
 import type { KpiPart } from '@/mock/payroll-calc';
 import type { PayrollLine, PayrollScreen, PayrollStatus, Payslip } from '@/mock/payroll';
@@ -28,11 +29,13 @@ import PayslipDrawer from './payslip/PayslipDrawer.vue';
 
 const period = usePeriodStore();
 const route = useRoute();
-const { data: loaded, error: loadError, reload } = useLoad(
+const { data: loaded, error: loadError, reload, refresh } = useLoad(
   () => getPayroll(period.month),
   () => period.month
 );
 const data = computed(() => loaded.value as PayrollScreen | null);
+// Phiếu duyệt hay kỳ đổi ở nơi khác, hoặc duyệt đơn làm phiếu về nháp: bảng lương tự tải lại.
+useRealtimeReload(refresh, { types: ['payslip.decided', 'period.changed', 'request.decided'] });
 const board = computed(() => (data.value && !data.value.empty ? data.value : null));
 
 // Tính lương cả kỳ khi tháng chưa có phiếu (bản mockup trả ngay); người tính lỗi (thiếu cấu hình bậc…) báo thành một thông báo.

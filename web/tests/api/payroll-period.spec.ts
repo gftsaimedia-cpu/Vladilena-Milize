@@ -118,6 +118,8 @@ test('a 409 from the server shows its Vietnamese message', async ({ page, reques
   await page.locator('#lg-pass').fill(ADMIN_PASS);
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
   await expect(page).not.toHaveURL(/\/dang-nhap/);
+  // Cắt luồng realtime để trang không biết kỳ vừa đổi (có luồng thì nút tự biến mất: test ở admin-realtime.spec).
+  await page.route('**/api/v2/realtime/stream', route => route.abort());
   await page.goto(`/admin/bang-luong?thang=${MONTH}`);
   await expect(strip(page).getByRole('button', { name: 'Chốt công' })).toBeVisible();
   // Kỳ đã chốt từ nơi khác trong lúc trang còn hiện nút Chốt công: bấm thì máy chủ trả 409.

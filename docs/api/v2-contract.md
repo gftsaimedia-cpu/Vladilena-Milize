@@ -2122,13 +2122,18 @@ Lỗi chung:
   - Dòng chú thích `: ping` mỗi 25 giây để proxy không cắt kết nối; `EventSource` bỏ qua dòng này.
   - `attendance.punched`: có lần chấm công mới được lưu. `direction` là `IN` hoặc `OUT`; `at` là ISO 8601 UTC; `time` là `HH:mm` giờ Việt Nam; `workDate` là ngày công (`YYYY-MM-DD`, có thể khác ngày của `at` với ca đêm); `source` là `self` (nhân viên tự chấm) hoặc `admin` (quản trị chấm hộ). Chỉ phát sau khi đã lưu thành công; chấm bị từ chối thì không có sự kiện.
   - `attendance.changed`: Admin tính lại một ngày công (`POST /api/v2/attendance/recalculate` với `workDate`). `data` là `{"type":"attendance.changed","username":"nv1","workDate":"2026-11-03"}`. Tính lại cả tháng (`month`) không phát sự kiện.
+  - Dành cho Admin (chỉ `/stream`, nhân viên không nhận qua `/me`):
+    - `request.filed`: có đơn hay giải trình mới đang chờ duyệt (nhân viên nộp hoặc Admin nộp hộ), phát sau commit. `data` là `{"type":"request.filed","username":"nv1","name":"Nguyễn Văn A","requestId":"<uuid>","kind":"LEAVE","title":"Phép năm 10/11"}`; `kind` là loại đơn của BE. Đơn bị từ chối ngay lúc nộp (xung đột ngày, kỳ khoá) thì không phát.
+    - `period.changed`: kỳ lương đổi trạng thái (chốt công, mở lại công, tính lương, phê duyệt, huỷ phê duyệt, trả lương). `data` là `{"type":"period.changed","month":"2026-10","state":"attendance_locked"}`; `state` là trạng thái kỳ sau khi đổi.
+    - `staff.changed`: hồ sơ nhân sự được thêm, sửa hoặc cho nghỉ việc, kể cả gán ca và đổi phòng ban hàng loạt (mỗi người một sự kiện). `data` là `{"type":"staff.changed","username":"nv1","change":"created" | "updated" | "ended"}`.
+  - `/stream` của Admin còn nhận cả `request.decided` và `payslip.decided` của mọi người (mô tả ở `/me`), để màn Yêu cầu, chuông và Bảng lương tự cập nhật.
 - **Kết nối lại**: SSE không phát lại sự kiện đã lỡ. Mỗi lần nối (hoặc nối lại sau khi rớt, `EventSource` tự thử lại sau `retry` = 3 giây) client phải tải lại dữ liệu đang hiển thị (bảng chấm công hôm nay) rồi mới áp sự kiện mới. Nên coi `ready` là tín hiệu "tải lại". Phiên hết hạn thì nối lại trả `401`: dừng thử và đưa về màn đăng nhập.
 - **Mở rộng**: sự kiện đi qua `RealtimeBus` nên sau này đổi sang WebSocket hay PostgreSQL LISTEN/NOTIFY (nhiều instance) không đổi định dạng khung ở trên. Loại sự kiện mới chỉ được thêm, FE phải bỏ qua loại chưa biết.
 
 #### `GET /api/v2/realtime/me`
 - **Mục đích**: Luồng SSE của nhân viên: chỉ nhận sự kiện của chính mình (`username` trong sự kiện trùng tên đăng nhập của phiên), để màn nhân viên tự cập nhật khi Admin duyệt đơn, sửa công hay duyệt phiếu lương.
 - **Quyền**: chỉ cần đăng nhập (chưa đăng nhập `401`). Mỗi người tối đa 5 luồng `/me` cùng lúc (`429 TOO_MANY_STREAMS`). Định dạng khung, `ready`, `: ping` và cách kết nối lại giống `/stream`. Phiên bị huỷ (khoá, đổi mật khẩu) thì luồng đóng ở sự kiện kế tiếp.
-- **Loại khung nhận được**: `attendance.punched`, `attendance.changed` (của mình, kể cả Admin chấm hộ), và hai loại sau (cả hai cũng đi qua `/stream` của Admin):
+- **Loại khung nhận được**: chỉ `attendance.punched`, `attendance.changed` (của mình, kể cả Admin chấm hộ), `request.decided` và `payslip.decided` của chính mình; các loại dành cho Admin (`request.filed`, `period.changed`, `staff.changed`) không gửi qua `/me`. Hai loại cuối cũng đi qua `/stream` của Admin:
   - `request.decided`: đơn của mình vừa được duyệt, từ chối hoặc huỷ (kể cả Admin huỷ thay). `data` là `{"type":"request.decided","username":"nv1","requestId":"<uuid>","kind":"LEAVE","status":"APPROVED"}`; `status` là `APPROVED`, `REJECTED` hoặc `CANCELLED`; `kind` là loại đơn của BE. Phát sau commit.
   - `payslip.decided`: phiếu lương của mình vừa được duyệt hoặc từ chối. `data` là `{"type":"payslip.decided","username":"nv1","month":"2026-11","status":"approved"}`.
 

@@ -23,14 +23,25 @@ export type RequestDecidedEvent = {
   status: 'APPROVED' | 'REJECTED' | 'CANCELLED';
 };
 export type PayslipDecidedEvent = { type: 'payslip.decided'; username: string; month: string; status: 'approved' | 'rejected' };
+/** Admin: đơn hay giải trình mới đang chờ duyệt. */
+export type RequestFiledEvent = { type: 'request.filed'; username: string; name: string; requestId: string; kind: string; title: string };
+/** Admin: kỳ lương đổi trạng thái (chốt công, mở lại, tính lương, phê duyệt, trả lương...). */
+export type PeriodChangedEvent = { type: 'period.changed'; month: string; state: string };
+/** Admin: hồ sơ nhân sự thêm, sửa hoặc cho nghỉ việc. */
+export type StaffChangedEvent = { type: 'staff.changed'; username: string; change: 'created' | 'updated' | 'ended' };
 export type RealtimeEvent =
   | PunchEvent
+  | RequestFiledEvent
+  | PeriodChangedEvent
+  | StaffChangedEvent
   | ChangeEvent
   | RequestDecidedEvent
   | PayslipDecidedEvent
   | { type: 'ready'; reconnected: boolean }
   | { type: 'poll' };
 export type RealtimeScope = 'admin' | 'me';
+/** Các loại sự kiện máy chủ (trừ `ready` và `poll` do bộ nối tự phát). */
+export type LiveType = Exclude<RealtimeEvent['type'], 'ready' | 'poll'>;
 type Handler = (event: any) => void;
 
 export const STREAM_URL = '/api/v2/realtime/stream';
@@ -94,7 +105,7 @@ export function createRealtime(onStatus: (s: RealtimeStatus) => void, scope: Rea
       emitRealtime({ type: 'ready', reconnected: everReady });
       everReady = true;
     });
-    for (const type of ['attendance.punched', 'attendance.changed', 'request.decided', 'payslip.decided']) {
+    for (const type of ['attendance.punched', 'attendance.changed', 'request.decided', 'payslip.decided', 'request.filed', 'period.changed', 'staff.changed']) {
       src.addEventListener(type, e => {
         if (src !== source) return;
         try {

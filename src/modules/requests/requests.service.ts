@@ -409,6 +409,19 @@ export class RequestsService {
     @Optional() @Inject(RealtimeBus) private readonly bus?: RealtimeBus
   ) {}
 
+  /** Phát `request.filed` sau commit (đơn mới đang chờ duyệt). Lỗi ở đây chỉ ghi log, không làm hỏng việc nộp đơn. */
+  private async announceFiled(request: { id: string; employeeId: string; type: string; title: string; status: string }): Promise<void> {
+    if (!this.bus || request.status !== 'PENDING') return;
+    try {
+      const who = await this.repo.resolveStaffIdentity(request.employeeId);
+      if (who) {
+        this.bus.publish({ type: 'request.filed', username: who.username, name: who.name, requestId: request.id, kind: request.type, title: request.title });
+      }
+    } catch (err) {
+      console.error('Không phát được sự kiện realtime:', err);
+    }
+  }
+
   /** Phát `request.decided` sau commit. Lỗi ở đây chỉ ghi log, không làm hỏng việc duyệt/huỷ. */
   private async announceDecided(dto: SystemRequestDTO): Promise<void> {
     if (!this.bus || (dto.status !== 'APPROVED' && dto.status !== 'REJECTED' && dto.status !== 'CANCELLED')) return;
@@ -866,7 +879,7 @@ export class RequestsService {
     const use: GateUse = kind === 'explanation' ? 'explain' : 'file';
     await this.periodGate?.hold(undefined, requestMonths(this.inputDates(kind, input, context)), use);
     const filing = await this.planFiling(kind, input, context);
-    return this.underEmployeeLock(filing.staff.employeeId, async (stores, trx) => {
+    const planned = await this.underEmployeeLock(filing.staff.employeeId, async (stores, trx) => {
       const planned = await filing.plan(stores);
       await this.guardPeriods(trx, planned.request, use);
       if (save) {
@@ -878,6 +891,8 @@ export class RequestsService {
       }
       return planned;
     });
+    if (save) await this.announceFiled(planned.request);
+    return planned;
   }
 
   private async planFiling(kind: FilingKind, input: any, opts: FilingContext): Promise<Filing> {
@@ -1490,7 +1505,7 @@ export class RequestsService {
     const staff = await this.resolveStaff(profile.employeeId, monthOf(saturday));
     assertEmployed(staff, [saturday]);
 
-    return this.underEmployeeLock(staff.employeeId, async (stores, trx) => {
+    const created = await this.underEmployeeLock(staff.employeeId, async (stores, trx) => {
       // Chống trùng Thứ Bảy với các đơn đang chờ hoặc đã duyệt (đơn đã bị từ chối không chặn)
       const existing = await stores.requests.list({
         employeeId: profile.employeeId,
@@ -1520,6 +1535,8 @@ export class RequestsService {
       await this.rewriteDays(req, trx);
       return { ...req.toJSON(), warnings: [] };
     });
+    await this.announceFiled(created);
+    return created;
   }
 
   /**

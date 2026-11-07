@@ -7,6 +7,9 @@ import { capsOf } from '../auth/domain';
 import { RealtimeBus } from './realtime-bus';
 import type { RealtimeEvent } from './realtime-event';
 
+/** Loại sự kiện nhân viên nhận (của chính mình); các loại dành cho Admin (đơn mới, kỳ lương, hồ sơ nhân sự) không gửi cho nhân viên. */
+const STAFF_EVENTS: ReadonlySet<string> = new Set(['attendance.punched', 'attendance.changed', 'request.decided', 'payslip.decided']);
+
 export const HEARTBEAT_MS = 25_000;
 export const MAX_STREAMS_PER_USER = 5;
 
@@ -32,7 +35,7 @@ export class RealtimeController {
   @Get('me')
   mine(@Req() req: Request, @Res() res: Response): void {
     const me = (req as Request & { user?: UserSession }).user?.username ?? '';
-    this.serve(req, res, 'me', event => 'username' in event && event.username === me, () => true);
+    this.serve(req, res, 'me', event => STAFF_EVENTS.has(event.type) && 'username' in event && event.username === me, () => true);
   }
 
   private serve(

@@ -299,10 +299,10 @@ export class PayrollService {
       return { runId, items: summaries, errors };
     };
 
-    if (this.txCoordinator) {
-      return await this.txCoordinator.withLock(`payroll_${month}`, doCalc);
-    }
-    return await doCalc();
+    const result = this.txCoordinator ? await this.txCoordinator.withLock(`payroll_${month}`, doCalc) : await doCalc();
+    // Sau commit: bảng lương vừa được tính, Admin khác tải lại (kỳ có thể vừa sang 'calculated').
+    if (this.periods && result.runId !== null) this.periods.announce?.(month, (await this.periods.snapshot(month)).status);
+    return result;
   }
 
   // The month's settings for a run; null without a reader. The change id is read before the snapshot: a change saved

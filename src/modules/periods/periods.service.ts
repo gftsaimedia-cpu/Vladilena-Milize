@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { businessDateText } from '../../common/business-date';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import { AuditLog } from '../audit';
+import { RealtimeBus } from '../realtime/realtime-bus';
 import { payDateOf, SettingsMissingError, SettingsReader } from '../settings';
 import {
   approveReason,
@@ -66,7 +67,9 @@ export class PeriodsService {
     @Inject(TransactionCoordinator) private readonly tx: TransactionCoordinator,
     @Inject(AuditLog) private readonly audit: AuditLog,
     // Ngày trả lương lấy từ kho cài đặt (Lịch trả lương, 1–28 tháng sau). Không có reader (test dựng tay) thì ngày 10.
-    @Optional() @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'settingsFor'>
+    @Optional() @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'settingsFor'>,
+    // Báo cho Admin khác khi kỳ đổi trạng thái (sau commit); thiếu thì không phát.
+    @Optional() @Inject(RealtimeBus) private readonly bus?: RealtimeBus
   ) {}
 
   /**
@@ -127,7 +130,7 @@ export class PeriodsService {
   }
 
   /** Chốt công: kỳ 'open' (hoặc chưa có dòng) sang 'attendance_locked', chỉ khi tháng đã kết thúc. */
-  async lock(month: string, actor: string): Promise<PeriodView> {
+  private async lockRaw(month: string, actor: string): Promise<PeriodView> {
     return this.transition(month, 'lock', actor, null, async () => {
       if (!monthEnded(month, businessDateText(this.now()))) throw new MonthNotEndedError(month);
       return { attendance_locked_by: actor, attendance_locked_at: this.now().toISOString() };
@@ -135,7 +138,7 @@ export class PeriodsService {
   }
 
   /** Mở lại công: về 'open', xoá dấu chốt công và dấu tính lương, tăng reopen_count. Cần lý do, tối đa 1000 ký tự. */
-  async unlock(month: string, actor: string, reason: unknown): Promise<PeriodView> {
+  private async unlockRaw(month: string, actor: string, reason: unknown): Promise<PeriodView> {
     const text = requireReason(reason);
     return this.transition(month, 'unlock', actor, text, async (_trx, row) => ({
       attendance_locked_by: null,
@@ -151,7 +154,7 @@ export class PeriodsService {
    * tới khoá kỳ (cùng thứ tự với tính lương), nên không xen vào giữa một lần tính hay một quyết định duyệt phiếu.
    * Còn đơn chờ duyệt, phiếu chưa duyệt hoặc người chưa có phiếu thì `PERIOD_BLOCKED`.
    */
-  async approve(month: string, actor: string): Promise<PeriodView> {
+  private async approveRaw(month: string, actor: string): Promise<PeriodView> {
     return this.tx.withLock(`payroll_${month}`, trx =>
       this.transition(
         month,
@@ -175,7 +178,7 @@ export class PeriodsService {
    * Huỷ phê duyệt: 'approved' về 'calculated'. Lần chạy 'final' thành 'superseded' và được chép cùng các phiếu (giữ nguyên
    * trạng thái duyệt) sang một lần chạy nháp mới. Cần lý do, tối đa 1000 ký tự.
    */
-  async unapprove(month: string, actor: string, reason: unknown): Promise<PeriodView> {
+  private async unapproveRaw(month: string, actor: string, reason: unknown): Promise<PeriodView> {
     const text = requireReason(reason);
     return this.tx.withLock(`payroll_${month}`, trx =>
       this.transition(
@@ -193,12 +196,43 @@ export class PeriodsService {
   }
 
   /** Đã trả lương: 'approved' sang 'paid', chỉ từ ngày trả lương (giờ Việt Nam, theo kho cài đặt) trở đi. */
-  async pay(month: string, actor: string): Promise<PeriodView> {
+  private async payRaw(month: string, actor: string): Promise<PeriodView> {
     return this.transition(month, 'pay', actor, null, async t => {
       const payday = await this.paydayFor(month, t);
       if (businessDateText(this.now()) < payday) throw new BeforePaydayError(month, payday);
       return { paid_by: actor, paid_at: this.now().toISOString() };
     });
+  }
+
+  // Các bước chuyển kỳ phát `period.changed` sau khi đã commit, để màn Admin khác tự cập nhật.
+  async lock(month: string, actor: string): Promise<PeriodView> {
+    return this.announced(month, await this.lockRaw(month, actor));
+  }
+  async unlock(month: string, actor: string, reason: unknown): Promise<PeriodView> {
+    return this.announced(month, await this.unlockRaw(month, actor, reason));
+  }
+  async approve(month: string, actor: string): Promise<PeriodView> {
+    return this.announced(month, await this.approveRaw(month, actor));
+  }
+  async unapprove(month: string, actor: string, reason: unknown): Promise<PeriodView> {
+    return this.announced(month, await this.unapproveRaw(month, actor, reason));
+  }
+  async pay(month: string, actor: string): Promise<PeriodView> {
+    return this.announced(month, await this.payRaw(month, actor));
+  }
+
+  /** Phát `period.changed`; lỗi ở bus chỉ ghi log. */
+  announce(month: string, state: string): void {
+    try {
+      this.bus?.publish({ type: 'period.changed', month, state });
+    } catch (err) {
+      console.error('Không phát được sự kiện realtime:', err);
+    }
+  }
+
+  private announced(month: string, view: PeriodView): PeriodView {
+    this.announce(month, view.status);
+    return view;
   }
 
   /**

@@ -7,6 +7,7 @@ import { DEFAULT_SHIFT, shiftByCode } from '../../common/shift-catalog';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database/transaction';
 import { AttendanceDaysService } from '../attendance/attendance-days.service';
 import { monthOfDate, monthsBetween } from '../attendance/domain/calendar';
+import { RealtimeBus } from '../realtime/realtime-bus';
 import { AuditLog } from '../audit/audit-log';
 import { DepartmentNotFoundError } from '../departments/departments.errors';
 import { foldText, matchesStaffStatus, staffStatusOf, type StaffFilter, type StaffStatus } from '../departments/domain';
@@ -129,8 +130,18 @@ export class EmployeesService {
     @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>,
     @Optional()
     @Inject(AttendanceDaysService)
-    private readonly attendanceDays?: Pick<AttendanceDaysService, 'refreshMonth' | 'frozenMonths'>
+    private readonly attendanceDays?: Pick<AttendanceDaysService, 'refreshMonth' | 'frozenMonths'>,
+    // Báo cho Admin khác khi hồ sơ nhân sự đổi (sau commit); thiếu thì không phát.
+    @Optional() @Inject(RealtimeBus) private readonly bus?: RealtimeBus
   ) {}
+
+  private announce(username: string, change: 'created' | 'updated' | 'ended'): void {
+    try {
+      this.bus?.publish({ type: 'staff.changed', username, change });
+    } catch (err) {
+      console.error('Không phát được sự kiện realtime:', err);
+    }
+  }
 
   /**
    * Đọc lại hồ sơ sau commit rồi ghi lại các tháng bị ảnh hưởng (P4: ngoài giao dịch lưu hồ sơ).
@@ -268,6 +279,7 @@ export class EmployeesService {
       },
       (err) => (err instanceof BulkEmployeeError ? { code: err.code, message: err.message } : { code: 'BAD_EMPLOYEE_INPUT', message: bulkFailureOf(err).message })
     );
+    for (const e of out.done) this.announce(e.username, 'updated');
     return { done: await this.views(out.done), failed: out.failed };
   }
 
@@ -283,6 +295,7 @@ export class EmployeesService {
       return saved;
     });
     await this.refreshAfterSave(saved.username, null, true);
+    this.announce(saved.username, 'created');
     return saved;
   }
 
@@ -307,6 +320,7 @@ export class EmployeesService {
     });
     if (!outcome) return null;
     await this.refreshAfterSave(outcome.saved.username, outcome.before);
+    this.announce(outcome.saved.username, 'updated');
     return outcome.saved;
   }
 
@@ -332,6 +346,7 @@ export class EmployeesService {
     });
     if (!outcome) return false;
     await this.refreshAfterSave(outcome.username, outcome.before, true);
+    this.announce(outcome.username, 'ended');
     return true;
   }
 

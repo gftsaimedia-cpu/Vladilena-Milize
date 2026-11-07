@@ -42,11 +42,12 @@ const period = usePeriodStore();
 const shell = useShellStore();
 
 // Lọc tên và nhóm do BE làm: đổi ?q hoặc ?pb thì tải lại.
-const { data, loading, error, reload } = useLoad(
+const { data, loading, error, reload, refresh } = useLoad(
   () => getAttendance(period.month, q.value, dept.value),
   () => `${period.month}|${shell.version}|${q.value}|${dept.value}`
 );
-useRealtimeReload(reload);
+// Đơn nghỉ được duyệt đổi ô ngày; kỳ lương đổi thì cờ khoá công đổi; nhân sự đổi thì danh sách người đổi.
+useRealtimeReload(refresh, { types: ['attendance.punched', 'attendance.changed', 'request.filed', 'request.decided', 'period.changed', 'staff.changed'] });
 
 // Trả focus sau hộp chi tiết ngày. Nút mở còn thì focus về nút đó (AppModal đã làm). Xử lý xong mà nút biến mất thì:
 //  - dòng trong "Cần xử lý": dòng đang đứng đúng chỗ đó (dòng sau dồn lên), không có thì dòng liền trước, hết dòng thì tab "Cần xử lý";

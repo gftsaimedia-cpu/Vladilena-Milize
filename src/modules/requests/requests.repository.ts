@@ -319,6 +319,16 @@ export class RequestsRepository {
     return row?.uuid ?? null;
   }
 
+  /** Tên đăng nhập và tên hiển thị theo uuid hoặc username (cho sự kiện realtime); không có thì null. */
+  async resolveStaffIdentity(employeeIdOrUsername: string): Promise<{ username: string; name: string } | null> {
+    const row = await this.qb
+      .selectFrom('staff')
+      .select(['username', 'name'])
+      .where(eb => eb.or([eb('uuid', '=', employeeIdOrUsername), eb('username', '=', employeeIdOrUsername)]))
+      .executeTakeFirst();
+    return row ? { username: row.username, name: row.name } : null;
+  }
+
   /** Đổi uuid hoặc username nhân sự thành tên đăng nhập (nhật ký ghi theo tên đăng nhập); không có thì trả null. */
   async resolveStaffUsername(employeeIdOrUsername: string): Promise<string | null> {
     const row = await this.qb

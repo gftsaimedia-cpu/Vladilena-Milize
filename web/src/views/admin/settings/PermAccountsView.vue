@@ -5,6 +5,7 @@
 import { ref, watch } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
+import { useRealtimeReload } from '@/composables/useRealtimeReload';
 import PageLoadError from '@/components/shell/PageLoadError.vue';
 import ScrollX from '@/components/ui/ScrollX.vue';
 import { getAccounts, setAccountLocked, setAccountRole } from '@/services/admin-settings';
@@ -19,10 +20,12 @@ import SelectBox from './fields/SelectBox.vue';
 const role = ref('all'); // khoá chip vai trò
 const q = ref('');
 const page = ref(1);
-const { data, error, reload } = useLoad(
+const { data, error, reload, refresh } = useLoad(
   () => getAccounts({ page: page.value, role: role.value, q: q.value }),
   () => [page.value, role.value, q.value]
 );
+// Tài khoản mới, khoá hay đổi vai trò ở nơi khác: danh sách tự tải lại.
+useRealtimeReload(refresh, { types: ['staff.changed'] });
 watch([role, q], () => (page.value = 1));
 
 const notice = ref('');

@@ -4,6 +4,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
+import { useRealtimeReload } from '@/composables/useRealtimeReload';
 import PageLoadError from '@/components/shell/PageLoadError.vue';
 import ResultLine from '@/components/select-mode/ResultLine.vue';
 import SelectBar from '@/components/select-mode/SelectBar.vue';
@@ -23,7 +24,9 @@ import { filterStaff, isFiltered } from './staffFilter';
 
 const route = useRoute();
 const router = useRouter();
-const { data, error, reload } = useLoad(() => getStaffList());
+const { data, error, reload, refresh } = useLoad(() => getStaffList());
+// Thêm, sửa, cho nghỉ việc ở nơi khác: danh sách và thẻ thống kê tự tải lại.
+useRealtimeReload(refresh, { types: ['staff.changed'] });
 
 // Hộp Thêm nhân sự ở ?hop=them-nhan-su; tạo xong thì đóng, báo và tải lại danh sách.
 const { hop, open: openHop, close: closeHop } = useHop(['them-nhan-su']);

@@ -112,6 +112,9 @@ describe('SSE', { skip: !enabled }, () => {
     await refuse('workDate rác', admin.post('/api/v2/attendance/punches', { employeeId: env.uuid('nv1'), type: 'IN', workDate: '2026-02-30' }));
     env.at('2026-11-02T09:00:00+07:00');
     await admin.post('/api/v2/system/periods/2026-10/lock').catch(() => null);
+    // Chốt công là một sự kiện kỳ lương hợp lệ (period.changed), không phải lượt chấm: bỏ qua rồi kiểm tiếp.
+    const locked = await sse.next(600);
+    if (locked) assert.deepEqual([locked.event, locked.data.month, locked.data.state], ['period.changed', '2026-10', 'attendance_locked']);
     env.at('2026-11-03T09:00:00+07:00');
     await refuse('tháng đã chốt', admin.post('/api/v2/attendance/punches', { employeeId: env.uuid('nv1'), type: 'IN', punchedAt: '2026-10-20T08:00:00+07:00' }));
     await env.q(`UPDATE staff SET locked_at = now()::text WHERE username='nv1'`);

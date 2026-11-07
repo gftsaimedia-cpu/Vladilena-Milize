@@ -8,6 +8,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from '@/components/shell/toast';
+import { useRealtimeReload } from '@/composables/useRealtimeReload';
 import BulkButton from '@/components/select-mode/BulkButton.vue';
 import ResultLine from '@/components/select-mode/ResultLine.vue';
 import SelectBar from '@/components/select-mode/SelectBar.vue';
@@ -63,6 +64,8 @@ async function load() {
   }
 }
 watch(() => shell.version, load, { immediate: true });
+// Đơn mới, đơn được duyệt hoặc huỷ ở nơi khác: danh sách tự tải lại (êm, không bật "Đang tải").
+useRealtimeReload(load, { types: ['request.filed', 'request.decided'] });
 
 // ---------- Bộ lọc ----------
 const tab = ref<Tab>('all');
