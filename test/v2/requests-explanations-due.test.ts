@@ -235,7 +235,8 @@ describe('Ngày cần giải trình (spec 3.1–3.2)', () => {
     it('shows the due cases until an explanation is sent', async () => {
       assert.deepEqual(await ctx.explanations.dayView('nv01', '2026-11-02'), {
         explanation: null,
-        due: { cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, remindedAt: null }
+        due: { cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, remindedAt: null },
+        expired: null
       });
 
       const dto = await ctx.service.createExplanationRequest({
@@ -268,13 +269,14 @@ describe('Ngày cần giải trình (spec 3.1–3.2)', () => {
       await seed(ctx, explanationRequest('2026-11-03', ['LATE_CHECK_IN'], 'CANCELLED'));
       assert.deepEqual(await ctx.explanations.dayView('nv01', '2026-11-03'), {
         explanation: null,
-        due: { cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false }, remindedAt: '2026-11-04T03:10:00.000Z' }
+        due: { cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false }, remindedAt: '2026-11-04T03:10:00.000Z' },
+        expired: null
       });
     });
 
     it('a day that is not due has no due part', async () => {
-      assert.deepEqual(await ctx.explanations.dayView('nv01', '2026-11-01'), { explanation: null, due: null });
-      assert.deepEqual(await ctx.explanations.dayView('nv01', '2026-11-05'), { explanation: null, due: null });
+      assert.deepEqual(await ctx.explanations.dayView('nv01', '2026-11-01'), { explanation: null, due: null, expired: null });
+      assert.deepEqual(await ctx.explanations.dayView('nv01', '2026-11-05'), { explanation: null, due: null, expired: null });
     });
   });
 });

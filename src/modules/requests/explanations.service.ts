@@ -3,7 +3,9 @@ import {
   addDays,
   eachDate,
   explanationCasesOf,
+  explanationWindowFrom,
   formatDayMonth,
+  isExplanationExpired,
   lastDayOfMonth,
   monthOf,
   requireDateText,
@@ -122,8 +124,6 @@ const EXPLAINED: ReadonlySet<RequestStatus> = new Set<RequestStatus>(['PENDING',
 /** 'HH:MM:SS' → 'HH:MM': `explanationCasesOf` chỉ đọc được 'HH:MM' (giờ sai dạng thì lặng lẽ không ra trường hợp nào). */
 const hhmm = (time: string): string => time.slice(0, 5);
 
-/** Ngày 01 của tháng trước tháng của `date`: '2026-11-04' → '2026-10-01'. */
-const firstOfLastMonth = (date: string): string => `${monthOf(addDays(`${monthOf(date)}-01`, -1))}-01`;
 
 /** Các tháng (YYYY-MM) mà [from, to] chạm tới, theo thứ tự. */
 function monthsBetween(from: string, to: string): string[] {
@@ -203,7 +203,7 @@ export class ExplanationsService {
   async dueDays(employeeIdOrUsername: string): Promise<DueDay[]> {
     const today = vietnamToday(this.now());
     const staff = await this.resolveStaff(employeeIdOrUsername, monthOf(today));
-    const lastMonthStart = firstOfLastMonth(today);
+    const lastMonthStart = explanationWindowFrom(today);
     const from = staff.startDate !== null && staff.startDate > lastMonthStart ? staff.startDate : lastMonthStart;
     if (from > today) return [];
 
@@ -339,6 +339,8 @@ export class ExplanationsService {
   ): Promise<{
     explanation: ExplanationView | null;
     due: { cases: ExplanationCase[]; needs: ExplanationNeeds; remindedAt: string | null } | null;
+    /** Ngày đáng lẽ cần giải trình nhưng đã quá hạn (trước cửa sổ R1): không còn nút giải trình, hiện trạng thái "quá hạn". */
+    expired: { cases: ExplanationCase[]; needs: ExplanationNeeds } | null;
   }> {
     requireDateText(date, 'date');
     const staff = await this.resolveStaff(employeeIdOrUsername, monthOf(date));
@@ -348,13 +350,19 @@ export class ExplanationsService {
       .filter(r => r.explanationDate === date && r.status !== 'CANCELLED')
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 
-    // Cùng cửa sổ với `dueDays` (R1): ngày trước ngày 01 của tháng trước không còn giải trình được, nên không báo "cần giải trình".
+    // Cùng cửa sổ với `dueDays` (R1): ngày trước ngày 01 của tháng trước không còn giải trình được nên không báo "cần giải trình";
+    // nếu vẫn thiếu thì là trạng thái "quá hạn" (`expired`).
     let due: { cases: ExplanationCase[]; needs: ExplanationNeeds; remindedAt: string | null } | null = null;
-    if (check.ok && date >= firstOfLastMonth(vietnamToday(this.now()))) {
-      const reminders = await this.remindersOf(staff.employeeId, date, date);
-      due = { cases: check.cases, needs: check.needs, remindedAt: reminders.get(date) ?? null };
+    let expired: { cases: ExplanationCase[]; needs: ExplanationNeeds } | null = null;
+    if (check.ok) {
+      if (isExplanationExpired(date, vietnamToday(this.now()))) {
+        expired = { cases: check.cases, needs: check.needs };
+      } else {
+        const reminders = await this.remindersOf(staff.employeeId, date, date);
+        due = { cases: check.cases, needs: check.needs, remindedAt: reminders.get(date) ?? null };
+      }
     }
-    return { explanation: latest ? viewOf(latest) : null, due };
+    return { explanation: latest ? viewOf(latest) : null, due, expired };
   }
 
   /**

@@ -1,5 +1,6 @@
 import type { HalfShift } from '../../../common/half-shift';
 import type { Day, DayKind as CalendarDayKind, Phase } from '../../calendar/domain/day';
+import { isExplanationExpired } from '../../requests/domain/explanation-window';
 
 // Hàm thuần dựng dữ liệu "của tôi" từ bảng công và đơn từ: ngày theo giờ Việt Nam, tuần thứ Hai – Chủ nhật,
 // một ô ngày công, công cả tháng và các bước của một đơn.
@@ -9,7 +10,7 @@ export type DayKind = 'work' | 'late' | 'leave' | 'absent' | 'todo' | 'off' | 'f
 /** Loại của một ngày nghỉ, lấy thẳng từ trạng thái dòng ngày. */
 export type LeaveKind = 'paid' | 'unpaid' | 'holiday' | 'isat' | 'makeup';
 /** Trạng thái giải trình của ngày, chữ thường. */
-export type ExplanationState = 'none' | 'pending' | 'approved' | 'rejected';
+export type ExplanationState = 'none' | 'pending' | 'approved' | 'rejected' | 'expired';
 /** Một trường hợp giải trình đã dò được trên ngày (mã, số phút, có ảnh hưởng tiền hay không). */
 export type DayCase = { code: string; minutes: number; affectsPay: boolean };
 export type DaySummary = {
@@ -102,7 +103,11 @@ export function daySummaryOf(
     return { ...base, kind: date > today ? 'future' : 'absent' };
   }
   const cases = ts.cases ?? [];
-  const explanationStatus = explanationOf(ts.explanationStatus);
+  let explanationStatus = explanationOf(ts.explanationStatus);
+  // Còn mã ảnh hưởng tiền mà chưa giải trình (hoặc bị từ chối) và đã quá cửa sổ giải trình: trạng thái "quá hạn".
+  if ((explanationStatus === 'none' || explanationStatus === 'rejected') && cases.some(c => c.affectsPay) && isExplanationExpired(date, today)) {
+    explanationStatus = 'expired';
+  }
   const shown = { date, halfShift, in: hhmm(ts.actualCheckIn), out: hhmm(ts.actualCheckOut), lateMinutes: ts.metrics?.lateMinutes || 0, explanationStatus, cases, ...calendar };
   const leave = LEAVE_OF[ts.status];
   if (leave) return { ...base, kind: 'leave', leave, explanationStatus, cases };
@@ -199,9 +204,6 @@ export function shiftMonth(month: string, n: number): string {
   const index = y * 12 + (m - 1) + n;
   return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
 }
-
-/** Số tháng lùi tối đa khi quét ngày còn cần giải trình trên trang chủ (D9). */
-export const ALERT_MONTHS_BACK = 12;
 
 export type RequestStep = { label: string; at: string | null; state: 'done' | 'pend' | 'rej' };
 

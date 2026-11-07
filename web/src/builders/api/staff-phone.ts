@@ -305,7 +305,7 @@ function claimOf(date: string, e?: MeExplanation | null): DayDetail['claim'] {
 }
 
 /** Hộp chi tiết một ngày; null khi ngày không có ca hoặc chưa tới. */
-export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } | null; due?: DayDetail['due']; explanation?: MeExplanation | null }, fallback: { start: string; end: string }, today: string, now: string): DayDetail | null {
+export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } | null; due?: DayDetail['due']; expired?: DayDetail['expired']; explanation?: MeExplanation | null }, fallback: { start: string; end: string }, today: string, now: string): DayDetail | null {
   if (d.kind === 'off' || d.kind === 'future') return null;
   const shift = d.shift ?? fallback;
   const kind = d.kind as DayKind;
@@ -324,7 +324,8 @@ export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } |
     lateMin: d.lateMinutes,
     leave: kind === 'leave' ? { type: statusOf(d), span: 'Cả ngày' } : null,
     claim: claimOf(d.date, d.explanation),
-    due: d.due ?? null
+    due: d.due ?? null,
+    expired: d.expired ?? null
   };
 }
 

@@ -14,3 +14,4 @@ export * from './request-dates';
 export * from './filing-choices';
 export * from './request-counts';
 export * from './makeup-plan';
+export * from './explanation-window';

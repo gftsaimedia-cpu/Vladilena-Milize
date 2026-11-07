@@ -90,6 +90,8 @@ export type DayDetail = {
   claim: { sentAt: string; outClaim: string | null } | null; // { sentAt: '20:14', outClaim: '17:30' }
   // Ngày còn cần giải trình (spec staff-requests 3.6): có thì chi tiết ngày có nút "Giải trình"; đã có đơn thì null.
   due: { cases: string[]; needs: { checkIn: boolean; checkOut: boolean }; remindedAt: string | null } | null;
+  // Ngày đáng lẽ cần giải trình nhưng đã quá hạn (BE: ngoài cửa sổ tháng trước và tháng này): không có nút Giải trình, hiện trạng thái "Quá hạn giải trình".
+  expired: { cases: string[] } | null;
 };
 
 export type RequestsView = {
@@ -379,7 +381,8 @@ export function dayDetail(date: string): DayDetail | null {
     lateMin: rec.in ? Math.max(0, toMin(rec.in) - toMin(SHIFT.start)) : 0,
     leave: rec.leave,
     claim: claimOf(date),
-    due: dueOf(date)
+    due: dueOf(date),
+    expired: null
   };
 }
 

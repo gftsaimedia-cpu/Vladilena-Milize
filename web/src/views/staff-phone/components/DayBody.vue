@@ -78,6 +78,13 @@ const explain = computed(() => ({ path: REQUESTS_PATH, query: { tao: TAO_SLUG.ex
     </div>
   </div>
   <RouterLink v-else-if="day.due" :to="explain" class="b2">Giải trình</RouterLink>
+  <div v-else-if="day.expired" class="ds-claim ds-expired" role="status">
+    <i class="dot rej" />
+    <div>
+      <div class="ds-b">Quá hạn giải trình</div>
+      <div class="mut">Ngày này không còn giải trình được. Nhờ Admin xử lý nếu cần.</div>
+    </div>
+  </div>
 </template>
 
 <style scoped>

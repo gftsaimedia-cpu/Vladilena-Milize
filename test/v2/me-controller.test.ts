@@ -645,11 +645,11 @@ describe('MeController', () => {
       assert.deepEqual(t.alerts, [todo('2026-11-25')]);
     });
 
-    it('never scans more than 12 months back: 12 back is read, 13 back is not', async () => {
-      // 09/12/2026 minus 12 months = 12/2025 (read); 11/2025 is 13 back (not read), though the person started in 2024.
-      const rows = [dayRow('2025-11-20'), dayRow('2025-12-03')];
+    it('never scans before the explanation window: only the current and the previous month (older days are expired)', async () => {
+      // 09/12/2026: cửa sổ giải trình từ 01/11/2026. 20/10 đã quá hạn (không còn nhắc), 20/11 còn trong cửa sổ.
+      const rows = [dayRow('2026-10-20'), dayRow('2026-11-20')];
       const t = await todayWith(rows);
-      assert.deepEqual(t.alerts, [todo('2025-12-03')]);
+      assert.deepEqual(t.alerts, [todo('2026-11-20')]);
     });
 
     it('reads the period of each month through the periods module, newest first, and stops at the first approved', async () => {
@@ -659,12 +659,12 @@ describe('MeController', () => {
         const periods = fake({
           getPeriod: (m: string) => {
             asked.push(m);
-            return m === '2026-10' ? { month: m, status: 'approved' } : null;
+            return m === '2026-11' ? { month: m, status: 'approved' } : null;
           }
         });
         const { ctl } = controller({ periods });
         await ctl.today(req());
-        assert.deepEqual(asked, ['2026-12', '2026-11', '2026-10']);
+        assert.deepEqual(asked, ['2026-12', '2026-11']);
       } finally {
         mock.timers.reset();
       }

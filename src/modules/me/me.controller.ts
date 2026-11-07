@@ -11,6 +11,7 @@ import {
 } from '../../common';
 import { isValidDateText } from '../../common/date-text';
 import { CalendarService } from '../calendar/calendar.service';
+import { explanationWindowFrom } from '../requests/domain/explanation-window';
 import { checkPunchLocation } from '../settings/domain/attendance-zone';
 import { planMakeup } from '../requests/domain/makeup-plan';
 import { RequestIdPipe } from '../requests/request-id.pipe';
@@ -25,7 +26,7 @@ import { PeriodsService } from '../periods';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
 import type { Month } from '../calendar/domain/day';
-import { ALERT_MONTHS_BACK, KPI_PARTS, daySummaryOf, estimateIncomeOf, leaveIncomePayOf, monthOf, monthRangeOf, shiftMonth, stepsOf, vnToday, weekOf } from './domain';
+import { KPI_PARTS, daySummaryOf, estimateIncomeOf, leaveIncomePayOf, monthOf, monthRangeOf, shiftMonth, stepsOf, vnToday, weekOf } from './domain';
 
 // Nhóm "của tôi": mọi route chỉ cần phiên; danh tính luôn là req.user. Không route nào đọc employeeId / username của
 // client — trường lạ trong body hay query bị bỏ qua. Bảng công dùng uuid, đơn từ và phiếu lương dùng tên đăng nhập.
@@ -117,11 +118,12 @@ export class MeController {
     return monthRangeOf(employee ? employee.toDTO().contract.effectiveFrom : null, vnToday());
   }
 
-  // Các tháng quét ngày còn cần giải trình (D9): từ tháng hiện tại lùi về, dừng trước tháng đầu tiên đã Phê duyệt kỳ hoặc đã
-  // trả lương, không lùi quá tháng vào làm và không quá ALERT_MONTHS_BACK tháng. Mới nhất trước.
+  // Các tháng quét ngày còn cần giải trình: từ tháng hiện tại lùi về, dừng trước tháng đầu tiên đã Phê duyệt kỳ hoặc đã trả
+  // lương, không lùi quá tháng vào làm và không quá cửa sổ giải trình (ngày 01 của tháng trước, R1: cũ hơn là "quá hạn", không
+  // còn nhắc). Mới nhất trước.
   private async alertMonths(me: Who, today: string): Promise<string[]> {
     const current = today.slice(0, 7);
-    const earliest = shiftMonth(current, -ALERT_MONTHS_BACK);
+    const earliest = explanationWindowFrom(today).slice(0, 7);
     const { from } = await this.monthRange(me);
     const floor = from > earliest ? from : earliest;
     const months: string[] = [];
@@ -143,7 +145,7 @@ export class MeController {
     return rows
       .filter(r => r.workDate < today && open.has(r.workDate.slice(0, 7)))
       .map(r => daySummaryOf(r as any, r.workDate, today))
-      .filter(d => d.kind === 'todo' && d.explanationStatus !== 'pending')
+      .filter(d => d.kind === 'todo' && d.explanationStatus !== 'pending' && d.explanationStatus !== 'expired')
       // `listTimesheets` đã trả theo `work_date` tăng, nên danh sách đã cũ nhất trước.
       .map(d => ({ date: d.date, kind: 'todo' as const }));
   }
@@ -275,7 +277,7 @@ export class MeController {
     if (date < '2000-01-01') throw new BadRequestError('Ngày phải từ 01/01/2000 trở đi', { code: 'INVALID_DATE' });
     const [ts, calendar] = await Promise.all([this.attendance.getTimesheet(me.uuid, date), this.calendar.monthOf(me.uuid, date.slice(0, 7))]);
     // Phần giải trình lỗi thì ngày công vẫn mở được, chỉ thiếu thông tin giải trình.
-    const explained = await this.explanations.dayView(me.username, date).catch(() => ({ explanation: null, due: null }));
+    const explained = await this.explanations.dayView(me.username, date).catch(() => ({ explanation: null, due: null, expired: null }));
     return {
       ...daySummaryOf((ts ?? undefined) as any, date, vnToday(), undefined, calendar.day(date)),
       shift: ts?.shiftType ? { start: ts.shiftStartTime, end: ts.shiftEndTime } : null,

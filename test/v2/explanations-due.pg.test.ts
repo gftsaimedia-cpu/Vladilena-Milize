@@ -200,7 +200,10 @@ test('Ngày cần giải trình trên PostgreSQL (spec 5.2)', async t => {
         const inside = await explanations.dayView('nv1', '2026-11-02');
         const outside = await explanations.dayView('nv1', '2026-09-30');
         assert.ok(inside.due, 'ngày 02/11 trong cửa sổ phải còn cần giải trình');
+        assert.equal(inside.expired, null);
         assert.equal(outside.due, null);
+        // Ngày quá hạn không biến mất: thành trạng thái "quá hạn" kèm các trường hợp còn thiếu.
+        assert.deepEqual(outside.expired?.cases, ['MISSING_CHECK_OUT']);
         assert.ok(!(await explanations.dueDays('nv1')).some(d => d.date < '2026-10-01'));
       } finally {
         await client.query(`DELETE FROM punch_events WHERE work_date = '2026-09-30'`);

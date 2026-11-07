@@ -16,6 +16,7 @@ import {
   addDays,
   eachDate,
   formatDayMonth,
+  isExplanationExpired,
   monthOf,
   requireDateRange,
   requireDateText,
@@ -1411,6 +1412,10 @@ export class RequestsService {
     }
     const staff = await this.resolveStaff(input.employeeId, monthOf(workDate));
     assertEmployed(staff, [workDate]);
+    // Quá hạn giải trình (R1): nhân viên không tự nộp được nữa; Admin vẫn nộp hộ tới khi kỳ được phê duyệt.
+    if (_opts.filedBy === 'self' && isExplanationExpired(workDate, vietnamToday(this.now()))) {
+      throw new Error(`Ngày ${formatDayMonth(workDate)} đã quá hạn giải trình, nhờ Admin xử lý`);
+    }
     // Tháng của ngày công do cổng kỳ `explain` trong `fileRequest` xét (trong khoá), không xét ở đây.
     const check = await this.explanations.checkStaffDay(staff, workDate, { period: false });
     if (!check.ok) {

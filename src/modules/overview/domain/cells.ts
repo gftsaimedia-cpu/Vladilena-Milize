@@ -119,7 +119,7 @@ export function cellOf(
   const label = kind === 'late' && lateOnlyEarly ? 'Về sớm' : CELL_LABELS[kind];
   const aria = item
     ? `Cần xử lý, ${item.what}`
-    : `${CELL_LABELS[base]}${text && base !== 'off' ? `, ${text}` : ''}${live ? ', đang làm' : ''}`;
+    : `${CELL_LABELS[base]}${text && base !== 'off' ? `, ${text}` : ''}${live ? ', đang làm' : ''}${d.explanationStatus === 'expired' ? ', quá hạn giải trình' : ''}`;
   return {
     date,
     dow: dowShort(date),
