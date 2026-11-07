@@ -677,7 +677,15 @@ export class PayrollService {
     }
 
     const kpi = calculateKpiPay(data.kpi, staff.kpiCap, rules.kpiWeights);
-    const insurance = calculateInsurance(baseSalaryPolicy, staff.insured, rules.insuranceRates);
+    // Bảo hiểm tính trên lương hợp đồng theo tỉ lệ ngày có lương (chủ dự án chốt 07/11/2026): đủ công chuẩn thì đủ mức, mới vào
+    // tháng hay 0 công thì chưa bị trừ. Ngày có lương: ngày làm (nửa ca tính 0,5) và ngày nghỉ phép, iSAT, lễ hưởng lương.
+    const paidDays = dailyLines.reduce((sum, line) => {
+      if (line.countsAsWorkday) return sum + (line.kind === 'PRESENT' && line.halfShift ? 0.5 : 1);
+      const paidOff = line.payUnits === 1 && (line.kind === 'LEAVE_PAID' || line.kind === 'ISAT' || line.kind === 'HOLIDAY');
+      return paidOff ? sum + 1 : sum;
+    }, 0);
+    const insuranceBase = Math.round(baseSalaryPolicy * Math.min(1, paidDays / standardWorkdays));
+    const insurance = calculateInsurance(insuranceBase, staff.insured, rules.insuranceRates);
     const taxMethod = resolveTaxMethod(staff.contractTerm);
     // The KPI warnings, then one per day whose pay-affecting case is not approved yet (in date order).
     const warnings: PayrollWarning[] = [...kpi.warnings, ...dayWarnings];

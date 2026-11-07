@@ -147,8 +147,9 @@ describe('Payroll reads the settings of the month', () => {
     assert.equal(slip.standardWorkdays, 26);
     assert.equal(slip.kpiTotalScorePct, 84);
     assert.equal(slip.grossIncome, 11_007_693);
-    assert.equal(slip.insuranceDeduction, 630_000);
-    assert.equal(slip.netIncome, 9_377_693);
+    // Bảo hiểm theo tỉ lệ ngày có lương: 21 / 26 ngày của mức 6.000.000 (chủ dự án chốt 07/11/2026).
+    assert.equal(slip.insuranceDeduction, 508_846);
+    assert.equal(slip.netIncome, 9_498_847);
   });
 
   it('D3: an own Mon–Fri week makes the standard days 22 (Bình, December 2026, all 23 days worked)', async () => {
@@ -210,16 +211,17 @@ describe('Payroll reads the settings of the month', () => {
 
   it('deducts insurance at the % in the settings', async () => {
     const seeded = await payslipOf(nvMonthData(), '2026-10', new FakeReader());
-    assert.deepEqual(seeded.insuranceBreakdown, { bhxh: 480_000, bhyt: 90_000, bhtn: 60_000 });
+    // Mức đóng = 6.000.000 × 21 / 26 = 4.846.154.
+    assert.deepEqual(seeded.insuranceBreakdown, { bhxh: 387_692, bhyt: 72_692, bhtn: 48_462 });
 
     const insurance = { bhxhPct: 10, bhytPct: 1.5, bhtnPct: 1 };
     const changed = await payslipOf(nvMonthData(), '2026-10', new FakeReader(withSettings({ insurance })));
-    assert.deepEqual(changed.insuranceBreakdown, { bhxh: 600_000, bhyt: 90_000, bhtn: 60_000 });
-    assert.equal(changed.insuranceDeduction, 750_000);
+    assert.deepEqual(changed.insuranceBreakdown, { bhxh: 484_615, bhyt: 72_692, bhtn: 48_462 });
+    assert.equal(changed.insuranceDeduction, 605_769);
   });
 
   it('takes the tax deductions, brackets and short-contract rate from the settings', async () => {
-    // Taxable 10,950,001, insurance 630,000, one dependant.
+    // Taxable 10,950,001, insurance 508,846 (21 / 26 ngày), one dependant.
     const tax = (patch: Partial<SettingsSnapshot['tax']>, data = nvMonthData()) =>
       payslipOf(data, '2026-10', new FakeReader(withSettings({ tax: { ...SEED.tax, ...patch } }))).then(
         slip => slip.personalIncomeTax
@@ -227,14 +229,14 @@ describe('Payroll reads the settings of the month', () => {
     const lowDeductions = { personalDeduction: 2_000_000, dependantDeduction: 1_000_000 };
 
     assert.equal(await tax({}), 0);
-    // Assessable 10,950,001 - 630,000 - 2,000,000 - 1,000,000 = 7,320,001 at 5%.
-    assert.equal(await tax(lowDeductions), 366_000);
-    // 5,000,000 at 10% + 2,320,001 at 20%.
+    // Assessable 10,950,001 - 508,846 - 2,000,000 - 1,000,000 = 7,441,155 at 5%.
+    assert.equal(await tax(lowDeductions), 372_058);
+    // 5,000,000 at 10% + 2,441,155 at 20%.
     const brackets = [
       { upTo: 5_000_000, ratePct: 10 },
       { upTo: null, ratePct: 20 }
     ];
-    assert.equal(await tax({ ...lowDeductions, brackets }), 964_000);
+    assert.equal(await tax({ ...lowDeductions, brackets }), 988_231);
 
     // A contract under three months: the short-contract % of the gross 11,007,693 once the gross reaches the threshold.
     const short = () => nvMonthData({ staff: { contractTerm: 'short' } });

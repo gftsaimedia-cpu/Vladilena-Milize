@@ -72,10 +72,10 @@ describe('Payslip rows', () => {
     assert.equal(row.status, 'draft');
     assert.equal(row.username, 'a');
     assert.equal(row.gross, 11_007_693);
-    assert.equal(row.insurance, 630_000);
+    assert.equal(row.insurance, 508_846);
     assert.equal(row.tax, 0);
     assert.equal(row.advance, 1_000_000);
-    assert.equal(row.net, 9_377_693);
+    assert.equal(row.net, 9_498_847);
     assert.equal(row.flags_json, null);
     assert.deepEqual(JSON.parse(row.staff_terms_json), {
       employeeType: 'nv',
@@ -84,7 +84,7 @@ describe('Payslip rows', () => {
       taxMethod: 'progressive',
       dependants: 1
     });
-    assert.equal(JSON.parse(gunzipSync(row.snapshot_gz).toString()).netIncome, 9_377_693);
+    assert.equal(JSON.parse(gunzipSync(row.snapshot_gz).toString()).netIncome, 9_498_847);
   });
 
   it('keeps the warnings of the payslip as a JSON array in flags_json', async () => {
@@ -107,12 +107,12 @@ describe('Payslip rows', () => {
     assert.equal(record.username, 'a');
     assert.equal(record.status, 'draft');
     assert.equal(record.gross, 11_007_693);
-    assert.equal(record.insurance, 630_000);
+    assert.equal(record.insurance, 508_846);
     assert.equal(record.tax, 0);
     assert.equal(record.advance, 1_000_000);
-    assert.equal(record.net, 9_377_693);
+    assert.equal(record.net, 9_498_847);
     assert.deepEqual(record.warnings, []);
-    assert.equal(record.details.netIncome, 9_377_693);
+    assert.equal(record.details.netIncome, 9_498_847);
     assert.equal(record.details.username, 'a');
   });
 
@@ -482,7 +482,7 @@ describe('PayrollRepository reads', () => {
     assert.deepEqual(statements[1].parameters, [5]);
     assert.equal(records.length, 1);
     assert.equal(records[0].id, 9);
-    assert.equal(records[0].net, 9_377_693);
+    assert.equal(records[0].net, 9_498_847);
   });
 
   it('returns nothing when the month has no run to show', async () => {
@@ -504,7 +504,7 @@ describe('PayrollRepository reads', () => {
     const record = await new PayrollRepository(db).getPayslip('2026-10', 'u1');
 
     assert.equal(record?.username, 'a');
-    assert.equal(record?.details.netIncome, 9_377_693);
+    assert.equal(record?.details.netIncome, 9_498_847);
     const staffQuery = statements.find(s => s.sql.includes('from "staff"'))!;
     assert.deepEqual(staffQuery.parameters.slice(0, 2), ['u1', 'u1']);
     assert.ok(statements.some(s => s.sql.includes('from "payslips"') && s.parameters.includes('a')));

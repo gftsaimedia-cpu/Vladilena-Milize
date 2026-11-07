@@ -528,10 +528,11 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     assert.equal(slip.grossIncome, 11_007_693);
     assert.equal(slip.taxExemptIncome, 57_692);
     assert.equal(slip.taxableIncome, 10_950_001);
-    assert.equal(slip.insuranceDeduction, 630_000);
+    // Bảo hiểm theo tỉ lệ ngày có lương: 6.000.000 × 21 / 26 = 4.846.154 × 10,5%.
+    assert.equal(slip.insuranceDeduction, 508_846);
     assert.equal(slip.personalIncomeTax, 0);
     assert.equal(slip.advanceDeduction, 1_000_000);
-    assert.equal(slip.netIncome, 9_377_693);
+    assert.equal(slip.netIncome, 9_498_847);
     assert.equal(slip.taxMethod, 'progressive');
     assert.deepEqual(slip.warnings, []);
   });
@@ -544,7 +545,7 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     assert.equal(dto.kpiApplicable, true);
     assert.equal(dto.kpiProposedAmount, 5_000_000);
     assert.equal(dto.kpiAppliedAmount, 5_000_000);
-    assert.deepEqual(dto.insuranceBreakdown, { bhxh: 480_000, bhyt: 90_000, bhtn: 60_000 });
+    assert.deepEqual(dto.insuranceBreakdown, { bhxh: 387_692, bhyt: 72_692, bhtn: 48_462 });
     assert.equal(dto.taxMethod, 'progressive');
     assert.equal(dto.taxAssessableIncome, 0);
     assert.equal(dto.dependants, 1);
@@ -578,11 +579,13 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     assert.equal(slip.grossIncome, 42_438_461);
     assert.equal(slip.taxExemptIncome, 288_462);
     assert.equal(slip.taxableIncome, 42_149_999);
-    assert.equal(slip.insuranceDeduction, 3_150_000);
-    // 42,149,999 - 3,150,000 - 15,500,000 - 6,200,000 x 1 dependant
-    assert.equal(slip.taxAssessableIncome, 17_299_999);
-    assert.equal(slip.personalIncomeTax, 1_230_000);
-    assert.equal(slip.netIncome, 37_058_461);
+    // 30.000.000 × 21 / 26 = 24.230.769 × 10,5%
+    assert.equal(slip.insuranceDeduction, 2_544_232);
+    // 42,149,999 - 2,544,232 - 15,500,000 - 6,200,000 x 1 dependant
+    assert.equal(slip.taxAssessableIncome, 17_905_767);
+    // Biên thuế 10%: 1.230.000 + (17.905.767 - 17.299.999) × 10%.
+    assert.equal(slip.personalIncomeTax, 1_290_577);
+    assert.equal(slip.netIncome, 37_603_652);
   });
 
   describe('tax-exempt income', () => {
@@ -691,7 +694,43 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     assert.equal(slip.taxAssessableIncome, 11_007_693);
     // 10% of gross (11,007,693), not of gross minus the exempt part.
     assert.equal(slip.personalIncomeTax, 1_100_769);
-    assert.equal(slip.netIncome, 8_276_924);
+    assert.equal(slip.netIncome, 8_398_078);
+  });
+
+  // Chủ dự án chốt 07/11/2026: bảo hiểm tính trên lương hợp đồng theo tỉ lệ ngày có lương, để đầu tháng chưa bị trừ cả mức.
+  describe('insurance follows the paid days', () => {
+    const OCT_DAYS = Array.from({ length: 31 }, (_, i) => `2026-10-${String(i + 1).padStart(2, '0')}`).filter(
+      date => !['2026-10-04', '2026-10-11', '2026-10-18', '2026-10-25'].includes(date)
+    );
+    const withDays = async (days: AttendanceDayRecord[]) => {
+      const repo = new FakePayrollRepository();
+      const data = nvMonthData();
+      repo.data.set('u1:2026-10', { ...data, days: days.map(row => ({ ...row, employeeId: data.staff.uuid })) });
+      return serviceOf(repo).generateMonthlyPayslip('u1', '2026-10');
+    };
+
+    it('no paid day yet: no insurance and no negative net from it', async () => {
+      const slip = await withDays([]);
+      assert.equal(slip.insuranceDeduction, 0);
+      assert.deepEqual(slip.insuranceBreakdown, { bhxh: 0, bhyt: 0, bhtn: 0 });
+      assert.ok(slip.netIncome >= -slip.advanceDeduction);
+    });
+
+    it('half of the standard days pays half of the insurance; a full month pays the full amount', async () => {
+      const half = await withDays(OCT_DAYS.slice(0, 13).map(date => dayRow('PRESENT', date)));
+      // 6.000.000 × 13 / 26 = 3.000.000 × 10,5%
+      assert.deepEqual(half.insuranceBreakdown, { bhxh: 240_000, bhyt: 45_000, bhtn: 30_000 });
+      const full = await withDays(OCT_DAYS.slice(0, 26).map(date => dayRow('PRESENT', date)));
+      assert.equal(full.insuranceDeduction, 630_000);
+      // Quá công chuẩn thì không vượt mức đóng đủ.
+      const over = await withDays(OCT_DAYS.slice(0, 27).map(date => dayRow('PRESENT', date)));
+      assert.equal(over.insuranceDeduction, 630_000);
+    });
+
+    it('paid leave counts as a paid day', async () => {
+      const slip = await withDays([...OCT_DAYS.slice(0, 12).map(date => dayRow('PRESENT', date)), dayRow('LEAVE_PAID', OCT_DAYS[12])]);
+      assert.equal(slip.insuranceDeduction, 315_000);
+    });
   });
 
   it('deducts no insurance when the employee is not insured', async () => {
