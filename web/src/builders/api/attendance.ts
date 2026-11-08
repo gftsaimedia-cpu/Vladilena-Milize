@@ -3,6 +3,7 @@
 // view, không cộng trừ, không suy ô, không lọc hay sắp xếp. Chữ đầu/phụ/dòng chi tiết của việc lấy từ /requests (inbox) theo id.
 import type { PersonStatus } from '../../components/staff-scope/staffScope';
 import type { InboxGroup, InboxItem } from '../../mock/inbox';
+import type { DayTag } from './day-tag';
 import { dm, dmy, num, weekdayName } from '../../utils/format';
 
 export type CellKind = 'work' | 'late' | 'leave' | 'absent' | 'todo' | 'off' | 'fu' | 'nocheck';
@@ -29,6 +30,8 @@ export type DayCellDTO = {
   aria: string;
   /** Ngày nghỉ giữa ca (BE): nửa nhân viên làm. */
   halfShift?: 'FIRST' | 'SECOND' | null;
+  /** Nhãn ngày dùng chung với lịch nhân viên; chỉ có ở hồ sơ một người (lưới tuần không dựng lịch tháng). */
+  tag?: DayTag;
 };
 
 export type StaffStatusDTO = 'working' | 'probation' | 'on_leave' | 'resigned';
@@ -139,6 +142,7 @@ export type Cell = {
   itemId: string | null;
   label: string;
   aria: string;
+  tag?: DayTag;
 };
 export type PersonRef = { id: string; name: string; initials: string };
 export type Person = PersonRef & {
@@ -179,7 +183,7 @@ export type AttendanceView = {
 export type DayDetail = { person: PersonRef; date: string; title: string; sub: string; cell: Cell; item: InboxItem | null };
 
 export type StatTile = { label: string; value: string; note: string };
-export type StripDay = { date: string; dow: string; day: string; kind: CellKind; today: boolean; aria: string };
+export type StripDay = { date: string; dow: string; day: string; kind: CellKind; today: boolean; aria: string; tag?: DayTag };
 export type HistoryRow = {
   date: string;
   dayLabel: string;
@@ -233,7 +237,8 @@ const cellFrom = (c: DayCellDTO): Cell => ({
   live: c.live,
   itemId: c.itemId,
   label: c.label,
-  aria: c.halfShift ? `${c.aria}, nửa ca` : c.aria
+  aria: c.halfShift ? `${c.aria}, nửa ca` : c.aria,
+  tag: c.tag
 });
 
 const personRef = (p: { username: string; name: string; initials: string }): PersonRef => ({ id: p.username, name: p.name, initials: p.initials });
@@ -311,7 +316,8 @@ export function employeeFromDto(dto: EmployeeMonthDTO): EmployeeView {
     day: c.day,
     kind: c.kind,
     today: c.today,
-    aria: `${weekdayName(c.date)} ${dm(c.date)}: ${c.aria}`
+    aria: `${weekdayName(c.date)} ${dm(c.date)}: ${c.aria}${c.tag ? ` · ${c.tag.text}` : ''}`,
+    tag: c.tag
   }));
   const history: HistoryRow[] = dto.dayHistory.map(h => ({
     date: h.date,

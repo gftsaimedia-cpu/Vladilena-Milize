@@ -6,6 +6,7 @@
 //   <DayBody :day="day" />
 import { computed } from 'vue';
 import type { DayDetail } from '@/mock/staff-phone';
+import DayTagLines from '@/components/day/DayTagLines.vue';
 import { REQUESTS_PATH, TAO_SLUG } from '@/views/staff-requests/useNewRequest';
 
 const props = defineProps<{ day: DayDetail }>();
@@ -70,6 +71,7 @@ const explain = computed(() => ({ path: REQUESTS_PATH, query: { tao: TAO_SLUG.ex
     <div class="kv"><span class="k">Hình thức</span><span class="v">{{ day.leave.type }}</span></div>
     <div class="kv"><span class="k">Thời gian</span><span class="v">{{ day.leave.span }}</span></div>
   </div>
+  <DayTagLines v-if="day.tag" class="ds-tag" :tag="day.tag" />
   <div v-if="day.claim" class="ds-claim">
     <i class="dot pend" />
     <div>
@@ -114,6 +116,10 @@ const explain = computed(() => ({ path: REQUESTS_PATH, query: { tao: TAO_SLUG.ex
 }
 .ds-axis {
   margin-top: 6px;
+}
+/* Loại ngày và kết quả chấm công: dùng chung với hộp chi tiết ngày của Admin */
+.ds-tag {
+  margin: 12px 0;
 }
 /* Hộp giải trình: nền vàng nhạt bo 12px, chấm Chờ duyệt */
 .ds-claim {

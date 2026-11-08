@@ -1,5 +1,7 @@
 // Hàm thuần của màn Admin gộp: ô ngày chấm công (MỘT định nghĩa cho lưới tuần, hồ sơ tháng và chi tiết ngày),
 // đếm, nhãn. FE chỉ định dạng và hiển thị những gì ở đây.
+import type { Day } from '../../calendar/domain/day';
+import type { DayTag } from '../../calendar/domain/day-tag';
 import { daySummaryOf, type DayCase, type DaySummary, type ExplanationState, type TimesheetLike } from '../../me/domain';
 
 /** Loại ô như màn Chấm công: `fu` = ngày làm sắp tới, `nocheck` = hôm nay chưa chấm vào (chưa phải vắng). */
@@ -27,6 +29,8 @@ export type Cell = {
   itemId: string | null;
   label: string;
   aria: string;
+  /** Nhãn dùng chung với lịch nhân viên (ngày là gì, ca, OT/bù, nghỉ, giải trình); vắng khi nơi gọi chưa dựng lịch tháng (lưới tuần). */
+  tag?: DayTag;
 };
 
 export const CELL_LABELS: Record<CellKind, string> = {
@@ -91,9 +95,10 @@ export function cellOf(
   today: string,
   weekdays: readonly number[] | undefined,
   shiftText: string,
-  item: { id: string; what: string } | null = null
+  item: { id: string; what: string } | null = null,
+  day?: Day
 ): Cell {
-  const d = daySummaryOf(ts, date, today, weekdays);
+  const d = daySummaryOf(ts, date, today, weekdays, day);
   const base = baseKindOf(d, ts, date, today);
   const kind: CellKind = item ? 'todo' : base;
   const live = !!d.in && !d.out && date === today && (base === 'work' || base === 'late' || base === 'todo');
@@ -136,7 +141,8 @@ export function cellOf(
     cases: d.cases,
     itemId: item?.id ?? null,
     label,
-    aria
+    aria,
+    ...(d.tag ? { tag: d.tag } : {})
   };
 }
 

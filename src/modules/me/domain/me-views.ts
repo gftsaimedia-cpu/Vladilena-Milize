@@ -1,5 +1,6 @@
 import type { HalfShift } from '../../../common/half-shift';
 import type { Day, DayKind as CalendarDayKind, Phase } from '../../calendar/domain/day';
+import { tagOf, type DayTag } from '../../calendar/domain/day-tag';
 import { isExplanationExpired } from '../../requests/domain/explanation-window';
 
 // Hàm thuần dựng dữ liệu "của tôi" từ bảng công và đơn từ: ngày theo giờ Việt Nam, tuần thứ Hai – Chủ nhật,
@@ -27,6 +28,8 @@ export type DaySummary = {
   /** Ngày là gì và đã diễn ra chưa (từ `Day`), khi nơi gọi có lịch của tháng. */
   dayKind?: CalendarDayKind;
   phase?: Phase;
+  /** Nhãn dùng chung của ngày (lịch Admin và nhân viên), khi nơi gọi có lịch của tháng. */
+  tag?: DayTag;
 };
 
 /** Phần của dòng ngày (DailyTimesheetDTO) mà /me đọc. */
@@ -88,6 +91,19 @@ const explanationOf = (v: string | undefined): ExplanationState => {
  *  `weekdays` là các thứ (0 = Chủ nhật … 6 = thứ Bảy) trong tuần làm của người đó ở tháng của ngày này: chỉ dùng khi
  *  ngày chưa có dòng, thứ không thuộc tuần là "off", không phải "absent". */
 export function daySummaryOf(
+  ts: TimesheetLike | undefined,
+  date: string,
+  today: string,
+  weekdays: readonly number[] = DEFAULT_WEEKDAYS,
+  day?: Day
+): DaySummary {
+  const summary = summarize(ts, date, today, weekdays, day);
+  if (!day) return summary;
+  const worked = !!summary.in && (summary.kind === 'work' || summary.kind === 'late' || summary.kind === 'todo' || summary.kind === 'extra');
+  return { ...summary, tag: tagOf(day, { explanationStatus: summary.explanationStatus, cases: summary.cases, worked }) };
+}
+
+function summarize(
   ts: TimesheetLike | undefined,
   date: string,
   today: string,

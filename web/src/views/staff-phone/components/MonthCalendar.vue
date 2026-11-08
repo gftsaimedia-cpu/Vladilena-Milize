@@ -2,6 +2,8 @@
 // Thẻ lịch tháng 10 (J2 mục 4, K1 cột 2): ô có dữ liệu là nút, bấm phát open(date); màn cha quyết định mở ngày thế nào.
 //   <MonthCalendar :cells="data.cells" @open="openDay" />
 import type { AttendanceView } from '@/mock/staff-phone';
+import DayMarks from '@/components/day/DayMarks.vue';
+import DayLegend from '@/components/day/DayLegend.vue';
 
 defineProps<{ cells: AttendanceView['cells'] }>();
 const emit = defineEmits<{ open: [date: string] }>();
@@ -15,18 +17,21 @@ const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
       <span v-for="w in WEEKDAYS" :key="w" class="at-wd">{{ w }}</span>
       <template v-for="(c, i) in cells" :key="c ? c.date : `blank-${i}`">
         <span v-if="!c" aria-hidden="true" />
-        <button
-          v-else-if="c.open"
-          type="button"
-          class="dn"
-          :class="[c.kind, { today: c.today }]"
-          :data-date="c.date"
-          :aria-label="c.label"
-          @click="emit('open', c.date)"
-        >
-          {{ c.day }}
-        </button>
-        <span v-else role="img" class="dn" :class="[c.kind, { today: c.today }]" :aria-label="c.label">{{ c.day }}</span>
+        <span v-else class="dc">
+          <button
+            v-if="c.open"
+            type="button"
+            class="dn"
+            :class="[c.kind, { today: c.today }]"
+            :data-date="c.date"
+            :aria-label="c.label"
+            @click="emit('open', c.date)"
+          >
+            {{ c.day }}
+          </button>
+          <span v-else role="img" class="dn" :class="[c.kind, { today: c.today }]" :aria-label="c.label">{{ c.day }}</span>
+          <DayMarks :tag="c.tag" />
+        </span>
       </template>
     </div>
     <div class="at-lg">
@@ -35,6 +40,7 @@ const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
       <span><i class="dot leave" />Nghỉ có lương</span>
       <span><i class="dot todo" />Cần xử lý</span>
     </div>
+    <DayLegend />
   </section>
 </template>
 
@@ -54,6 +60,14 @@ const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
   row-gap: 8px;
 }
 /* Ô ngày co theo cột (tối đa 40px, luôn vuông), cả nút lẫn ô role="img", để bảy ô vừa thẻ ở mọi bề ngang từ 320px */
+.dc {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 54px;
+}
 .at-grid .dn {
   width: 100%;
   max-width: 40px;

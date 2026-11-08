@@ -17,6 +17,7 @@ import type {
   RequestsView
 } from '../../mock/staff-phone';
 import { dmy, initials, num, vnd } from '../../utils/format';
+import type { DayTag } from './day-tag';
 import type { RequestDTO } from './inbox';
 import type { Zone } from './settings';
 
@@ -31,6 +32,7 @@ export type MeDay = {
   out: string | null;
   lateMinutes: number;
   halfShift?: MeHalfShift | null;
+  tag?: DayTag;
 };
 // Các tháng được xem: từ tháng vào làm tới tháng hiện tại (BE quyết).
 export type MeRange = { from: string; to: string };
@@ -134,7 +136,8 @@ function cellOf(d: MeDay, today: string, padDay: boolean): CalendarCell {
   const isToday = d.date === today;
   const live = isToday && !!d.in && !d.out;
   const base = live ? 'đang làm' : d.kind === 'leave' && d.leave ? lower(LEAVE_KIND[d.leave]) : KIND_TEXT[d.kind];
-  const text = d.halfShift ? `${base} · nửa ca` : base;
+  const more = d.tag ? [d.tag.shift, ...d.tag.extras.filter(e => e.code !== 'half').map(e => e.text), d.tag.reviewLabel].filter(Boolean) : [];
+  const text = [d.halfShift ? `${base} · nửa ca` : base, ...more].join(' · ');
   const dow = dowOf(d.date);
   return {
     date: d.date,
@@ -143,7 +146,8 @@ function cellOf(d: MeDay, today: string, padDay: boolean): CalendarCell {
     kind: d.kind,
     today: isToday,
     label: isToday ? `Hôm nay, ${lower(DOW_LONG[dow])} ${ddmm(d.date)}: ${text}` : `${DOW_LONG[dow]} ${ddmm(d.date)}: ${text}`,
-    open: d.kind !== 'off' && d.kind !== 'future'
+    open: d.kind !== 'off' && d.kind !== 'future',
+    tag: d.tag
   };
 }
 
@@ -310,6 +314,7 @@ export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } |
   const shift = d.shift ?? fallback;
   const kind = d.kind as DayKind;
   return {
+    tag: d.tag,
     date: d.date,
     title: `${DOW_LONG[dowOf(d.date)]} ${dmy(d.date)}`,
     shiftLine: `${d.halfShift ? 'Nửa ca' : 'Ca'} ${shift.start}–${shift.end}`,

@@ -1,3 +1,4 @@
+import { CalendarService } from '../calendar/calendar.service';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import { businessTimeText } from '../../common/business-date';
@@ -101,7 +102,8 @@ export class OverviewService {
     @Inject(RequestsService) private readonly requests: RequestsService,
     @Inject(ExplanationsService) private readonly explanations: ExplanationsService,
     @Inject(SettingsReader) private readonly settings: SettingsReader,
-    @Inject(KYSELY_DB) private readonly db: Kysely<DB>
+    @Inject(KYSELY_DB) private readonly db: Kysely<DB>,
+    @Inject(CalendarService) private readonly calendar: CalendarService
   ) {}
 
   // Tuần làm từng người theo username ở các tháng của `dates`; người chưa có tuần thì để trống (dùng tuần mặc định).
@@ -337,7 +339,7 @@ export class OverviewService {
       if (!(err instanceof TypeWeekMissingError)) throw err;
     }
     const everyone = (await this.employees.list()).filter(e => activeIn(e, mFrom, mTo)).sort(byName);
-    const [rows, period, audit, items, ot] = await Promise.all([
+    const [rows, period, audit, items, ot, calendar] = await Promise.all([
       this.attendance.listTimesheets({ employeeId: emp.uuid, startDate: mFrom, endDate: mTo }),
       this.periods.getPeriod(m),
       this.db
@@ -349,7 +351,8 @@ export class OverviewService {
         .limit(HISTORY_LIMIT)
         .execute(),
       this.workItems([emp], now.getTime()),
-      this.approvedOt([emp], m)
+      this.approvedOt([emp], m),
+      this.calendar.monthOf(emp.uuid, m, now)
     ]);
     const person = personOf(emp);
     const view = monthOf(rows as any, m, today, period?.status ?? null, workWeek?.weekdays);
@@ -358,7 +361,7 @@ export class OverviewService {
     const bySheet = new Map(rows.map(r => [r.workDate, r]));
     const cells: Cell[] = view.days.map(d => {
       const it = overlay.get(d.date);
-      return cellOf(bySheet.get(d.date) as any, d.date, today, workWeek?.weekdays, person.shiftText, it ? { id: it.id, what: it.what } : null);
+      return cellOf(bySheet.get(d.date) as any, d.date, today, workWeek?.weekdays, person.shiftText, it ? { id: it.id, what: it.what } : null, calendar.day(d.date));
     });
     const chips: Record<'work' | 'late' | 'leave' | 'absent' | 'todo', number> = { work: 0, late: 0, leave: 0, absent: 0, todo: 0 };
     for (const c of cells) if (c.kind in chips) chips[c.kind as keyof typeof chips] += 1;

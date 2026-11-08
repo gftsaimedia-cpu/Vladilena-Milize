@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AttendanceModule } from '../attendance';
+import { CalendarModule } from '../calendar/calendar.module';
 import { EmployeesModule } from '../employees';
 import { PayrollModule } from '../payroll';
 import { PeriodsModule } from '../periods';
@@ -10,7 +11,7 @@ import { OverviewService } from './overview.service';
 
 // Màn Admin gộp: chỉ đọc từ service sẵn có, không bảng mới.
 @Module({
-  imports: [AttendanceModule, EmployeesModule, PayrollModule, PeriodsModule, RequestsModule, SettingsModule],
+  imports: [AttendanceModule, CalendarModule, EmployeesModule, PayrollModule, PeriodsModule, RequestsModule, SettingsModule],
   controllers: [OverviewController],
   providers: [OverviewService],
 })

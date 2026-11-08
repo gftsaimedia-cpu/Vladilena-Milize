@@ -44,6 +44,8 @@ Mã giải trình: `LATE_CHECK_IN` (vào muộn quá 15 phút), `EARLY_CHECK_OUT
 
 Màn nhân viên dùng cùng các loại (`work`, `late`, `leave`, `absent`, `todo`, `off`, `future`, `extra`, `outside`).
 
+Ngoài loại ô còn có **nhãn ngày** (`tag`, `calendar/domain/day-tag.ts`) chung cho lịch Admin và nhân viên: loại ngày (làm, OT, làm bù, lễ, nghỉ có lương / không lương / có làm bù, iSAT, không có ca), ca của ngày, nhãn phụ (OT, bù, nửa ca, đổi ca) và kết quả chấm công (hợp lệ, cần giải trình, giải trình chờ duyệt / được duyệt / bị từ chối, quá hạn). FE chỉ hiển thị bằng `DayMarks` (dấu gọn trên ô), `DayTagLines` (chi tiết ngày) và `DayLegend` (chú giải).
+
 ## 4. Bảo hiểm theo ngày có lương (chốt 07/11/2026)
 
 Mức đóng = lương hợp đồng × min(1, ngày có lương / công chuẩn). Ngày có lương: ngày làm tính công (nửa ca 0,5), `LEAVE_PAID`, `ISAT` và `HOLIDAY` được trả. Chưa có ngày nào thì chưa bị trừ; đủ công chuẩn thì đủ mức.

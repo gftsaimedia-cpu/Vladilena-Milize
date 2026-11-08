@@ -11,6 +11,7 @@ import type { InboxItem } from '@/mock/inbox';
 import { getDayDetail } from '@/services/admin-attendance';
 import { useShellStore } from '@/stores/shell';
 import { employeePath } from './links';
+import DayTagLines from '@/components/day/DayTagLines.vue';
 
 const props = defineProps<{ personId: string; date: string }>(); // date: 'YYYY-MM-DD'
 const emit = defineEmits<{ close: [] }>();
@@ -82,6 +83,7 @@ function onDecided({ ok, text }: { id: string; ok: boolean; text: string }) {
         <dd>{{ data.cell.text }}</dd>
       </div>
     </dl>
+    <DayTagLines v-if="data.cell.tag" class="dd-tag" :tag="data.cell.tag" />
     <InboxDetail
       v-if="item"
       class="dd-item"
@@ -119,6 +121,11 @@ function onDecided({ ok, text }: { id: string; ok: boolean; text: string }) {
   margin: 0;
   font-weight: 500;
   text-align: right;
+}
+.dd-tag {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
 }
 .dd-item {
   margin-top: 16px;

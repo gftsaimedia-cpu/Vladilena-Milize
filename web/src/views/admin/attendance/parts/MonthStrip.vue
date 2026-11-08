@@ -4,6 +4,8 @@
 import { onMounted, ref } from 'vue';
 import type { StripDay } from '@/builders/api/attendance';
 import { useRealtimeStore } from '@/stores/realtime';
+import DayMarks from '@/components/day/DayMarks.vue';
+import DayLegend from '@/components/day/DayLegend.vue';
 
 const props = defineProps<{ days: StripDay[]; monthNo: number; personId?: string }>();
 const realtime = useRealtimeStore();
@@ -27,6 +29,7 @@ onMounted(() => {
           <span class="dw">{{ d.dow }}</span>
           <span class="dn">{{ d.day }}</span>
           <span class="sp" />
+          <DayMarks :tag="d.tag" />
         </span>
         <button
           v-else
@@ -41,9 +44,11 @@ onMounted(() => {
           <span class="dw">{{ d.dow }}</span>
           <span class="dn">{{ d.day }}</span>
           <span class="b dot" :class="d.kind" aria-hidden="true" />
+          <DayMarks :tag="d.tag" />
         </button>
       </li>
     </ul>
+    <DayLegend class="ms-lg" />
   </div>
 </template>
 
@@ -85,6 +90,12 @@ onMounted(() => {
 .ms-d {
   flex: 1 1 0;
   min-width: 0;
+}
+.ms-lg {
+  margin-top: 12px;
+  min-width: 0;
+  position: sticky;
+  left: 0;
 }
 .ms-i {
   width: 100%;

@@ -99,7 +99,17 @@
       "cases": [],
       "itemId": "due:00000000-0000-4000-8000-0000000000aa:2026-10-01",
       "label": "Cần xử lý",
-      "aria": "Cần xử lý, Quên chấm công"
+      "aria": "Cần xử lý, Quên chấm công",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-02",
@@ -117,7 +127,17 @@
       "cases": [],
       "itemId": "due:00000000-0000-4000-8000-0000000000aa:2026-10-02",
       "label": "Cần xử lý",
-      "aria": "Cần xử lý, Quên chấm công"
+      "aria": "Cần xử lý, Quên chấm công",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-03",
@@ -135,7 +155,17 @@
       "cases": [],
       "itemId": "due:00000000-0000-4000-8000-0000000000aa:2026-10-03",
       "label": "Cần xử lý",
-      "aria": "Cần xử lý, Quên chấm công"
+      "aria": "Cần xử lý, Quên chấm công",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-04",
@@ -153,7 +183,17 @@
       "cases": [],
       "itemId": null,
       "label": "Không có ca",
-      "aria": "Không có ca"
+      "aria": "Không có ca",
+      "tag": {
+        "plan": "rest",
+        "planLabel": "Không có ca",
+        "shift": null,
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Không có ca"
+      }
     },
     {
       "date": "2026-10-05",
@@ -171,7 +211,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-06",
@@ -189,7 +239,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-07",
@@ -207,7 +267,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-08",
@@ -225,7 +295,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-09",
@@ -243,7 +323,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-10",
@@ -261,7 +351,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-11",
@@ -279,7 +379,17 @@
       "cases": [],
       "itemId": null,
       "label": "Không có ca",
-      "aria": "Không có ca"
+      "aria": "Không có ca",
+      "tag": {
+        "plan": "rest",
+        "planLabel": "Không có ca",
+        "shift": null,
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Không có ca"
+      }
     },
     {
       "date": "2026-10-12",
@@ -297,7 +407,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-13",
@@ -326,7 +446,17 @@
       ],
       "itemId": "due:00000000-0000-4000-8000-0000000000aa:2026-10-13",
       "label": "Cần xử lý",
-      "aria": "Cần xử lý, Quên chấm công"
+      "aria": "Cần xử lý, Quên chấm công",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "needs_explanation",
+        "reviewLabel": "Cần giải trình",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Cần giải trình"
+      }
     },
     {
       "date": "2026-10-14",
@@ -344,7 +474,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-15",
@@ -373,7 +513,17 @@
       ],
       "itemId": "due:00000000-0000-4000-8000-0000000000aa:2026-10-15",
       "label": "Cần xử lý",
-      "aria": "Cần xử lý, Quên chấm công"
+      "aria": "Cần xử lý, Quên chấm công",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "needs_explanation",
+        "reviewLabel": "Cần giải trình",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Cần giải trình"
+      }
     },
     {
       "date": "2026-10-16",
@@ -391,7 +541,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-17",
@@ -409,7 +569,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-18",
@@ -427,7 +597,17 @@
       "cases": [],
       "itemId": null,
       "label": "Không có ca",
-      "aria": "Không có ca"
+      "aria": "Không có ca",
+      "tag": {
+        "plan": "rest",
+        "planLabel": "Không có ca",
+        "shift": null,
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Không có ca"
+      }
     },
     {
       "date": "2026-10-19",
@@ -445,7 +625,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:00–17:00"
+      "aria": "Đi làm, 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "valid",
+        "reviewLabel": "Hợp lệ",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00 · Hợp lệ"
+      }
     },
     {
       "date": "2026-10-20",
@@ -463,7 +653,17 @@
       "cases": [],
       "itemId": null,
       "label": "Đi làm",
-      "aria": "Đi làm, 08:05–…, đang làm"
+      "aria": "Đi làm, 08:05–…, đang làm",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-21",
@@ -481,7 +681,17 @@
       "cases": [],
       "itemId": null,
       "label": "Ca dự kiến",
-      "aria": "Ca dự kiến, HC 08:00–17:00"
+      "aria": "Ca dự kiến, HC 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-22",
@@ -499,7 +709,17 @@
       "cases": [],
       "itemId": null,
       "label": "Ca dự kiến",
-      "aria": "Ca dự kiến, HC 08:00–17:00"
+      "aria": "Ca dự kiến, HC 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-23",
@@ -517,7 +737,17 @@
       "cases": [],
       "itemId": null,
       "label": "Ca dự kiến",
-      "aria": "Ca dự kiến, HC 08:00–17:00"
+      "aria": "Ca dự kiến, HC 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-24",
@@ -535,7 +765,17 @@
       "cases": [],
       "itemId": null,
       "label": "Ca dự kiến",
-      "aria": "Ca dự kiến, HC 08:00–17:00"
+      "aria": "Ca dự kiến, HC 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-25",
@@ -553,7 +793,17 @@
       "cases": [],
       "itemId": null,
       "label": "Không có ca",
-      "aria": "Không có ca"
+      "aria": "Không có ca",
+      "tag": {
+        "plan": "rest",
+        "planLabel": "Không có ca",
+        "shift": null,
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Không có ca"
+      }
     },
     {
       "date": "2026-10-26",
@@ -571,7 +821,17 @@
       "cases": [],
       "itemId": null,
       "label": "Ca dự kiến",
-      "aria": "Ca dự kiến, HC 08:00–17:00"
+      "aria": "Ca dự kiến, HC 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-27",
@@ -589,7 +849,17 @@
       "cases": [],
       "itemId": null,
       "label": "Ca dự kiến",
-      "aria": "Ca dự kiến, HC 08:00–17:00"
+      "aria": "Ca dự kiến, HC 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-28",
@@ -607,7 +877,17 @@
       "cases": [],
       "itemId": null,
       "label": "Ca dự kiến",
-      "aria": "Ca dự kiến, HC 08:00–17:00"
+      "aria": "Ca dự kiến, HC 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-29",
@@ -625,7 +905,17 @@
       "cases": [],
       "itemId": null,
       "label": "Ca dự kiến",
-      "aria": "Ca dự kiến, HC 08:00–17:00"
+      "aria": "Ca dự kiến, HC 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-30",
@@ -643,7 +933,17 @@
       "cases": [],
       "itemId": null,
       "label": "Ca dự kiến",
-      "aria": "Ca dự kiến, HC 08:00–17:00"
+      "aria": "Ca dự kiến, HC 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     },
     {
       "date": "2026-10-31",
@@ -661,7 +961,17 @@
       "cases": [],
       "itemId": null,
       "label": "Ca dự kiến",
-      "aria": "Ca dự kiến, HC 08:00–17:00"
+      "aria": "Ca dự kiến, HC 08:00–17:00",
+      "tag": {
+        "plan": "work",
+        "planLabel": "Ngày làm",
+        "shift": "HC 08:00–17:00",
+        "extras": [],
+        "review": "none",
+        "reviewLabel": "",
+        "requestPending": false,
+        "text": "Ngày làm · HC 08:00–17:00"
+      }
     }
   ],
   "dayHistory": [

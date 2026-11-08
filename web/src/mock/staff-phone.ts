@@ -3,8 +3,10 @@
 // checkOutNow() ghi giờ ra hôm nay; addRequest() và updateRequest() (do mock/staff-requests gọi) thêm đơn mới và đổi trạng thái đơn.
 // Dòng nhắc giải trình, ngày cần giải trình và đơn giải trình của một ngày đọc lúc dựng màn từ mock/staff-requests, nên gửi hay
 // huỷ đơn xong thì màn đọc lại là thấy trạng thái mới (không có chữ cũ nằm sẵn trong ngày công).
+import type { DayTag } from '../builders/api/day-tag';
 import type { Zone } from '../builders/api/settings';
 import { MOCK_MONTH, MOCK_NOW, MOCK_TODAY } from './clock';
+import { mockTag } from './day-tag';
 import { payDateOf, zoneOf } from './settings';
 import { dueOf, explanationOf, remindersOf } from './staff-requests';
 
@@ -24,6 +26,7 @@ export type CalendarCell = {
   today: boolean;
   label: string; // tên truy cập, vd. 'Thứ Hai 26/10: đi làm', 'Hôm nay, thứ Tư 28/10: đang làm'
   open: boolean; // true khi có dữ liệu ngày (mở J3)
+  tag?: DayTag; // nhãn ngày dùng chung với lịch Admin (BE dựng)
 };
 
 export type RequestRowData = {
@@ -78,6 +81,7 @@ export type AttendanceView = MonthNav & {
 };
 
 export type DayDetail = {
+  tag?: DayTag; // nhãn ngày dùng chung với lịch Admin (BE dựng)
   date: string;
   title: string; // 'Thứ Ba 27/10/2026'
   shiftLine: string; // 'Ca HC 08:00–17:00'
@@ -201,7 +205,7 @@ function cellOf(date: string, padDay: boolean): CalendarCell {
   const text = working(date, rec) ? 'đang làm' : KIND_TEXT[kind];
   const label = today ? `Hôm nay, ${lower(DOW_LONG[dow])} ${ddmm(date)}: ${text}` : `${DOW_LONG[dow]} ${ddmm(date)}: ${text}`;
   const day = padDay ? date.slice(8, 10) : String(Number(date.slice(8, 10)));
-  return { date, day, dow: DOW_SHORT[dow], kind, today, label, open: !!rec };
+  return { date, day, dow: DOW_SHORT[dow], kind, today, label, open: !!rec, tag: mockTag(kind) };
 }
 
 const timesOf = (date: string, rec: DayRecord) => `${rec.in} – ${rec.out ?? (date === MOCK_TODAY ? '…' : '?')}`;
@@ -370,6 +374,7 @@ export function dayDetail(date: string): DayDetail | null {
     date,
     title: `${DOW_LONG[dowOf(date)]} ${ddmmyyyy(date)}`,
     shiftLine: `Ca ${SHIFT.code} ${SHIFT.start}–${SHIFT.end}`,
+    tag: mockTag(rec.kind),
     kind: rec.kind,
     today: date === MOCK_TODAY,
     statusText: statusOf(date, rec),
