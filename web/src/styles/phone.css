@@ -120,6 +120,9 @@
   background: var(--surface);
   border: 2px solid var(--status-pending);
 }
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.pend {
+  box-shadow: inset 0 0 0 2px var(--status-pending);
+}
 :is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.fu,
 :is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.future {
   background: var(--page);
