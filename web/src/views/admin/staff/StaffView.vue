@@ -72,6 +72,7 @@ const shiftOptions = ref<readonly ShiftOption[]>(SHIFT_OPTIONS);
 const serverDepts = ref<string[]>([]);
 const moveDepts = computed(() => (serverDepts.value.length ? serverDepts.value : depts.value));
 const shiftCode = ref<string>(SHIFT_OPTIONS[0].code);
+const shiftFrom = ref('');
 const toDept = ref('');
 // Máy chủ thật: đủ sáu ca và mọi phòng ban (kể cả phòng chưa có người); dữ liệu giả giữ như board.
 // Tải lỗi thì giữ danh sách mặc định (hai ô chọn vẫn dùng được với các dòng đang có); không để lỗi chưa bắt.
@@ -111,7 +112,7 @@ async function run() {
       result.value = `Đã chuyển ${done.length} người sang phòng ${toDept.value}.`;
     } else {
       const label = shiftOptions.value.find(s => s.code === shiftCode.value)!.label;
-      const done = await assignShift(ids, shiftCode.value);
+      const done = await assignShift(ids, shiftCode.value, shiftFrom.value || undefined);
       result.value = `Đã gán ca ${label} cho ${done.length} người.`;
     }
     sel.quit();
@@ -187,9 +188,12 @@ const footer = computed(() =>
           @quit="sel.quit()"
           @run="run"
         >
-          <select v-if="sel.mode.value === 'shift'" v-model="shiftCode" aria-label="Ca làm">
-            <option v-for="o in shiftOptions" :key="o.code" :value="o.code">{{ o.label }}</option>
-          </select>
+          <template v-if="sel.mode.value === 'shift'">
+            <select v-model="shiftCode" aria-label="Ca làm">
+              <option v-for="o in shiftOptions" :key="o.code" :value="o.code">{{ o.label }}</option>
+            </select>
+            <input v-model="shiftFrom" type="date" aria-label="Áp dụng từ ngày" title="Áp dụng từ ngày (để trống = hôm nay)" />
+          </template>
           <select v-else v-model="toDept" aria-label="Phòng ban mới">
             <option value="" disabled>Chuyển sang phòng…</option>
             <option v-for="d in moveDepts" :key="d" :value="d">{{ d }}</option>

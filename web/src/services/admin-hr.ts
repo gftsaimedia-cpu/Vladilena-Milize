@@ -66,12 +66,12 @@ export async function moveStaffToDept(ids: string[], dept: string): Promise<stri
 }
 
 /** Gán một ca cho nhiều người; trả id những người đã gán. */
-export async function assignShift(ids: string[], code: string): Promise<string[]> {
+export async function assignShift(ids: string[], code: string, effectiveFrom?: string): Promise<string[]> {
   if (__MOCK__) {
     const label = SHIFT_OPTIONS.find(s => s.code === code)?.label ?? code;
     return respond(assignStaffShift(ids, label));
   }
-  return doneIds(await api.post('/employees/shift', { usernames: ids, shiftCode: code }));
+  return doneIds(await api.post('/employees/shift', { usernames: ids, shiftCode: code, ...(effectiveFrom ? { effectiveFrom } : {}) }));
 }
 
 // Hôm nay theo giờ Việt Nam (UTC+7) của đồng hồ máy chủ.

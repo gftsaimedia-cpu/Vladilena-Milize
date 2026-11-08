@@ -98,6 +98,7 @@ test('the edit form starts from what the BE holds for the person', () => {
     job: 'Nhân viên kinh doanh',
     shift: 'NIGHT',
     nightPct: '60',
+    shiftFrom: '',
     start: '2024-03-04',
     birthday: '1995-04-02',
     dept: '3'
@@ -120,4 +121,9 @@ test('an edit needs the same fields as a new person except the username and pass
   expect(editProblem({ ...f, status: '' }, LEVELS)).not.toBe('');
   expect(editProblem({ ...f, shift: 'NIGHT', nightPct: '' }, LEVELS)).not.toBe('');
   expect(editProblem({ ...f, start: '' }, LEVELS)).not.toBe('');
+});
+
+test('the edit body carries the effective-from date of a new shift only when one is set', () => {
+  expect(editStaffBody(filled({ shiftFrom: '' })).contract.shift).toEqual({ type: 'NORMAL' });
+  expect(editStaffBody(filled({ shiftFrom: '2026-11-15' })).contract.shift).toEqual({ type: 'NORMAL', effectiveFrom: '2026-11-15' });
 });

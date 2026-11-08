@@ -138,3 +138,15 @@ test('confirming ends the job today: status Đã nghỉ việc in drawer and lis
   await expect(row(page, 'Lê Hoàng Nam')).toContainText('Đã nghỉ việc');
   expect(calls).toEqual([]);
 });
+
+test('"Áp dụng ca mới từ ngày" only appears once the shift is changed, and goes away when it is changed back', async ({ page }) => {
+  await openEdit(page, 'le-hoang-nam', 'Lê Hoàng Nam');
+  const from = field(page, 'Áp dụng ca mới từ ngày');
+  await expect(from).toHaveCount(0);
+  await field(page, 'Ca làm việc').selectOption('FLEX');
+  await expect(from).toBeVisible();
+  await expect(saveBtn(page)).toBeEnabled();
+  await field(page, 'Ca làm việc').selectOption('NORMAL');
+  await expect(from).toHaveCount(0);
+  await expect(saveBtn(page)).toBeDisabled();
+});

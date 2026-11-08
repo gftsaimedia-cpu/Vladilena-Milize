@@ -12,7 +12,10 @@ import {
   Shift,
   Leave,
   PersonName,
-  ContractStatus
+  ContractStatus,
+  BASE_SHIFT_FROM,
+  type ShiftSpec,
+  type ShiftVersion
 } from './domain';
 
 export type StaffRow = Selectable<DB['staff']>;
@@ -338,6 +341,70 @@ export class EmployeesRepository {
       .execute();
 
     return EmployeesRepository.fromRow(row, roleRows.map(r => r.role));
+  }
+
+  /** Lịch sử ca mặc định của một nhân sự (theo uuid), cũ trước; rỗng khi chưa đổi ca lần nào. */
+  async shiftVersions(employeeId: string): Promise<ShiftVersion[]> {
+    return (await this.shiftVersionsOf([employeeId])).get(employeeId) ?? [];
+  }
+
+  /** Lịch sử ca của nhiều nhân sự (theo uuid) bằng một truy vấn. */
+  async shiftVersionsOf(employeeIds: readonly string[]): Promise<Map<string, ShiftVersion[]>> {
+    const out = new Map<string, ShiftVersion[]>();
+    if (!employeeIds.length) return out;
+    const rows = await this.qb
+      .selectFrom('staff_shift_history')
+      .select(['employee_id', 'effective_from', 'shift_type', 'shift_start_time', 'shift_end_time', 'shift_allowance_pct'])
+      .where('employee_id', 'in', [...employeeIds])
+      .orderBy('effective_from')
+      .execute();
+    for (const r of rows) {
+      const list = out.get(r.employee_id) ?? [];
+      list.push({
+        effectiveFrom: r.effective_from,
+        type: r.shift_type as ShiftVersion['type'],
+        startTime: r.shift_start_time,
+        endTime: r.shift_end_time,
+        allowancePct: Number(r.shift_allowance_pct)
+      });
+      out.set(r.employee_id, list);
+    }
+    return out;
+  }
+
+  /**
+   * Ghi một lần đổi ca mặc định: lần đầu thì ghi thêm dòng ca cũ (từ BASE_SHIFT_FROM) để các ngày trước đó giữ ca cũ; dòng ca mới từ
+   * `from`; các phiên bản sau `from` bị bỏ (ca mới thay hết từ ngày đó trở đi).
+   */
+  async recordShiftChange(input: { employeeId: string; previous: ShiftSpec; next: ShiftSpec; from: string; actor: string; at: Date }): Promise<void> {
+    const { employeeId, previous, next, from, actor, at } = input;
+    const existing = await this.shiftVersions(employeeId);
+    const row = (effectiveFrom: string, s: ShiftSpec) => ({
+      employee_id: employeeId,
+      effective_from: effectiveFrom,
+      shift_type: s.type,
+      shift_start_time: s.startTime,
+      shift_end_time: s.endTime,
+      shift_allowance_pct: s.allowancePct,
+      updated_by: actor,
+      updated_at: at
+    });
+    if (existing.length === 0) await this.qb.insertInto('staff_shift_history').values(row(BASE_SHIFT_FROM, previous)).execute();
+    await this.qb.deleteFrom('staff_shift_history').where('employee_id', '=', employeeId).where('effective_from', '>', from).execute();
+    await this.qb
+      .insertInto('staff_shift_history')
+      .values(row(from, next))
+      .onConflict(oc =>
+        oc.columns(['employee_id', 'effective_from']).doUpdateSet({
+          shift_type: next.type,
+          shift_start_time: next.startTime,
+          shift_end_time: next.endTime,
+          shift_allowance_pct: next.allowancePct,
+          updated_by: actor,
+          updated_at: at
+        })
+      )
+      .execute();
   }
 
   /**

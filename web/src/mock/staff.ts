@@ -159,6 +159,7 @@ export function staffListDto() {
       departmentId: null as number | null,
       departmentName: r.dept === '—' ? null : (r.dept as string | null),
       staffStatus: ({ ok: 'working', try: 'probation', off: 'on_leave', out: 'resigned' } as const)[r.status],
+      shiftEffectiveFrom: null as string | null,
       work: { active: r.status !== 'out', status: r.status, statusLabel: r.statusLabel, joinedOn: r.joined, tenure: '' }
     })),
     total: SUMMARY.total,
@@ -266,6 +267,7 @@ export type MockStaffForm = {
   job: string;
   shift: string;
   nightPct: string;
+  shiftFrom: string;
   start: string;
   birthday: string;
   dept: string;
@@ -287,6 +289,7 @@ export function staffForm(id: string): MockStaffForm | null {
     job: p.title === NONE ? '' : p.title,
     shift: 'NORMAL',
     nightPct: '',
+    shiftFrom: '',
     start: p.joined,
     birthday: '',
     dept: String(MOCK_DEPARTMENTS.find(d => d.name === p.dept)?.id ?? '')
@@ -319,6 +322,7 @@ function formOfBody(id: string, b: Body): MockStaffForm {
     job: c.position?.jobTitle ?? '',
     shift: c.shift?.type ?? 'NORMAL',
     nightPct: c.shift?.allowancePct ? String(c.shift.allowancePct) : '',
+    shiftFrom: '',
     start: c.effectiveFrom ?? MOCK_TODAY,
     birthday: b.profile?.birthday ?? '',
     dept: b.departmentId ? String(b.departmentId) : ''

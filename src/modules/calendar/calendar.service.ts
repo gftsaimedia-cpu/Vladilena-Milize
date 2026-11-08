@@ -76,7 +76,7 @@ export class CalendarService {
           employment: { startDate: employee.startDate, resignedOn: employee.resignedOn },
           benefits,
           workWeek,
-          defaultShift: employee.defaultShift
+          defaultShift: employee.shiftOn
         },
         days,
         pending

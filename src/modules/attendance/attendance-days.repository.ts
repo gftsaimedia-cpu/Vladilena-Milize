@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { shiftOn, type ShiftVersion } from '../employees/domain/shift-history';
 import { Inject, Injectable } from '@nestjs/common';
 import { sql, type Kysely } from 'kysely';
 import { NotFoundError } from '../../common/exceptions/http.exception';
@@ -38,7 +39,10 @@ export interface EmployeeFacts {
   type: string;
   startDate: string | null;
   resignedOn: string | null;
+  /** Ca mặc định hiện tại của hồ sơ (dùng khi chưa đổi ca lần nào). */
   defaultShift: ShiftFacts;
+  /** Ca mặc định áp dụng cho một ngày: theo lịch sử đổi ca, chưa đổi thì là `defaultShift`. */
+  shiftOn(date: string): ShiftFacts;
 }
 
 type Window = { start: string; end: string };
@@ -141,16 +145,34 @@ export class AttendanceDaysRepository {
     if (!staff || !staff.uuid) throw new NotFoundError(`Không tìm thấy nhân sự ${employeeId}`, { code: 'EMPLOYEE_NOT_FOUND' });
 
     const shiftType = shiftTypeOf(staff.shift_type);
+    const defaultShift: ShiftFacts = {
+      type: shiftType,
+      start: staff.shift_start_time || FALLBACK_SHIFT.start,
+      end: staff.shift_end_time || FALLBACK_SHIFT.end,
+      allowancePct: SHIFT_ALLOWANCE_PCT[shiftType]
+    };
+    const history = await this.qb
+      .selectFrom('staff_shift_history')
+      .select(['effective_from', 'shift_type', 'shift_start_time', 'shift_end_time'])
+      .where('employee_id', '=', staff.uuid)
+      .orderBy('effective_from')
+      .execute();
+    const versions: ShiftVersion[] = history.map(r => ({
+      effectiveFrom: r.effective_from,
+      type: shiftTypeOf(r.shift_type),
+      startTime: r.shift_start_time,
+      endTime: r.shift_end_time,
+      allowancePct: SHIFT_ALLOWANCE_PCT[shiftTypeOf(r.shift_type)]
+    }));
     const employee: EmployeeFacts = {
       employeeId: staff.uuid,
       type: staff.type,
       startDate: staff.start_date ?? null,
       resignedOn: staff.resigned_on ?? null,
-      defaultShift: {
-        type: shiftType,
-        start: staff.shift_start_time || FALLBACK_SHIFT.start,
-        end: staff.shift_end_time || FALLBACK_SHIFT.end,
-        allowancePct: SHIFT_ALLOWANCE_PCT[shiftType]
+      defaultShift,
+      shiftOn: date => {
+        const v = shiftOn(versions, date);
+        return v ? { type: v.type, start: v.startTime, end: v.endTime, allowancePct: v.allowancePct } : defaultShift;
       }
     };
 

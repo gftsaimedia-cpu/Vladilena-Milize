@@ -301,6 +301,21 @@ CREATE TABLE staff_work_weeks (
     PRIMARY KEY (employee_id, effective_month)
 );
 
+-- Lịch sử ca mặc định của nhân sự: mỗi dòng là một ca có hiệu lực từ `effective_from` (YYYY-MM-DD) cho tới dòng kế tiếp. Chưa có
+-- dòng nào thì ca mặc định là các cột shift_* của staff cho mọi ngày. Đổi ca trong hồ sơ ghi dòng ca cũ (từ 2000-01-01) rồi dòng
+-- ca mới từ ngày áp dụng, nên các ngày trước đó vẫn tính theo ca cũ.
+CREATE TABLE staff_shift_history (
+    employee_id         TEXT NOT NULL REFERENCES staff (uuid),
+    effective_from      TEXT NOT NULL CHECK (effective_from ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'),
+    shift_type          TEXT NOT NULL CHECK (shift_type IN ('NORMAL', 'FLEX', 'NIGHT')),
+    shift_start_time    TEXT NOT NULL,
+    shift_end_time      TEXT NOT NULL,
+    shift_allowance_pct INTEGER NOT NULL DEFAULT 0,
+    updated_by          TEXT NOT NULL,
+    updated_at          TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (employee_id, effective_from)
+);
+
 CREATE TABLE work_shifts (
     code TEXT PRIMARY KEY CHECK (length(code) > 0),
     preset TEXT NOT NULL UNIQUE CHECK (length(preset) > 0),

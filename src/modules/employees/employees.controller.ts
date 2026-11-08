@@ -59,10 +59,13 @@ export class EmployeesController {
 
   @RequireCap('staff.manage')
   @Post('shift')
-  async assignShift(@Body() body: { usernames?: unknown; shiftCode?: unknown }, @CurrentUser() user: UserSession): Promise<unknown> {
+  async assignShift(@Body() body: { usernames?: unknown; shiftCode?: unknown; effectiveFrom?: unknown }, @CurrentUser() user: UserSession): Promise<unknown> {
     const usernames = requireBulkIds(body?.usernames);
     if (typeof body.shiftCode !== 'string') throw new BadRequestError('Thiếu mã ca', { code: 'INVALID_SHIFT_CODE' });
-    return await this.service.assignShift(usernames, body.shiftCode, user.username);
+    if (body.effectiveFrom !== undefined && body.effectiveFrom !== null && typeof body.effectiveFrom !== 'string') {
+      throw new BadRequestError('Ngày áp dụng ca mới phải là chữ YYYY-MM-DD', { code: 'INVALID_EFFECTIVE_FROM' });
+    }
+    return await this.service.assignShift(usernames, body.shiftCode, user.username, (body.effectiveFrom as string | undefined) ?? undefined);
   }
 
   @RequireCap('staff.manage')

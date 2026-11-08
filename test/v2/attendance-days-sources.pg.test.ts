@@ -69,7 +69,10 @@ describe('AttendanceDaysRepository.loadSources trên PostgreSQL', () => {
       await seed(client);
       const repo = new AttendanceDaysRepository(db);
       const out = await repo.loadSources(NV, ['2026-10-30', '2026-11-02']);
-      assert.deepEqual(out.employee, {
+      // `shiftOn` là hàm tra ca theo ngày: kiểm riêng, ở đây so các trường dữ liệu.
+      const { shiftOn, ...employeeData } = out.employee;
+      assert.equal(shiftOn('2026-11-02').start, '08:00');
+      assert.deepEqual(employeeData, {
         employeeId: NV,
         type: 'nv-test',
         startDate: '2026-01-05',

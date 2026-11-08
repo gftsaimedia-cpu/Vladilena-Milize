@@ -323,6 +323,17 @@ export interface StaffWorkWeeksTable {
   updated_at: Date;
 }
 
+export interface StaffShiftHistoryTable {
+  employee_id: string;
+  effective_from: string;
+  shift_type: string;
+  shift_start_time: string;
+  shift_end_time: string;
+  shift_allowance_pct: Generated<number>;
+  updated_by: string;
+  updated_at: Date;
+}
+
 export interface AttendanceZoneTable {
   id: number;
   lat: number;
@@ -545,6 +556,7 @@ export interface Schema {
   staff: StaffTable;
   staff_roles: StaffRolesTable;
   staff_work_weeks: StaffWorkWeeksTable;
+  staff_shift_history: StaffShiftHistoryTable;
   system_requests: SystemRequestsTable;
   tax_brackets: TaxBracketsTable;
   tax_rules: TaxRulesTable;

@@ -104,7 +104,7 @@ export class AttendanceDaysService {
         benefits,
         workWeek: monthly.workWeek,
         graceMinutes: monthly.graceMinutes,
-        defaultShift: employee.defaultShift
+        defaultShift: employee.shiftOn(facts.date)
       };
       return buildDay(employeeId, sources);
     });

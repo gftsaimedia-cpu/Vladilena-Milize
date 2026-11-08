@@ -47,6 +47,15 @@ watch(loaded, l => {
   original.value = JSON.stringify(form);
   ready0.value = true;
 });
+const shiftChanged = computed(() => {
+  if (!editing || !original.value) return false;
+  const o = JSON.parse(original.value) as StaffForm;
+  return o.shift !== form.shift || o.nightPct !== form.nightPct;
+});
+watch(shiftChanged, c => {
+  if (c && !form.shiftFrom) form.shiftFrom = opts.value?.today ?? '';
+  if (!c) form.shiftFrom = '';
+});
 const missing = computed(() => editing && !!loaded.value && !loaded.value.seed);
 
 const month = computed(() => (opts.value?.today || '').slice(0, 7));
@@ -194,6 +203,10 @@ const sub = computed(() =>
           :options="[...placeholder('Chọn mức'), ...NIGHT_PCTS.map(p => ({ value: p, label: `${p}%` }))]"
           label="Phụ cấp ca đêm"
         />
+      </div>
+      <div v-if="shiftChanged" class="fld">
+        <label>Áp dụng ca mới từ ngày</label>
+        <FieldDate v-model="form.shiftFrom" boxed label="Áp dụng ca mới từ ngày" />
       </div>
       <div class="fld"><label>Ngày vào làm</label><FieldDate v-model="form.start" boxed label="Ngày vào làm" /></div>
       <div class="fld"><label>Ngày sinh</label><FieldDate v-model="form.birthday" boxed label="Ngày sinh" /></div>

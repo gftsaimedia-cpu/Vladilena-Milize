@@ -31,11 +31,20 @@ import {
   asOfFor,
   summarizeStaff,
   workOf,
+  sameShift,
+  BASE_SHIFT_FROM,
+  type ShiftSpec,
 } from './domain';
 
 const SALT_BYTES = 16;
 const KEY_BYTES = 64;
-export type EmployeeView = EmployeeDTO & { departmentId: number | null; departmentName: string | null; staffStatus: StaffStatus };
+export type EmployeeView = EmployeeDTO & {
+  departmentId: number | null;
+  departmentName: string | null;
+  staffStatus: StaffStatus;
+  /** Ngày ca mặc định hiện tại bắt đầu áp dụng (sau lần đổi ca gần nhất); null khi chưa đổi ca lần nào. */
+  shiftEffectiveFrom: string | null;
+};
 export interface BulkResult<T> {
   done: T[];
   failed: Array<{ id: string; code: string; message: string }>;
@@ -53,6 +62,12 @@ function parseDepartmentId(value: unknown): number | null {
   if (!Number.isSafeInteger(n) || n < 1) throw new Error('Phòng ban không hợp lệ');
   return n;
 }
+
+/** Ngày bắt đầu của ca mới nhất; không có lịch sử thì null. */
+const latestShiftFrom = (versions: readonly { effectiveFrom: string }[]): string | null => {
+  const last = versions[versions.length - 1];
+  return last && last.effectiveFrom > BASE_SHIFT_FROM ? last.effectiveFrom : null;
+};
 
 /** pass_hash của người chưa đặt mật khẩu. */
 const NO_PASSWORD = 'none';
@@ -102,9 +117,10 @@ export function attendanceFieldsChanged(before: EmploymentDates, after: Employme
 export function monthsAffectedByEmployment(
   before: EmploymentDates | null,
   after: EmploymentDates,
-  currentMonth: string
+  currentMonth: string,
+  extraDates: ReadonlyArray<string | null | undefined> = []
 ): string[] {
-  const dates = [before?.startDate, before?.resignedOn, after.startDate, after.resignedOn];
+  const dates = [before?.startDate, before?.resignedOn, after.startDate, after.resignedOn, ...extraDates];
   const months = dates.flatMap(d => (d ? [monthOfDate(d)] : []));
   const first = [...months, currentMonth].reduce((a, b) => (b < a ? b : a));
   return monthsBetween(first, currentMonth);
@@ -148,13 +164,13 @@ export class EmployeesService {
    * Sửa hồ sơ chỉ ghi lại khi một trong năm trường T4 đổi; tạo mới và deactivate (`always`) luôn ghi.
    * Tháng có kỳ lương đã rời `open` bị bỏ qua, giống job mỗi giờ: hồ sơ hôm nay không viết lại tháng đã chốt.
    */
-  private async refreshAfterSave(id: string, before: EmploymentDates | null, always = false): Promise<void> {
+  private async refreshAfterSave(id: string, before: EmploymentDates | null, always = false, extraDates: string[] = []): Promise<void> {
     if (!this.attendanceDays) return;
     const after = await this.repo.employmentDates(id);
     if (!after) return;
     if (!always && before && !attendanceFieldsChanged(before, after)) return;
     const currentMonth = businessDateText(this.now()).slice(0, 7);
-    const months = monthsAffectedByEmployment(before, after, currentMonth);
+    const months = monthsAffectedByEmployment(before, after, currentMonth, extraDates);
     const frozen = await this.attendanceDays.frozenMonths(`${months[0]}-01`, `${currentMonth}-01`);
     for (const month of months) {
       if (frozen.has(month)) continue;
@@ -219,6 +235,7 @@ export class EmployeesService {
   async views(employees: readonly Employee[]): Promise<EmployeeView[]> {
     const ids = [...new Set(employees.flatMap(e => (e.contract.departmentId === null ? [] : [e.contract.departmentId])))];
     const names = await this.repo.departmentNames(ids);
+    const shifts = await this.repo.shiftVersionsOf(employees.map(e => e.profile.uuid));
     const today = businessDateText(this.now());
     return employees.map(emp => {
       const departmentId = emp.contract.departmentId;
@@ -226,7 +243,8 @@ export class EmployeesService {
         ...emp.toDTO(),
         departmentId,
         departmentName: departmentId === null ? null : (names.get(departmentId) ?? null),
-        staffStatus: this.staffStatusOf(emp, today)
+        staffStatus: this.staffStatusOf(emp, today),
+        shiftEffectiveFrom: latestShiftFrom(shifts.get(emp.profile.uuid) ?? [])
       };
     });
   }
@@ -238,7 +256,7 @@ export class EmployeesService {
   }
 
   /** Gán một trong sáu ca cố định cho nhiều người; mã ca lạ thì cả lô bị từ chối. */
-  async assignShift(usernames: readonly string[], shiftCode: string, actor: string): Promise<BulkResult<EmployeeView>> {
+  async assignShift(usernames: readonly string[], shiftCode: string, actor: string, effectiveFrom?: string): Promise<BulkResult<EmployeeView>> {
     const fixed = shiftByCode(shiftCode);
     if (!fixed) throw new BadRequestError(`Mã ca không hợp lệ: ${String(shiftCode)}`, { code: 'INVALID_SHIFT_CODE' });
     return this.assignMany(usernames, actor, (existing) => {
@@ -250,7 +268,7 @@ export class EmployeesService {
           : fixed.shiftType === 'FLEX'
             ? 10
             : 0;
-      return { contract: { shift: { type: fixed.shiftType, startTime: fixed.startTime, endTime: fixed.endTime, allowancePct } } };
+      return { contract: { shift: { type: fixed.shiftType, startTime: fixed.startTime, endTime: fixed.endTime, allowancePct, effectiveFrom } } };
     });
   }
 
@@ -313,15 +331,58 @@ export class EmployeesService {
       }
       await this.requireDepartment(repo, built);
       const saved = await repo.save(built, actor);
+      // Đổi ca mặc định: ghi lịch sử với ngày áp dụng (mặc định hôm nay), để các ngày trước đó vẫn tính theo ca cũ.
+      const shiftFrom = await this.recordShiftIfChanged(repo, existing, saved, body?.contract?.shift?.effectiveFrom, actor);
       const stored = await this.reload(repo, saved);
       const passwordChanged = stored.account.passwordHash !== existing.account.passwordHash;
       await this.log(trx, actor, saved.username, staffSaveRows(existing.toDTO(), stored.toDTO(), passwordChanged));
-      return { saved, before };
+      return { saved, before, shiftFrom };
     });
     if (!outcome) return null;
-    await this.refreshAfterSave(outcome.saved.username, outcome.before);
+    await this.refreshAfterSave(outcome.saved.username, outcome.before, false, outcome.shiftFrom ? [outcome.shiftFrom] : []);
     this.announce(outcome.saved.username, 'updated');
     return outcome.saved;
+  }
+
+  /** Ca mặc định của hồ sơ dạng so sánh được. */
+  private shiftSpecOf(e: Employee): ShiftSpec {
+    const s = e.contract.shift;
+    return { type: s.type as ShiftSpec['type'], startTime: s.startTime, endTime: s.endTime, allowancePct: s.allowancePct };
+  }
+
+  /**
+   * Ca mặc định đổi thì ghi lịch sử ca với ngày áp dụng `effectiveFrom` (mặc định hôm nay theo giờ Việt Nam) và trả ngày đó; không đổi
+   * thì trả null. Ngày phải hợp lệ và không rơi vào tháng đã chốt công trở đi (dòng ngày của các tháng đó không ghi lại nữa).
+   */
+  private async recordShiftIfChanged(
+    repo: EmployeesRepository,
+    existing: Employee,
+    saved: Employee,
+    effectiveFrom: unknown,
+    actor: string
+  ): Promise<string | null> {
+    const previous = this.shiftSpecOf(existing);
+    const next = this.shiftSpecOf(saved);
+    if (sameShift(previous, next)) return null;
+    const today = businessDateText(this.now());
+    const from = effectiveFrom === undefined || effectiveFrom === null || effectiveFrom === '' ? today : String(effectiveFrom);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || Number.isNaN(Date.parse(`${from}T00:00:00Z`)) || new Date(`${from}T00:00:00Z`).toISOString().slice(0, 10) !== from) {
+      throw new Error('Ngày áp dụng ca mới không hợp lệ (định dạng YYYY-MM-DD)');
+    }
+    const startDate = existing.contract.effectiveFrom;
+    if (startDate && from < startDate) throw new Error(`Ngày áp dụng ca mới không được trước ngày vào làm (${startDate})`);
+    const currentMonth = today.slice(0, 7);
+    if (this.attendanceDays && from.slice(0, 7) <= currentMonth) {
+      const frozen = [...(await this.attendanceDays.frozenMonths(`${from.slice(0, 7)}-01`, `${currentMonth}-01`))].filter(
+        m => m >= from.slice(0, 7) && m <= currentMonth
+      );
+      if (frozen.length > 0) {
+        const month = frozen.sort()[0];
+        throw new Error(`Tháng ${month} đã chốt công, không áp ca mới từ ngày ${from}`);
+      }
+    }
+    await repo.recordShiftChange({ employeeId: saved.profile.uuid, previous, next, from, actor, at: this.now() });
+    return from;
   }
 
   async deactivate(username: string, actor: string): Promise<boolean> {

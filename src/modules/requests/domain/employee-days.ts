@@ -19,7 +19,8 @@ export interface ShiftTimes {
 export interface EmployeeDaysInput {
   regularDows: readonly number[];
   holidays: readonly string[];
-  defaultShift: ShiftTimes;
+  /** Giờ ca mặc định; hoặc hàm theo ngày khi nhân sự đã đổi ca (ngày trước ngày áp dụng giữ ca cũ). */
+  defaultShift: ShiftTimes | ((date: string) => ShiftTimes);
   schedules: readonly ScheduleDay[];
   activeRequests: readonly SystemRequest[];
   /** Các dòng `day_status` của nhân sự quanh khoảng ngày của đơn. */
@@ -95,7 +96,8 @@ export class EmployeeDays implements DayView {
       return schedule.onLeave ? null : { startDate: date, startTime: schedule.startTime, endTime: schedule.endTime };
     }
 
-    return working ? { startDate: date, ...this.input.defaultShift } : null;
+    const base = typeof this.input.defaultShift === 'function' ? this.input.defaultShift(date) : this.input.defaultShift;
+    return working ? { startDate: date, ...base } : null;
   }
 
   /** Đơn đổi ca (đang chờ hoặc đã duyệt) đang giữ ngày D trong `day_status`, hoặc null. */

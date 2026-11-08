@@ -25,7 +25,14 @@ describe('POST employees/shift', () => {
   it('passes the usernames and the shift code to the service', async () => {
     const { ctrl, calls } = controller();
     assert.deepEqual(await ctrl.assignShift({ usernames: ['ha', ' nam '], shiftCode: 'Night1' }, USER), { done: [], failed: [] });
-    assert.deepEqual(calls, [['shift', ['ha', 'nam'], 'Night1', 'admin']]);
+    assert.deepEqual(calls, [['shift', ['ha', 'nam'], 'Night1', 'admin', undefined]]);
+  });
+
+  it('passes the effective date through and refuses a non-text one', async () => {
+    const { ctrl, calls } = controller();
+    await ctrl.assignShift({ usernames: ['ha'], shiftCode: 'Night1', effectiveFrom: '2026-11-15' }, USER);
+    assert.deepEqual(calls, [['shift', ['ha'], 'Night1', 'admin', '2026-11-15']]);
+    await assert.rejects(ctrl.assignShift({ usernames: ['ha'], shiftCode: 'Night1', effectiveFrom: 20261115 }, USER), (e: any) => e.status === 400 && code(e) === 'INVALID_EFFECTIVE_FROM');
   });
 
   it('refuses a bad list with INVALID_IDS and a missing code with INVALID_SHIFT_CODE', async () => {

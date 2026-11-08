@@ -41,7 +41,8 @@ export interface DayContext {
   benefits: Benefits;
   /** Các thứ (1 = T2 … 6 = T7) là ngày làm của người này ở tháng đang xét. */
   workWeek: readonly number[];
-  defaultShift: ShiftFacts;
+  /** Ca mặc định của hồ sơ; hoặc hàm theo ngày khi nhân sự đã đổi ca (ngày trước ngày áp dụng giữ ca cũ). */
+  defaultShift: ShiftFacts | ((date: string) => ShiftFacts);
 }
 
 export interface TimeSpan {
@@ -195,6 +196,9 @@ function approvedClaims(input: DayInput, shift: ShiftFacts | null): Claim[] {
   return out;
 }
 
+const defaultShiftOn = (ctx: DayContext, date: string): ShiftFacts =>
+  typeof ctx.defaultShift === 'function' ? ctx.defaultShift(date) : ctx.defaultShift;
+
 /** Phân loại một ngày. Nơi duy nhất giữ thứ tự ưu tiên của các loại ngày. */
 export function classify(input: DayInput, ctx: DayContext, pending: readonly Claim[] = []): DayParts {
   const { date, schedule } = input;
@@ -228,7 +232,7 @@ export function classify(input: DayInput, ctx: DayContext, pending: readonly Cla
     return { ...base, kind: 'EXTRA', span: bounds ? { start: bounds.start, end: bounds.end } : null, claims: claimsOf(null) };
   }
 
-  const shift = workShiftOf({ date, schedule, defaultShift: ctx.defaultShift, halfShift: input.halfShift });
+  const shift = workShiftOf({ date, schedule, defaultShift: defaultShiftOn(ctx, date), halfShift: input.halfShift });
   const timeWindows: TimeWindow[] = windows;
   const bounds = expectedBounds(date, shift, timeWindows);
   return {
@@ -238,7 +242,7 @@ export function classify(input: DayInput, ctx: DayContext, pending: readonly Cla
     half: input.halfShift?.half ?? null,
     windows,
     span: bounds ? { start: bounds.start, end: bounds.end } : null,
-    claims: claimsOf(shiftOf({ schedule, defaultShift: ctx.defaultShift }))
+    claims: claimsOf(shiftOf({ schedule, defaultShift: defaultShiftOn(ctx, date) }))
   };
 }
 

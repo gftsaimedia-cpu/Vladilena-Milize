@@ -15,6 +15,7 @@ export type StaffForm = {
   job: string;
   shift: string; // NORMAL | FLEX | NIGHT
   nightPct: string; // chỉ NV ca đêm: '40' | '60'
+  shiftFrom: string; // chỉ khi Sửa và đổi ca: ngày áp ca mới 'YYYY-MM-DD', '' = hôm nay
   start: string; // 'YYYY-MM-DD'
   birthday: string; // 'YYYY-MM-DD' hoặc ''
   dept: string; // id phòng ban dạng chữ, '' = chưa xếp phòng
@@ -47,6 +48,7 @@ export const emptyStaffForm = (today: string): StaffForm => ({
   job: '',
   shift: 'NORMAL',
   nightPct: '',
+  shiftFrom: '',
   start: today,
   birthday: '',
   dept: ''
@@ -145,7 +147,11 @@ export function newStaffBody(f: StaffForm) {
 }
 
 /** Thân PUT /api/v2/employees/:username: không có phần account nên tên đăng nhập, mật khẩu, vai trò giữ nguyên. */
-export const editStaffBody = (f: StaffForm) => profileAndContract(f);
+export function editStaffBody(f: StaffForm) {
+  const body = profileAndContract(f);
+  if (f.shiftFrom) (body.contract.shift as { effectiveFrom?: string }).effectiveFrom = f.shiftFrom;
+  return body;
+}
 
 /** Biểu mẫu Sửa hồ sơ dựng từ hồ sơ BE trả (GET /api/v2/employees/:username). */
 export function formFromEmployee(e: EmployeeDTO): StaffForm {
@@ -162,6 +168,7 @@ export function formFromEmployee(e: EmployeeDTO): StaffForm {
     job: position.jobTitle || '',
     shift: shift.type,
     nightPct: nightNv && NIGHT_PCTS.includes(pct) ? pct : '',
+    shiftFrom: '',
     start: e.contract.effectiveFrom || e.account.createdAt.slice(0, 10),
     birthday: e.profile.birthday || '',
     dept: e.departmentId ? String(e.departmentId) : ''

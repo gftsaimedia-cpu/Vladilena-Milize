@@ -341,7 +341,8 @@ test('findStaffContext reads the type version in effect', async () => {
     }
     return [];
   });
-  const found = await new RequestsRepository(db).findStaffContext('nv01', '2026-11');
+  const { shiftOn, ...found } = (await new RequestsRepository(db).findStaffContext('nv01', '2026-11'))!;
+  assert.deepEqual(shiftOn!('2026-11-02'), { startTime: '08:00', endTime: '17:00' }); // chưa đổi ca: ca hiện tại
   assert.deepEqual(found, {
     employeeId: 'u1',
     employeeType: 'nv',
@@ -354,7 +355,8 @@ test('findStaffContext reads the type version in effect', async () => {
     benefits: { ot: true, makeup: true, leaveAccount: false },
     regularDows: [1, 2, 3, 4, 5, 6]
   });
-  const [staffQ, typeQ, benefitQ] = sqlOf(log);
+  const [staffQ, historyQ, typeQ, benefitQ] = sqlOf(log);
+  assert.match(historyQ.sql, /staff_shift_history/);
   assert.match(staffQ.sql, /"advance_on"/);
   assert.equal(staffQ.parameters.filter(p => p === 'nv01').length, 2); // uuid = ? or username = ?
   assert.ok(typeQ.parameters.includes('2026-11') && typeQ.parameters.includes('nv'));
@@ -365,7 +367,8 @@ test('findStaffContext reads the type version in effect', async () => {
 test('findStaffContext without a type version has no days and no benefits; unknown staff is null', async () => {
   const staffRow = { uuid: 'u1', type: 'nv', shift_start_time: '09:00', shift_end_time: '18:00', leave_balance: 2.5, leave_balance_on: '2026-11-01', start_date: 'không rõ' };
   const { db, log } = createScriptedKysely(q => (q.sql.includes('from "staff"') ? [staffRow] : []));
-  const found = await new RequestsRepository(db).findStaffContext('u1', '2026-11');
+  const { shiftOn, ...found } = (await new RequestsRepository(db).findStaffContext('u1', '2026-11'))!;
+  assert.deepEqual(shiftOn!('2026-11-02'), { startTime: '09:00', endTime: '18:00' });
   assert.deepEqual(found, {
     employeeId: 'u1',
     employeeType: 'nv',
@@ -378,7 +381,7 @@ test('findStaffContext without a type version has no days and no benefits; unkno
     benefits: { ot: false, makeup: false, leaveAccount: false },
     regularDows: null
   });
-  assert.equal(sqlOf(log).length, 2); // không tra quyền lợi khi không có phiên bản loại nhân sự
+  assert.equal(sqlOf(log).length, 3); // hồ sơ, lịch sử ca; không tra quyền lợi khi không có phiên bản loại nhân sự
 
   const empty = createScriptedKysely(() => []);
   assert.equal(await new RequestsRepository(empty.db).findStaffContext('ghost', '2026-11'), null);

@@ -54,6 +54,7 @@
       "departmentId": null,
       "departmentName": null,
       "staffStatus": "working",
+      "shiftEffectiveFrom": null,
       "work": {
         "active": true,
         "status": "ok",
@@ -116,6 +117,7 @@
       "departmentId": null,
       "departmentName": null,
       "staffStatus": "working",
+      "shiftEffectiveFrom": null,
       "work": {
         "active": true,
         "status": "ok",
@@ -178,6 +180,7 @@
       "departmentId": null,
       "departmentName": null,
       "staffStatus": "working",
+      "shiftEffectiveFrom": null,
       "work": {
         "active": true,
         "status": "ok",
@@ -240,6 +243,7 @@
       "departmentId": null,
       "departmentName": null,
       "staffStatus": "resigned",
+      "shiftEffectiveFrom": null,
       "work": {
         "active": false,
         "status": "out",
@@ -302,6 +306,7 @@
       "departmentId": null,
       "departmentName": null,
       "staffStatus": "probation",
+      "shiftEffectiveFrom": null,
       "work": {
         "active": true,
         "status": "try",
@@ -364,6 +369,7 @@
       "departmentId": null,
       "departmentName": null,
       "staffStatus": "working",
+      "shiftEffectiveFrom": null,
       "work": {
         "active": false,
         "status": "ok",

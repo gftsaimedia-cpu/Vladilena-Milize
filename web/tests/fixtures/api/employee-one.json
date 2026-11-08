@@ -53,6 +53,7 @@
     "departmentId": null,
     "departmentName": null,
     "staffStatus": "working",
+    "shiftEffectiveFrom": null,
     "work": {
       "active": true,
       "status": "ok",

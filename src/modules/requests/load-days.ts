@@ -45,7 +45,7 @@ export async function loadEmployeeDays(
   const days = new EmployeeDays({
     regularDows,
     holidays: holidays.map(h => h.date),
-    defaultShift: staff.defaultShift,
+    defaultShift: staff.shiftOn ?? staff.defaultShift,
     schedules,
     activeRequests: active,
     claims

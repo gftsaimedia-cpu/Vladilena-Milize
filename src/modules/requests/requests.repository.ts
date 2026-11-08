@@ -64,6 +64,8 @@ export interface StaffContext {
   employeeId: string; // staff.uuid
   employeeType: string;
   defaultShift: { startTime: string; endTime: string }; // staff.shift_start_time / shift_end_time
+  /** Giờ ca mặc định áp dụng cho một ngày theo lịch sử đổi ca; thiếu thì dùng `defaultShift`. */
+  shiftOn?: (date: string) => { startTime: string; endTime: string };
   leaveBalance: number; // staff.leave_balance, NULL → 0
   leaveBalanceOn: string | null; // staff.leave_balance_on
   startDate: string | null; // staff.start_date (YYYY-MM-DD); trống hoặc sai dạng → null
@@ -409,6 +411,21 @@ export class RequestsRepository {
       .where(eb => eb.or([eb('uuid', '=', employeeIdOrUsername), eb('username', '=', employeeIdOrUsername)]))
       .executeTakeFirst();
     if (!staff || !staff.uuid) return null;
+    const history = await this.qb
+      .selectFrom('staff_shift_history')
+      .select(['effective_from', 'shift_start_time', 'shift_end_time'])
+      .where('employee_id', '=', staff.uuid)
+      .orderBy('effective_from')
+      .execute();
+    const currentShift = {
+      startTime: staff.shift_start_time || FALLBACK_SHIFT.startTime,
+      endTime: staff.shift_end_time || FALLBACK_SHIFT.endTime
+    };
+    const shiftOnDate = (date: string) => {
+      let found: (typeof history)[number] | null = null;
+      for (const h of history) if (h.effective_from <= date && (!found || h.effective_from > found.effective_from)) found = h;
+      return found ? { startTime: found.shift_start_time, endTime: found.shift_end_time } : currentShift;
+    };
 
     const typeRow = await this.qb
       .selectFrom('position_types')
@@ -435,10 +452,8 @@ export class RequestsRepository {
     return {
       employeeId: staff.uuid,
       employeeType: staff.type,
-      defaultShift: {
-        startTime: staff.shift_start_time || FALLBACK_SHIFT.startTime,
-        endTime: staff.shift_end_time || FALLBACK_SHIFT.endTime
-      },
+      defaultShift: currentShift,
+      shiftOn: shiftOnDate,
       leaveBalance: Number(staff.leave_balance ?? 0),
       leaveBalanceOn: staff.leave_balance_on ?? null,
       startDate: parseStartDate(staff.start_date),
