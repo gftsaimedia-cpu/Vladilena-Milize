@@ -18,12 +18,10 @@ test('admin month strip marks each day and the day box lists type, shift and res
   await expect(box.getByLabel('Loại ngày và kết quả')).toContainText('HC 08:00–17:00');
 });
 
-test('staff calendar shows the same marks and legend as the admin one', async ({ page }) => {
+test('staff calendar is colour only: no marks or notes on the cells, details open on a tap', async ({ page }) => {
   await openPhone(page, '/nv/cham-cong');
-  await expect(page.locator('.at-grid .dc .dmk').first()).toBeVisible();
-  const legend = page.getByRole('group', { name: 'Dấu hiệu của ngày' });
-  await expect(legend).toContainText('Nghỉ không lương');
-  await expect(legend).toContainText('Quá hạn giải trình');
+  await expect(page.locator('.at-grid .dmk')).toHaveCount(0);
+  await expect(page.locator('.at-grid .dc').first()).toBeVisible();
   await page.locator('.at-grid button.dn.work').first().click();
   await expect(page.getByLabel('Loại ngày và kết quả')).toContainText('HC 08:00–17:00');
 });
@@ -33,7 +31,7 @@ test('staff calendar: a gold ring for a waiting request, a red ring for a refuse
   const ring = (cls: string) => page.locator(`.at-grid .dc:has(.dn.${cls})`);
   await expect(page.locator('.at-grid .dn.pend')).toHaveCount(1);
   await expect(page.locator('.at-grid .dn.rej')).toHaveCount(2);
-  await expect(ring('pend').locator('.mk.wait')).toHaveCount(1);
-  await expect(ring('rej').locator('.mk.gone')).toHaveText(['Huỷ', 'Từ chối']);
-  await expect(page.getByRole('group', { name: 'Dấu hiệu của ngày' })).toContainText('Đơn bị từ chối / huỷ');
+  await expect(ring('pend')).toHaveCount(1);
+  await expect(ring('rej')).toHaveCount(2);
+  await expect(page.locator('.at-lg')).toContainText('Đơn bị từ chối / huỷ');
 });
