@@ -12,7 +12,7 @@ import {
 import { isValidDateText } from '../../common/date-text';
 import { CalendarService } from '../calendar/calendar.service';
 import { explanationWindowFrom } from '../requests/domain/explanation-window';
-import { checkPunchLocation } from '../settings/domain/attendance-zone';
+import { checkPunchLocation, punchZoneCheckOff } from '../settings/domain/attendance-zone';
 import { planMakeup } from '../requests/domain/makeup-plan';
 import { RequestIdPipe } from '../requests/request-id.pipe';
 import { PunchRefusedError } from '../attendance/attendance.errors';
@@ -204,7 +204,7 @@ export class MeController {
       // `alert` là ngày gần nhất trong `alerts` (giữ cho app cũ).
       alert: alerts.length > 0 ? alerts[alerts.length - 1] : null,
       alerts,
-      zone,
+      zone: punchZoneCheckOff() ? null : zone,
       workday,
       reminders: await this.explanations.reminders(me.username).catch(() => []),
     };

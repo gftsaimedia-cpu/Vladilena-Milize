@@ -25,12 +25,17 @@ export function distanceM(a: { lat: number; lng: number }, b: { lat: number; lng
 
 const isCoord = (v: unknown, limit: number): v is number => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= limit;
 
+/** Công tắc tạm: PUNCH_ZONE_CHECK=off thì chấm công không cần vị trí (vùng trong DB vẫn giữ nguyên). Bỏ biến này để bật lại. */
+export function punchZoneCheckOff(): boolean {
+  return process.env.PUNCH_ZONE_CHECK === 'off';
+}
+
 /**
  * Không có vùng thì chấm ở đâu cũng được. Có vùng mà thiếu hoặc sai lat/lng thì no-location
  * (0 / 0 là một vị trí hợp lệ). Cách đúng bằng bán kính vẫn là ok.
  */
 export function checkPunchLocation(zone: Zone | null, at: { lat?: unknown; lng?: unknown }): PunchLocationCheck {
-  if (zone === null) return { kind: 'ok', distanceM: null };
+  if (zone === null || punchZoneCheckOff()) return { kind: 'ok', distanceM: null };
   if (!isCoord(at.lat, 90) || !isCoord(at.lng, 180)) return { kind: 'no-location' };
   const d = distanceM(zone, { lat: at.lat, lng: at.lng });
   return d > zone.radiusM ? { kind: 'outside', distanceM: d } : { kind: 'ok', distanceM: d };
