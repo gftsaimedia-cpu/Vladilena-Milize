@@ -114,8 +114,8 @@ export function requestTitle(input: TitleInput): string {
 }
 
 /**
- * Số ngày phép năm còn lại: số dư trừ các đơn phép năm đang chờ hoặc đã duyệt có ngày bắt đầu
- * từ mốc `leaveBalanceOn` trở đi (đơn trước mốc đã nằm trong số dư). Chưa có tài khoản phép → null.
+ * Số ngày phép năm còn lại: giữ chỗ cho đơn đang chờ; chỉ trừ đơn đã duyệt sau mốc
+ * `leaveBalanceOn` (đơn duyệt trước mốc đã nằm trong số dư). Chưa có tài khoản phép → null.
  */
 export function annualLeaveLeftOf(
   balance: { leaveBalance: number; leaveBalanceOn: string | null; leaveAccount: boolean },
@@ -127,8 +127,8 @@ export function annualLeaveLeftOf(
       r =>
         r.type === 'LEAVE' &&
         r.leaveType === 'ANNUAL' &&
-        (r.status === 'PENDING' || r.status === 'APPROVED') &&
-        (balance.leaveBalanceOn === null || (r.leaveStartDate ?? '') >= balance.leaveBalanceOn)
+        (r.status === 'PENDING' ||
+          (r.status === 'APPROVED' && (balance.leaveBalanceOn === null || (r.leaveStartDate ?? '') > balance.leaveBalanceOn)))
     )
     .reduce((sum, r) => sum + (r.leaveDaysCount ?? 0), 0);
   return balance.leaveBalance - used;

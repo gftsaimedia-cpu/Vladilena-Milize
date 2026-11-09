@@ -591,7 +591,15 @@ export class EmployeesService {
       allowancePct: shiftAllowance,
     });
 
+    const requestedLeaveBalance = body.contract?.leave?.remainingDays !== undefined
+      ? body.contract.leave.remainingDays
+      : body.leave?.remainingDays;
+    const hasRequestedLeaveBalance = requestedLeaveBalance !== undefined;
+    if (hasRequestedLeaveBalance && (typeof requestedLeaveBalance !== 'number' || !Number.isFinite(requestedLeaveBalance) || requestedLeaveBalance < 0)) {
+      throw new Error('Số ngày phép còn lại phải là số không âm hợp lệ');
+    }
     const leaveTotal =
+      (hasRequestedLeaveBalance ? requestedLeaveBalance : undefined) ??
       body.contract?.leave?.totalDays ??
       body.leave?.totalDays ??
       body.leaveTotalDays ??
@@ -599,6 +607,7 @@ export class EmployeesService {
       existing?.contract.leave.totalDays ??
       0;
     const leaveUsed =
+      (hasRequestedLeaveBalance ? 0 : undefined) ??
       body.contract?.leave?.usedDays ??
       body.leave?.usedDays ??
       body.leaveUsedDays ??
