@@ -33,5 +33,5 @@ test('staff calendar: a gold ring for a waiting request, a red ring for a refuse
   await expect(page.locator('.at-grid .dn.rej')).toHaveCount(2);
   await expect(ring('pend')).toHaveCount(1);
   await expect(ring('rej')).toHaveCount(2);
-  await expect(page.locator('.at-lg')).toContainText('Đơn bị từ chối / huỷ');
+  await expect(page.locator('.at-lg')).toContainText('Bị từ chối');
 });

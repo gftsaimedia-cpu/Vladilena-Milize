@@ -36,8 +36,7 @@ const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
       <span><i class="dot late" />Đi muộn</span>
       <span><i class="dot leave" />Nghỉ có lương</span>
       <span><i class="dot todo" />Cần xử lý</span>
-      <span><i class="ring pend" />Đơn chờ duyệt</span>
-      <span><i class="ring rej" />Đơn bị từ chối / huỷ</span>
+      <span><i class="ring rej" />Bị từ chối</span>
     </div>
   </section>
 </template>
