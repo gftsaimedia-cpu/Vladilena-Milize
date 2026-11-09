@@ -54,7 +54,7 @@ test('GET /me/today và GET /me/attendance có cờ halfShift', async t => {
       { getPeriod: async () => null } as any,
       { reminders: async () => [] } as any,
       setReader,
-      new CalendarService(attDaysRepo, attSettings, dayStatusRepo)
+      new CalendarService(attDaysRepo, attSettings, dayStatusRepo, reqRepo)
     );
 
     const today = vnToday(); // YYYY-MM-DD

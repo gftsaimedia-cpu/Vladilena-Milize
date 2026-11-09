@@ -149,6 +149,12 @@ export class Day {
   get pending(): readonly Claim[] {
     return this.claims.filter(c => c.status === 'PENDING');
   }
+  /** Đơn bị từ chối hoặc huỷ mới nhất của ngày; null khi ngày còn đơn chờ hoặc đã duyệt (đơn mới thay đơn cũ). */
+  get declined(): Claim | null {
+    if (this.claims.some(c => c.status === 'PENDING' || c.status === 'APPROVED')) return null;
+    const gone = this.claims.filter(c => c.status === 'REJECTED' || c.status === 'CANCELLED');
+    return gone[gone.length - 1] ?? null;
+  }
   claimOf(kind: Claim['kind']): Claim | null {
     return this.claims.find(c => c.kind === kind) ?? null;
   }

@@ -21,7 +21,7 @@ export function employeeDto(personId: string, month: string): EmployeeMonthDTO |
     (c): c is Cell => c !== null
   );
   const items = new Map(pendingInbox().map(item => [item.id, item]));
-  const days: DayCellDTO[] = cells.map(c => ({ ...cellDto(c), tag: mockTag(c.kind) }));
+  const days: DayCellDTO[] = cells.map(c => ({ ...cellDto(c), tag: mockTag(c.kind, c.date) }));
 
   const chips: Record<GroupKey, number> = { work: 0, late: 0, leave: 0, absent: 0, todo: 0 };
   for (const cell of cells) if (cell.kind in chips) chips[cell.kind as GroupKey]++;

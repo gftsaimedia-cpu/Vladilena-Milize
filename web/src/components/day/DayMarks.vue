@@ -10,7 +10,7 @@ const plan = computed(() => (props.tag ? PLAN_SHORT[props.tag.plan] : ''));
 // Nhãn phụ trùng với chữ loại ngày (ngày OT đã có "OT") thì bỏ.
 const extras = computed(() => (props.tag?.extras ?? []).filter(e => EXTRA_SHORT[e.code] !== plan.value));
 const glyph = computed(() => (props.tag ? REVIEW_GLYPH[props.tag.review] : ''));
-const any = computed(() => !!plan.value || extras.value.length > 0 || !!glyph.value || !!props.tag?.requestPending);
+const any = computed(() => !!plan.value || extras.value.length > 0 || !!glyph.value || !!props.tag?.requestPending || !!props.tag?.declined);
 </script>
 
 <template>
@@ -18,6 +18,7 @@ const any = computed(() => !!plan.value || extras.value.length > 0 || !!glyph.va
     <i v-if="plan" class="mk plan" :class="tag.plan" :title="tag.planLabel">{{ plan }}</i>
     <i v-for="e in extras" :key="e.code" class="mk extra" :class="e.code" :title="e.text">{{ EXTRA_SHORT[e.code] }}</i>
     <i v-if="tag.requestPending" class="mk wait" title="Có đơn chờ duyệt">⏳</i>
+    <i v-if="tag.declined" class="mk gone" :title="tag.declined.text">{{ tag.declined.status === 'cancelled' ? 'Huỷ' : 'Từ chối' }}</i>
     <i v-if="glyph" class="mk review" :class="tag.review" :title="tag.reviewLabel">{{ glyph }}</i>
   </span>
 </template>
@@ -62,6 +63,10 @@ const any = computed(() => !!plan.value || extras.value.length > 0 || !!glyph.va
 .mk.plan.leave_unpaid {
   background: var(--status-draft);
   color: var(--muted);
+}
+.mk.gone {
+  background: var(--err-bg);
+  color: var(--status-rejected);
 }
 .mk.review {
   background: none;

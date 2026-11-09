@@ -27,3 +27,13 @@ test('staff calendar shows the same marks and legend as the admin one', async ({
   await page.locator('.at-grid button.dn.work').first().click();
   await expect(page.getByLabel('Loại ngày và kết quả')).toContainText('HC 08:00–17:00');
 });
+
+test('staff calendar: a gold ring for a waiting request, a red ring for a refused or cancelled one', async ({ page }) => {
+  await openPhone(page, '/nv/cham-cong');
+  const ring = (cls: string) => page.locator(`.at-grid .dc:has(.dn.${cls})`);
+  await expect(page.locator('.at-grid .dn.pend')).toHaveCount(1);
+  await expect(page.locator('.at-grid .dn.rej')).toHaveCount(2);
+  await expect(ring('pend').locator('.mk.wait')).toHaveCount(1);
+  await expect(ring('rej').locator('.mk.gone')).toHaveText(['Huỷ', 'Từ chối']);
+  await expect(page.getByRole('group', { name: 'Dấu hiệu của ngày' })).toContainText('Đơn bị từ chối / huỷ');
+});

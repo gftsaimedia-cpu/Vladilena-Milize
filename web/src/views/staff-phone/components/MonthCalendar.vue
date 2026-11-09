@@ -22,14 +22,14 @@ const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
             v-if="c.open"
             type="button"
             class="dn"
-            :class="[c.kind, { today: c.today, pend: c.tag?.requestPending }]"
+            :class="[c.kind, { today: c.today, pend: c.tag?.requestPending, rej: !!c.tag?.declined }]"
             :data-date="c.date"
             :aria-label="c.label"
             @click="emit('open', c.date)"
           >
             {{ c.day }}
           </button>
-          <span v-else role="img" class="dn" :class="[c.kind, { today: c.today, pend: c.tag?.requestPending }]" :aria-label="c.label">{{ c.day }}</span>
+          <span v-else role="img" class="dn" :class="[c.kind, { today: c.today, pend: c.tag?.requestPending, rej: !!c.tag?.declined }]" :aria-label="c.label">{{ c.day }}</span>
           <DayMarks :tag="c.tag" />
         </span>
       </template>

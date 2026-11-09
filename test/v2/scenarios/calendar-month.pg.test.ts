@@ -4,6 +4,7 @@ import { createKysely, createPgPool } from '../../../src/database';
 import { AttendanceDaysRepository } from '../../../src/modules/attendance/attendance-days.repository';
 import { SettingsAttendanceSettings } from '../../../src/modules/attendance/attendance-settings.port';
 import { CalendarService } from '../../../src/modules/calendar';
+import { RequestsRepository } from '../../../src/modules/requests/requests.repository';
 import { DayStatusRepository } from '../../../src/modules/requests/day-status.repository';
 import { SettingsReader } from '../../../src/modules/settings/settings-reader';
 import { SettingsRepository } from '../../../src/modules/settings/settings.repository';
@@ -40,7 +41,8 @@ beforeEach(async () => {
   calendar = new CalendarService(
     new AttendanceDaysRepository(db),
     new SettingsAttendanceSettings(new SettingsReader(new SettingsRepository(db))),
-    new DayStatusRepository(db)
+    new DayStatusRepository(db),
+    new RequestsRepository(db)
   );
 });
 
@@ -82,13 +84,17 @@ describe('CalendarService.monthOf', { skip: !enabled }, () => {
     assert.equal(approved.day('2026-11-12').kind, 'WORK');
   });
 
-  it('đơn bị từ chối không để lại claim nào', async () => {
+  it('đơn bị từ chối không giữ ngày: chỉ để một claim REJECTED để lịch báo', async () => {
     const filed = await nv.post('/api/v2/me/requests/leave', { leaveType: 'ANNUAL', reason: 'Việc nhà', startDate: '2026-11-17', endDate: '2026-11-17' });
     assert.equal(filed.status, 201, msg(filed));
     const no = await admin.patch(`/api/v2/requests/${filed.body.request.id}/review`, { action: 'REJECT', note: 'Bận' });
     assert.equal(no.status, 200, msg(no));
     const m = await calendar.monthOf(uuid, '2026-11', NOW);
-    assert.deepEqual([m.day('2026-11-17').kind, m.day('2026-11-17').claims.length], ['WORK', 0]);
+    const day = m.day('2026-11-17');
+    assert.equal(day.kind, 'WORK');
+    assert.deepEqual(day.claims.map(c => c.status), ['REJECTED']);
+    assert.equal(day.pending.length, 0);
+    assert.equal(day.declined?.kind, 'LEAVE');
   });
 
   it('ngày lễ công ty: HOLIDAY trên ngày làm', async () => {

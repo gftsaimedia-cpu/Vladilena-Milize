@@ -12,8 +12,8 @@ export type ClaimKind =
   | 'OT_WINDOW' //      khung làm thêm
   | 'MAKEUP_WINDOW'; // khung làm bù
 
-/** Đơn đã bị từ chối hoặc huỷ thì không còn Claim nào. */
-export type ClaimStatus = 'PENDING' | 'APPROVED';
+/** Đơn từ chối hoặc huỷ không giữ ngày; claim REJECTED / CANCELLED chỉ để lịch báo "đơn bị từ chối / huỷ" và không đổi loại ngày. */
+export type ClaimStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 /** Phần riêng theo `kind`; trường nào chưa biết (đơn đang chờ, nguồn cũ) để null. */
 export type ClaimDetail =

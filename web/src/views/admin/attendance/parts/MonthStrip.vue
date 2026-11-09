@@ -43,7 +43,7 @@ onMounted(() => {
         >
           <span class="dw">{{ d.dow }}</span>
           <span class="dn">{{ d.day }}</span>
-          <span class="b dot" :class="d.kind" aria-hidden="true" />
+          <span class="b dot" :class="[d.kind, { pend: d.tag?.requestPending, rej: !!d.tag?.declined }]" aria-hidden="true" />
           <DayMarks :tag="d.tag" />
         </button>
       </li>
@@ -161,5 +161,14 @@ button.ms-i:focus-visible {
 }
 .ms-i .dot.todo {
   border-width: 3px;
+}
+/* Đơn chờ duyệt: viền vàng; đơn bị từ chối / huỷ khi chưa chấm công: viền đỏ (như lịch nhân viên) */
+.ms-i .dot.pend {
+  outline: 2px solid var(--status-pending);
+  outline-offset: 1px;
+}
+.ms-i .dot.rej {
+  outline: 2px solid var(--status-rejected);
+  outline-offset: 1px;
 }
 </style>

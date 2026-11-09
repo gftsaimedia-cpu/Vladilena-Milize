@@ -265,6 +265,17 @@ export class RequestsRepository {
     return this.attachChildren(rows);
   }
 
+  /** Các đơn nghỉ, đổi ca, làm thêm, iSAT, nghỉ giữa ca bị từ chối hoặc huỷ của một nhân sự (cũ nhất trước), kèm bảng con. */
+  async listDeclined(employeeId: string): Promise<SystemRequest[]> {
+    const rows = await this.selectRequests()
+      .where('employee_id', '=', employeeId)
+      .where('status', 'in', ['REJECTED', 'CANCELLED'])
+      .where('type', 'in', ['LEAVE', 'LEAVE_WITH_MAKEUP', 'SHIFT_CHANGE', 'OVERTIME', 'ISAT', 'HALF_SHIFT_LEAVE'])
+      .orderBy('created_at', 'asc')
+      .execute();
+    return this.attachChildren(rows);
+  }
+
   /** Điều kiện chung của danh sách, số đếm và nhóm đếm. Không đụng `status`/`type` khi `withKind` sai. */
   private scoped<O>(query: SelectQueryBuilder<DB, 'system_requests', O>, filter: RequestListFilter, withKind = true) {
     if (filter.employeeIds?.length) {

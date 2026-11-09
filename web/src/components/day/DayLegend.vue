@@ -1,11 +1,12 @@
 <script setup lang="ts">
 // Chú giải các dấu trên lịch ngày, giống nhau ở lịch Admin và lịch nhân viên.
-import { PLAN_LEGEND, PLAN_SHORT, REVIEW_GLYPH, REVIEW_LEGEND } from '@/builders/api/day-tag';
+import { BORDER_LEGEND, PLAN_LEGEND, PLAN_SHORT, REVIEW_GLYPH, REVIEW_LEGEND } from '@/builders/api/day-tag';
 </script>
 
 <template>
   <div class="dlg" role="group" aria-label="Dấu hiệu của ngày">
     <span v-for="p in PLAN_LEGEND" :key="p.code"><i class="mk plan" :class="p.code">{{ PLAN_SHORT[p.code] }}</i>{{ p.label }}</span>
+    <span v-for="b in BORDER_LEGEND" :key="b.cls"><i class="bd" :class="b.cls" />{{ b.label }}</span>
     <span v-for="r in REVIEW_LEGEND" :key="r.code"><i class="mk review" :class="r.code">{{ REVIEW_GLYPH[r.code] }}</i>{{ r.label }}</span>
   </div>
 </template>
@@ -52,6 +53,15 @@ import { PLAN_LEGEND, PLAN_SHORT, REVIEW_GLYPH, REVIEW_LEGEND } from '@/builders
 .mk.plan.leave_unpaid {
   background: var(--status-draft);
   color: var(--muted);
+}
+.bd {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--status-pending);
+}
+.bd.rej {
+  border-color: var(--status-rejected);
 }
 .mk.review {
   background: none;

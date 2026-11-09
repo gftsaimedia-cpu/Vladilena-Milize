@@ -205,7 +205,7 @@ function cellOf(date: string, padDay: boolean): CalendarCell {
   const text = working(date, rec) ? 'đang làm' : KIND_TEXT[kind];
   const label = today ? `Hôm nay, ${lower(DOW_LONG[dow])} ${ddmm(date)}: ${text}` : `${DOW_LONG[dow]} ${ddmm(date)}: ${text}`;
   const day = padDay ? date.slice(8, 10) : String(Number(date.slice(8, 10)));
-  return { date, day, dow: DOW_SHORT[dow], kind, today, label, open: !!rec, tag: mockTag(kind) };
+  return { date, day, dow: DOW_SHORT[dow], kind, today, label, open: !!rec, tag: mockTag(kind, date) };
 }
 
 const timesOf = (date: string, rec: DayRecord) => `${rec.in} – ${rec.out ?? (date === MOCK_TODAY ? '…' : '?')}`;
@@ -374,7 +374,7 @@ export function dayDetail(date: string): DayDetail | null {
     date,
     title: `${DOW_LONG[dowOf(date)]} ${ddmmyyyy(date)}`,
     shiftLine: `Ca ${SHIFT.code} ${SHIFT.start}–${SHIFT.end}`,
-    tag: mockTag(rec.kind),
+    tag: mockTag(rec.kind, date),
     kind: rec.kind,
     today: date === MOCK_TODAY,
     statusText: statusOf(date, rec),

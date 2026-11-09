@@ -9,6 +9,8 @@ export type DayTag = {
   review: ReviewCode;
   reviewLabel: string;
   requestPending: boolean;
+  /** Đơn bị từ chối / huỷ khi ngày chưa có lần chấm công; có chấm công rồi thì BE trả null. */
+  declined: { status: 'rejected' | 'cancelled'; text: string } | null;
   text: string;
 };
 
@@ -46,6 +48,11 @@ export const PLAN_LEGEND: { code: PlanCode; label: string }[] = [
   { code: 'leave_makeup', label: 'Nghỉ có làm bù' },
   { code: 'isat', label: 'Nghỉ iSAT' }
 ];
+/** Viền ô: đơn chờ duyệt (vàng), đơn bị từ chối hoặc huỷ chưa chấm công (đỏ). */
+export const BORDER_LEGEND = [
+  { cls: 'pend', label: 'Đơn chờ duyệt' },
+  { cls: 'rej', label: 'Đơn bị từ chối / huỷ' }
+] as const;
 export const REVIEW_LEGEND: { code: ReviewCode; label: string }[] = [
   { code: 'valid', label: 'Hợp lệ' },
   { code: 'needs_explanation', label: 'Cần giải trình' },

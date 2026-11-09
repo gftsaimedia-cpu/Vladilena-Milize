@@ -12,8 +12,8 @@ const input = (date: string, over: Partial<DayInput> = {}): DayInput => ({ date,
 const sched = (over: Partial<ScheduleFacts>): ScheduleFacts => ({
   scheduleType: 'REGULAR', status: 'PLANNED', shiftType: 'NORMAL', start: '08:00', end: '17:00', sourceRequestId: 'r1', requestType: null, leaveType: null, ...over
 });
-const clean: DayResult = { explanationStatus: 'none', cases: [], worked: true };
-const late = (explanationStatus: DayResult['explanationStatus']): DayResult => ({ explanationStatus, cases: [{ affectsPay: true }], worked: true });
+const clean: DayResult = { explanationStatus: 'none', cases: [], worked: true, checkedIn: true };
+const late = (explanationStatus: DayResult['explanationStatus']): DayResult => ({ explanationStatus, cases: [{ affectsPay: true }], worked: true, checkedIn: true });
 const tag = (i: DayInput, r: DayResult = clean, pending: Claim[] = []) => tagOf(Day.resolve(i, ctx, NOW, pending), r);
 
 describe('tagOf: ngày là gì', () => {
@@ -72,5 +72,38 @@ describe('tagOf: kết quả chấm công', () => {
   });
   it('dòng text gộp đủ ý', () => {
     assert.equal(tag(input('2026-11-03')).text, 'Ngày làm · HC 08:00–17:00 · Hợp lệ');
+  });
+});
+
+describe('tagOf: đơn chờ, bị từ chối, bị huỷ', () => {
+  const claim = (status: Claim['status'], kind: Claim['kind'] = 'LEAVE'): Claim => ({
+    requestId: 'r', date: '2026-11-10', kind, status, detail: { kind: 'LEAVE', leaveType: null } as any
+  });
+  const notYet: DayResult = { explanationStatus: 'none', cases: [], worked: false, checkedIn: false };
+
+  it('đơn chờ duyệt: viền vàng và chữ nói rõ loại đơn', () => {
+    const t = tag(input('2026-11-10'), notYet, [claim('PENDING')]);
+    assert.equal(t.requestPending, true);
+    assert.equal(t.declined, null);
+    assert.match(t.text, /Đơn nghỉ chờ duyệt/);
+  });
+  it('đơn bị từ chối hoặc huỷ, chưa chấm công: ngày vẫn là ngày làm nhưng có dấu đỏ', () => {
+    const rej = tag(input('2026-11-10'), notYet, [claim('REJECTED')]);
+    assert.equal(rej.plan, 'work');
+    assert.deepEqual(rej.declined, { status: 'rejected', text: 'Đơn nghỉ bị từ chối' });
+    assert.match(rej.text, /Đơn nghỉ bị từ chối/);
+    const can = tag(input('2026-11-10'), notYet, [claim('CANCELLED', 'OT_WINDOW')]);
+    assert.deepEqual(can.declined, { status: 'cancelled', text: 'Đơn làm thêm đã huỷ' });
+  });
+  it('đã chấm công thì nhãn từ chối được thay bằng kết quả đi làm', () => {
+    const t = tag(input('2026-11-03'), clean, [{ ...claim('REJECTED'), date: '2026-11-03' }]);
+    assert.equal(t.declined, null);
+    assert.equal(t.review, 'valid');
+  });
+  it('ngày đã có đơn mới chờ duyệt hoặc đã duyệt thì đơn cũ bị từ chối không hiện nữa', () => {
+    assert.equal(tag(input('2026-11-10'), notYet, [claim('REJECTED'), claim('PENDING')]).declined, null);
+    const approved = tag(input('2026-11-10', { schedule: sched({ status: 'ON_LEAVE', requestType: 'LEAVE', leaveType: 'ANNUAL' }) }), notYet, [claim('REJECTED')]);
+    assert.equal(approved.declined, null);
+    assert.equal(approved.plan, 'leave_paid');
   });
 });

@@ -92,4 +92,33 @@ describe('nhãn ngày dùng chung Admin và nhân viên', { skip: !enabled }, ()
     assert.equal(dayOf(staff, '2026-11-06').tag.review, 'pending');
     for (const d of ['04', '05', '06']) assert.deepEqual(dayOf(adm, `2026-11-${d}`).tag, dayOf(staff, `2026-11-${d}`).tag, d);
   });
+
+  it('đơn chờ duyệt, bị từ chối, bị huỷ: hai bên cùng nhãn; đi làm rồi thì nhãn từ chối được thay', async () => {
+    const leave = (d: string) => nv.post('/api/v2/me/requests/leave', { leaveType: 'ANNUAL', reason: 'Việc nhà', startDate: d, endDate: d });
+    const waiting = await leave('2026-11-10');
+    const rejected = await leave('2026-11-11');
+    const cancelled = await leave('2026-11-12');
+    const later = await leave('2026-11-13');
+    for (const r of [waiting, rejected, cancelled, later]) assert.equal(r.status, 201, msg(r));
+    assert.equal((await admin.patch(`/api/v2/requests/${rejected.body.request.id}/review`, { action: 'REJECT', note: 'Bận' })).status, 200);
+    assert.equal((await nv.patch(`/api/v2/me/requests/${cancelled.body.request.id}/cancel`, {})).status, 200);
+    assert.equal((await admin.patch(`/api/v2/requests/${later.body.request.id}/review`, { action: 'REJECT', note: 'Bận' })).status, 200);
+    const { staff, adm } = await both();
+    const t = (d: string) => dayOf(staff, `2026-11-${d}`).tag;
+    assert.equal(t('10').requestPending, true);
+    assert.equal(t('10').declined, null);
+    assert.deepEqual(t('11').declined, { status: 'rejected', text: 'Đơn nghỉ bị từ chối' });
+    assert.deepEqual(t('12').declined, { status: 'cancelled', text: 'Đơn nghỉ đã huỷ' });
+    assert.equal(t('11').plan, 'work');
+    for (const d of ['10', '11', '12', '13']) assert.deepEqual(dayOf(adm, `2026-11-${d}`).tag, t(d), d);
+
+    // Tới ngày 13: nhân viên vẫn đi làm dù đơn bị từ chối; sau khi chấm công thì nhãn từ chối được thay.
+    env.at('2026-11-13T19:00:00+07:00');
+    await workDay(admin, uuid, '2026-11-13');
+    const after = await both();
+    assert.equal(dayOf(after.staff, '2026-11-13').tag.declined, null);
+    assert.equal(dayOf(after.staff, '2026-11-13').tag.review, 'valid');
+    assert.deepEqual(dayOf(after.adm, '2026-11-13').tag, dayOf(after.staff, '2026-11-13').tag);
+    assert.deepEqual(dayOf(after.staff, '2026-11-11').tag.declined, { status: 'rejected', text: 'Đơn nghỉ bị từ chối' });
+  });
 });

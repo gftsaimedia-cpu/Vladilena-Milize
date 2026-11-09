@@ -13,7 +13,8 @@ const lines = computed<[string, string][]>(() => {
   const out: [string, string][] = [['Loại ngày', t.shift ? `${t.planLabel} · ${t.shift}` : t.planLabel]];
   if (t.extras.length) out.push(['Bổ sung', t.extras.map(e => e.text).join(' · ')]);
   if (t.reviewLabel) out.push(['Kết quả', t.reviewLabel]);
-  if (t.requestPending) out.push(['Đơn', 'Có đơn chờ duyệt']);
+  if (t.requestPending) out.push(['Đơn', t.text.split(' · ').find(x => x.endsWith('chờ duyệt')) ?? 'Có đơn chờ duyệt']);
+  if (t.declined) out.push(['Đơn', t.declined.text]);
   return out;
 });
 </script>

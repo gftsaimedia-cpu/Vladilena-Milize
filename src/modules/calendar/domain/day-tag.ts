@@ -33,8 +33,10 @@ export interface DayTag {
   extras: DayExtra[];
   review: ReviewCode;
   reviewLabel: string;
-  /** Có đơn chờ duyệt (nghỉ, đổi ca, nửa ca…) đè lên ngày này. */
+  /** Có đơn chờ duyệt (nghỉ, đổi ca, nửa ca…) đè lên ngày này: viền vàng. */
   requestPending: boolean;
+  /** Đơn của ngày bị từ chối hoặc huỷ và ngày chưa có lần chấm công nào: viền đỏ. Có chấm công rồi thì bỏ, nhãn trở về ngày đi làm. */
+  declined: { status: 'rejected' | 'cancelled'; text: string } | null;
   /** Một dòng đủ ý, cho tên truy cập và chú thích. */
   text: string;
 }
@@ -45,6 +47,8 @@ export interface DayResult {
   cases: ReadonlyArray<{ affectsPay: boolean }>;
   /** Ngày có mặt làm việc (đi làm, muộn, cần xử lý, làm thêm). */
   worked: boolean;
+  /** Ngày đã có lần chấm công (giờ vào). */
+  checkedIn: boolean;
 }
 
 const PLAN_LABEL: Record<PlanCode, string> = {
@@ -108,6 +112,16 @@ function reviewOf(day: Day, r: DayResult): ReviewCode {
   return day.isOver && r.worked ? 'valid' : 'none';
 }
 
+const CLAIM_WORD: Record<string, string> = {
+  LEAVE: 'nghỉ',
+  LEAVE_MAKEUP: 'nghỉ có làm bù',
+  ISAT: 'iSAT',
+  HALF_SHIFT: 'nghỉ giữa ca',
+  SHIFT_CHANGE: 'đổi ca',
+  OT_WINDOW: 'làm thêm',
+  MAKEUP_WINDOW: 'làm bù'
+};
+
 /** Nhãn của một ngày: `day` do lịch quyết, `result` là kết quả chấm công và giải trình của ngày đó. */
 export function tagOf(day: Day, result: DayResult): DayTag {
   const plan = planOf(day);
@@ -121,6 +135,11 @@ export function tagOf(day: Day, result: DayResult): DayTag {
   if (day.claims.some(c => c.kind === 'SHIFT_CHANGE' && c.status === 'APPROVED')) extras.push({ code: 'shift_change', text: 'Đổi ca' });
   const review = reviewOf(day, result);
   const requestPending = day.pending.length > 0;
-  const parts = [PLAN_LABEL[plan], shift, ...extras.map(e => e.text), REVIEW_LABEL[review], requestPending ? 'Có đơn chờ duyệt' : ''].filter(Boolean);
-  return { plan, planLabel: PLAN_LABEL[plan], shift, extras, review, reviewLabel: REVIEW_LABEL[review], requestPending, text: parts.join(' · ') };
+  const gone = result.checkedIn ? null : day.declined;
+  const declined = gone
+    ? { status: gone.status === 'CANCELLED' ? ('cancelled' as const) : ('rejected' as const), text: `Đơn ${CLAIM_WORD[gone.kind] ?? ''} ${gone.status === 'CANCELLED' ? 'đã huỷ' : 'bị từ chối'}`.replace('  ', ' ') }
+    : null;
+  const pendingText = requestPending ? `Đơn ${CLAIM_WORD[day.pending[0].kind] ?? ''} chờ duyệt`.replace('  ', ' ') : '';
+  const parts = [PLAN_LABEL[plan], shift, ...extras.map(e => e.text), REVIEW_LABEL[review], pendingText, declined?.text ?? ''].filter(Boolean);
+  return { plan, planLabel: PLAN_LABEL[plan], shift, extras, review, reviewLabel: REVIEW_LABEL[review], requestPending, declined, text: parts.join(' · ') };
 }

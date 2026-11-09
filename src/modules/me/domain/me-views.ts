@@ -100,7 +100,7 @@ export function daySummaryOf(
   const summary = summarize(ts, date, today, weekdays, day);
   if (!day) return summary;
   const worked = !!summary.in && (summary.kind === 'work' || summary.kind === 'late' || summary.kind === 'todo' || summary.kind === 'extra');
-  return { ...summary, tag: tagOf(day, { explanationStatus: summary.explanationStatus, cases: summary.cases, worked }) };
+  return { ...summary, tag: tagOf(day, { explanationStatus: summary.explanationStatus, cases: summary.cases, worked, checkedIn: !!summary.in }) };
 }
 
 function summarize(
